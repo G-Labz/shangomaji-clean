@@ -70,7 +70,7 @@ export default function UpdatePasswordPage() {
         }}
       >
         <div style={{ width: "100%", maxWidth: "400px" }}>
-          <p style={{ color: "#666" }}>Verifying reset link…</p>
+          <p style={{ color: "#666" }}>Verifying your ShangoMaji reset link…</p>
           <p style={{ marginTop: "1.5rem", fontSize: "0.875rem" }}>
             If nothing happens,{" "}
             <a href="/creators/reset-password" style={{ color: "#888" }}>
@@ -95,9 +95,9 @@ export default function UpdatePasswordPage() {
       }}
     >
       <div style={{ width: "100%", maxWidth: "400px" }}>
-        <h1 style={{ marginBottom: "0.5rem" }}>Set New Password</h1>
+        <h1 style={{ marginBottom: "0.5rem" }}>Set a new password</h1>
         <p style={{ marginBottom: "1.5rem", color: "#666" }}>
-          Choose a new password for your account.
+          Choose a new password for your ShangoMaji creator account.
         </p>
 
         {success ? (
@@ -111,13 +111,13 @@ export default function UpdatePasswordPage() {
               lineHeight: 1.5,
             }}
           >
-            Password updated successfully.
+            Your ShangoMaji password has been updated.
             <br />
             <a
               href="/creators/login"
               style={{ display: "inline-block", marginTop: "1rem", color: "#555", fontSize: "0.875rem" }}
             >
-              Sign in →
+              Sign in to your workspace →
             </a>
           </div>
         ) : (

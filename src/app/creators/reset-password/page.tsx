@@ -42,9 +42,9 @@ export default function ResetPasswordPage() {
       }}
     >
       <div style={{ width: "100%", maxWidth: "400px" }}>
-        <h1 style={{ marginBottom: "0.5rem" }}>Reset Password</h1>
+        <h1 style={{ marginBottom: "0.5rem" }}>Reset your password</h1>
         <p style={{ marginBottom: "1.5rem", color: "#666" }}>
-          Enter your email and we'll send you a reset link.
+          Enter the email address for your ShangoMaji creator account and we'll send you a reset link.
         </p>
 
         {sent ? (
@@ -58,7 +58,7 @@ export default function ResetPasswordPage() {
               lineHeight: 1.5,
             }}
           >
-            Check your email for a reset link.
+            If an account exists for that email, a ShangoMaji password reset link has been sent. Check your inbox.
             <br />
             <a
               href="/creators/login"
