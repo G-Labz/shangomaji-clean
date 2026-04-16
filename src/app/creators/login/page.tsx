@@ -126,12 +126,20 @@ export default function CreatorLoginPage() {
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>
-            <label
-              htmlFor="creator-password"
-              style={{ display: "block", marginBottom: "0.375rem", fontSize: "0.875rem", fontWeight: 500 }}
-            >
-              Password
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.375rem" }}>
+              <label
+                htmlFor="creator-password"
+                style={{ fontSize: "0.875rem", fontWeight: 500 }}
+              >
+                Password
+              </label>
+              <a
+                href="/creators/reset-password"
+                style={{ fontSize: "0.8rem", color: "#888", textDecoration: "none" }}
+              >
+                Forgot Password?
+              </a>
+            </div>
             <input
               id="creator-password"
               type="password"
