@@ -257,10 +257,10 @@ export default function ApplyPage() {
             <Check size={32} className="text-black" strokeWidth={2.5} />
           </div>
           <h1 className="text-display font-bold text-4xl text-white mb-4 tracking-tight">
-            You're in.
+            Application received.
           </h1>
           <p className="text-ink-muted leading-relaxed mb-3">
-            We review every creator personally. If it's a fit, you'll hear from us.
+            Your creator application has been received. We'll review it and follow up if you're approved to move forward.
           </p>
           <p className="text-sm mb-8" style={{ color: "rgba(255,255,255,0.4)" }}>
             In the meantime, keep building.

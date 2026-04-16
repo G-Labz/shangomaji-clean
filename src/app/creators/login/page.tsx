@@ -78,7 +78,7 @@ export default function CreatorLoginPage() {
       <div style={{ width: "100%", maxWidth: "400px" }}>
         <h1 style={{ marginBottom: "0.5rem" }}>Creator Login</h1>
         <p style={{ marginBottom: "1.5rem", color: "#666" }}>
-          Sign in to access your creator workspace.
+          Approved creators only. If you've been approved and set up your account credentials, sign in below.
         </p>
 
         {error && (
