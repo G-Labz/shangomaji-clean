@@ -65,15 +65,19 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const { data: project, error: fetchError } = await supabase
+  // STEP 1 — Fetch current project status before making any changes
+  const { data: existingProject, error: fetchError } = await supabase
     .from("creator_projects")
-    .select("id, status, creator_email")
+    .select("status, creator_email")
     .eq("id", id)
     .single();
 
-  if (fetchError || !project) {
+  if (fetchError || !existingProject) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
+
+  // STEP 2 — Store previous status in memory (not a DB column)
+  const previousStatus = existingProject.status;
 
   const allowedSources = ADMIN_TRANSITIONS[status];
 
@@ -84,18 +88,17 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  if (!allowedSources.includes(project.status)) {
+  if (!allowedSources.includes(previousStatus)) {
     return NextResponse.json(
-      { error: `Cannot transition from "${project.status}" to "${status}".` },
+      { error: `Cannot transition from "${previousStatus}" to "${status}".` },
       { status: 422 }
     );
   }
 
+  // STEP 3 — Run the update
   const now = new Date().toISOString();
   const updates: Record<string, any> = {
     status,
-    previous_status: project.status,
-    status_changed_at: now,
     updated_at: now,
   };
 
@@ -112,25 +115,22 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  // ── Distribution activation ──────────────────────────────────────────────
-  // When a project transitions approved → live, create the canonical title
-  // record that gates public visibility. The project_id uniqueness index
-  // prevents duplicates if the transition is somehow triggered twice.
-  if (status === "live" && project.status === "approved") {
+  // STEP 4 — Detect approved → live transition and create title record
+  if (previousStatus === "approved" && status === "live") {
     const { error: titleError } = await supabase
       .from("titles")
       .insert({
-        project_id:    id,
-        creator_email: project.creator_email,
-        status:        "active",
-        activated_at:  now,
-        created_at:    now,
-        updated_at:    now,
+        project_id:           id,
+        creator_email:        existingProject.creator_email,
+        status:               "active",
+        exclusivity_type:     "non-exclusive",
+        monetization_enabled: false,
+        distribution_start:   now,
+        created_at:           now,
       });
 
+    // STEP 6 — Title insert failure: don't rollback, return 207
     if (titleError) {
-      // The project is already live in the DB. Surface the failure as a
-      // warning (207) without rolling back — admin can retry or fix manually.
       console.error("Title creation failed after activation", { id, error: titleError.message });
       return NextResponse.json(
         {
