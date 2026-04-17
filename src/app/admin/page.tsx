@@ -74,16 +74,35 @@ export default function AdminPage() {
         body: JSON.stringify({ id, status }),
       });
       const data = await res.json().catch(() => ({}));
+
+      // 207: status updated but onboarding invite failed — surface the warning
+      if (res.status === 207) {
+        const approved = data?.application?.approved_creator ?? status === "accepted";
+        setApplications((prev) =>
+          prev.map((app) =>
+            app.id === id ? { ...app, status, approved_creator: approved } : app
+          )
+        );
+        alert(`⚠️ Onboarding warning:\n\n${data.onboardingWarning}`);
+        return;
+      }
+
       if (!res.ok) {
         console.error("Admin status update failed", data?.error || res.statusText);
         throw new Error(data?.error || "Update failed");
       }
+
       const approved = data?.application?.approved_creator ?? status === "accepted";
       setApplications((prev) =>
         prev.map((app) =>
           app.id === id ? { ...app, status, approved_creator: approved } : app
         )
       );
+
+      // Confirm invite was sent when accepting
+      if (status === "accepted") {
+        alert(`✓ Creator accepted. Onboarding invite sent to ${data.application?.email || "their email"}.`);
+      }
     } catch (e: any) {
       console.error("Admin update error", e);
       alert(e.message);
@@ -129,6 +148,20 @@ export default function AdminPage() {
         body: JSON.stringify({ id: projectId, status }),
       });
       const data = await res.json();
+
+      // 207 — transition committed but a side-effect (e.g. title creation) failed
+      if (res.status === 207) {
+        setProjectList((prev) =>
+          prev.map((p) =>
+            p.id === projectId
+              ? { ...p, status, updated_at: new Date().toISOString() }
+              : p
+          )
+        );
+        alert(`⚠️ Distribution warning:\n\n${data.distributionWarning}`);
+        return;
+      }
+
       if (!res.ok) throw new Error(data?.error || "Update failed");
       setProjectList((prev) =>
         prev.map((p) =>
@@ -619,13 +652,13 @@ export default function AdminPage() {
                           </>
                         )}
 
-                        {/* approved: Go Live */}
+                        {/* approved: Activate Distribution */}
                         {project.status === "approved" && (
                           <button
                             onClick={() => updateProjectStatus(project.id, "live")}
                             className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition"
                           >
-                            Go Live
+                            Activate Distribution
                           </button>
                         )}
 

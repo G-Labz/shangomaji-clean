@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(xargs -I {} find {} -maxdepth 2 -type d)",
-      "Bash(curl -s http://localhost:3000 -o /dev/null -w \"%{http_code}\")"
+      "Bash(curl -s http://localhost:3000 -o /dev/null -w \"%{http_code}\")",
+      "Bash(npx next *)",
+      "Bash(npx tsc *)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

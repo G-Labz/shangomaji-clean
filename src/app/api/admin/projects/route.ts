@@ -67,7 +67,7 @@ export async function PATCH(req: NextRequest) {
 
   const { data: project, error: fetchError } = await supabase
     .from("creator_projects")
-    .select("id, status")
+    .select("id, status, creator_email")
     .eq("id", id)
     .single();
 
@@ -110,6 +110,38 @@ export async function PATCH(req: NextRequest) {
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  // ── Distribution activation ──────────────────────────────────────────────
+  // When a project transitions approved → live, create the canonical title
+  // record that gates public visibility. The project_id uniqueness index
+  // prevents duplicates if the transition is somehow triggered twice.
+  if (status === "live" && project.status === "approved") {
+    const { error: titleError } = await supabase
+      .from("titles")
+      .insert({
+        project_id:    id,
+        creator_email: project.creator_email,
+        status:        "active",
+        activated_at:  now,
+        created_at:    now,
+        updated_at:    now,
+      });
+
+    if (titleError) {
+      // The project is already live in the DB. Surface the failure as a
+      // warning (207) without rolling back — admin can retry or fix manually.
+      console.error("Title creation failed after activation", { id, error: titleError.message });
+      return NextResponse.json(
+        {
+          success: true,
+          distributionWarning:
+            `Project is now live, but the distribution title record failed to create. ` +
+            `Error: ${titleError.message}. The title will not appear publicly until this is resolved.`,
+        },
+        { status: 207 }
+      );
+    }
   }
 
   return NextResponse.json({ success: true });
