@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { randomBytes } from "crypto";
+import { sendOnboardingEmail } from "@/lib/email";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,6 +15,20 @@ function unauthorized() {
 function checkAuth(req: NextRequest) {
   const pw = req.headers.get("x-admin-password");
   return pw === process.env.ADMIN_PASSWORD;
+}
+
+// Onboarding token TTL — creators have 14 days to accept terms
+const ONBOARDING_TOKEN_TTL_DAYS = 14;
+
+function mintOnboardingToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function onboardingUrlFor(token: string): string {
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    "https://shangomaji.com";
+  return `${base}/creators/onboarding?token=${encodeURIComponent(token)}`;
 }
 
 // GET — fetch all applications
@@ -31,7 +47,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ applications: data });
 }
 
-// PATCH — update status + trigger onboarding when accepting
+// PATCH — update status + trigger REAL onboarding when accepting
 export async function PATCH(req: NextRequest) {
   if (!checkAuth(req)) return unauthorized();
 
@@ -41,10 +57,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  // Fetch the full application record first — we need email for the invite
+  // Fetch the full application record — we need email + name for the onboarding email
   const { data: application, error: fetchError } = await supabase
     .from("creator_applications")
-    .select("id, email, status")
+    .select("id, email, name, status")
     .eq("id", submissionId)
     .single();
 
@@ -59,7 +75,7 @@ export async function PATCH(req: NextRequest) {
     .from("creator_applications")
     .update({ status, approved_creator })
     .eq("id", submissionId)
-    .select("id, status, approved_creator, email")
+    .select("id, status, approved_creator, email, name")
     .single();
 
   if (updateError) {
@@ -67,40 +83,103 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  // ── Onboarding trigger ───────────────────────────────────────────────────
-  // Only fires when transitioning to accepted.
-  // Uses supabase.auth.admin.inviteUserByEmail — service-role only.
-  // The invite email lands the creator at /creators/update-password where
-  // they set a password. The existing update-password page handles SIGNED_IN.
+  // ── Real onboarding trigger ──────────────────────────────────────────────
+  // Fires only on transition INTO accepted. Does three things:
+  //   1. Mint a cryptographically random onboarding token
+  //   2. Upsert a creator_onboarding row with the token + 14-day expiry
+  //   3. Send a real onboarding email via Resend
+  //
+  // The creator is NOT considered onboarded yet — they must click the link,
+  // read the platform terms, and explicitly accept. The gate in
+  // checkCreatorApproval enforces this.
   if (status === "accepted" && application.status !== "accepted") {
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-      "https://shangomaji.com";
+    const token = mintOnboardingToken();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + ONBOARDING_TOKEN_TTL_DAYS * 24 * 3600 * 1000);
 
-    const redirectTo = `${siteUrl}/creators/update-password`;
+    // Upsert onboarding record (one row per application)
+    const { error: onboardingError } = await supabase
+      .from("creator_onboarding")
+      .upsert(
+        {
+          application_id:   application.id,
+          email:            application.email,
+          token,
+          token_expires_at: expiresAt.toISOString(),
+          // Clear any stale acceptance/send_error if this is a re-accept
+          sent_at:     null,
+          send_error:  null,
+          accepted_at: null,
+          accepted_version: null,
+          updated_at: now.toISOString(),
+        },
+        { onConflict: "application_id" }
+      );
 
-    const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-      application.email,
-      { redirectTo }
-    );
-
-    if (inviteError) {
-      console.error("Creator invite failed", {
-        email: application.email,
-        error: inviteError.message,
+    if (onboardingError) {
+      console.error("Onboarding record upsert failed", {
+        applicationId: application.id,
+        error: onboardingError.message,
       });
-
-      // Status IS updated — we do not roll back.
-      // Return 207 so the admin UI can surface the onboarding failure clearly.
+      // DB status is committed. Surface this truthfully to admin.
       return NextResponse.json(
         {
           success: true,
           application: updated,
-          onboardingWarning: `Status updated to accepted, but the onboarding invite failed to send to ${application.email}. Error: ${inviteError.message}. The creator will need to be invited manually or you can retry this approval.`,
+          onboardingWarning:
+            `Application marked accepted, but the onboarding record could not be created: ${onboardingError.message}. ` +
+            `The creator will NOT receive an onboarding email. Fix the database issue and retry this approval.`,
         },
         { status: 207 }
       );
     }
+
+    // Attempt real email delivery
+    const sendResult = await sendOnboardingEmail({
+      to: application.email,
+      name: application.name || "",
+      onboardingUrl: onboardingUrlFor(token),
+    });
+
+    if (!sendResult.ok) {
+      // Email did NOT go out. Record the failure in the onboarding row
+      // and tell admin truthfully.
+      await supabase
+        .from("creator_onboarding")
+        .update({
+          send_error: sendResult.error,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("application_id", application.id);
+
+      console.error("Onboarding email send failed", {
+        email: application.email,
+        error: sendResult.error,
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          application: updated,
+          onboardingWarning:
+            `Application marked accepted, but the onboarding email did NOT go out to ${application.email}. ` +
+            `Error: ${sendResult.error} ` +
+            `The creator will not be able to complete onboarding until this is resolved. ` +
+            `Fix the email configuration and click Accept again to resend.`,
+        },
+        { status: 207 }
+      );
+    }
+
+    // Email sent — stamp sent_at, clear any prior send_error
+    await supabase
+      .from("creator_onboarding")
+      .update({
+        sent_at:    new Date().toISOString(),
+        send_error: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("application_id", application.id);
   }
 
   return NextResponse.json({ success: true, application: updated });
@@ -116,6 +195,8 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
+  // ON DELETE CASCADE on creator_onboarding.application_id ensures the
+  // onboarding row is removed with the application.
   const { error } = await supabase
     .from("creator_applications")
     .delete()

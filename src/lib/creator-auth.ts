@@ -2,23 +2,37 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Creator approval is stored in creator_applications.status
 // Real status values: "pending" | "accepted" | "rejected"
-// "accepted" is the only state that unlocks /workspace.
+//
+// A creator is only fully onboarded when:
+//   1. creator_applications.status === "accepted" (admin approval), AND
+//   2. creator_onboarding.accepted_at IS NOT NULL (creator clicked Accept
+//      on the platform terms page)
+//
+// Admin approval alone is NOT sufficient to unlock the workspace.
 //
 // Destination map:
-//   accepted  → /workspace
-//   pending   → /creators/pending   (under review)
-//   rejected  → /creators/rejected  (not approved)
-//   no record → /creators/apply     (no application on file)
+//   accepted + onboarding accepted  → /workspace
+//   accepted + onboarding pending   → /creators/onboarding/required
+//   pending                         → /creators/pending
+//   rejected                        → /creators/rejected
+//   no record                       → /creators/apply
+
+export type CreatorDestination =
+  | "/workspace"
+  | "/creators/apply"
+  | "/creators/pending"
+  | "/creators/rejected"
+  | "/creators/onboarding/required";
 
 export async function checkCreatorApproval(
   supabase: SupabaseClient,
   email: string
-): Promise<"/workspace" | "/creators/apply" | "/creators/pending" | "/creators/rejected"> {
+): Promise<CreatorDestination> {
   const normalizedEmail = email.trim().toLowerCase();
 
   const { data, error } = await supabase
     .from("creator_applications")
-    .select("status")
+    .select("id, status")
     .ilike("email", normalizedEmail)
     .limit(1);
 
@@ -26,10 +40,6 @@ export async function checkCreatorApproval(
 
   if (error || !row) {
     return "/creators/apply";
-  }
-
-  if (row.status === "accepted") {
-    return "/workspace";
   }
 
   if (row.status === "pending") {
@@ -40,6 +50,22 @@ export async function checkCreatorApproval(
     return "/creators/rejected";
   }
 
-  // Unknown status — treat as not approved, send to apply
+  if (row.status === "accepted") {
+    // Gate on explicit onboarding acceptance.
+    const { data: onboardingRow } = await supabase
+      .from("creator_onboarding")
+      .select("accepted_at")
+      .eq("application_id", row.id)
+      .maybeSingle();
+
+    const acceptedAt = (onboardingRow as any)?.accepted_at ?? null;
+
+    if (acceptedAt) {
+      return "/workspace";
+    }
+    return "/creators/onboarding/required";
+  }
+
+  // Unknown status — treat as not approved
   return "/creators/apply";
 }
