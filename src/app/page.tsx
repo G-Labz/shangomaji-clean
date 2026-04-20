@@ -22,24 +22,37 @@ export default function HomePage() {
   const futures     = getByGenre("Futures & Sci-Fi");
   const martial     = getByGenre("Martial Worlds");
 
-  const [creatorTitles, setCreatorTitles] = useState<Title[]>([]);
+  const [creatorTitles, setCreatorTitles]     = useState<Title[]>([]);
+  const [creatorTitlesError, setCreatorTitlesError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/public/titles")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.titles) {
-          setCreatorTitles(
-            data.titles.map((t: any) => ({
-              ...t,
-              score: t.score || 0,
-              cast: t.cast || [],
-              genres: t.genres || [],
-            }))
-          );
+    async function loadCreatorTitles() {
+      try {
+        const res = await fetch("/api/public/titles");
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data?.error || `Failed to load creator titles (HTTP ${res.status})`);
         }
-      })
-      .catch(() => {});
+        if (!data.titles) {
+          throw new Error("Public titles API returned an unexpected response.");
+        }
+
+        setCreatorTitles(
+          data.titles.map((t: any) => ({
+            ...t,
+            score:  t.score  || 0,
+            cast:   t.cast   || [],
+            genres: t.genres || [],
+          }))
+        );
+      } catch (err: any) {
+        console.error("[Home] Creator titles failed to load:", err.message);
+        setCreatorTitlesError(err.message);
+      }
+    }
+
+    loadCreatorTitles();
   }, []);
 
   return (
@@ -49,9 +62,13 @@ export default function HomePage() {
       <div className="pt-10">
         <ContentRow label="Trending Now"           titles={trending}    variant="landscape" />
         <ContentRow label="New Releases"           titles={newReleases} />
-       {creatorTitles.length > 0 && (
-  <ContentRow label="The Stage" titles={creatorTitles} />
-)}
+        {creatorTitlesError ? (
+          <div style={{ padding: "1rem 2.5rem", fontSize: "0.8rem", color: "rgba(255,255,255,0.25)" }}>
+            Creator titles could not be loaded.
+          </div>
+        ) : creatorTitles.length > 0 ? (
+          <ContentRow label="The Stage" titles={creatorTitles} />
+        ) : null}
         <ContentRow label="ShangoMaji Originals"   titles={originals}   variant="landscape" />
         <ContentRow label="Afro Cyberpunk"         titles={cyberpunk}   variant="landscape" />
         <ContentRow label="Mythology & Gods"       titles={mythology} />

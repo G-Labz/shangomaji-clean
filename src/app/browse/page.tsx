@@ -24,27 +24,40 @@ const item = {
 };
 
 export default function BrowsePage() {
-  const [creatorTitles, setCreatorTitles] = useState<Title[]>([]);
+  const [creatorTitles, setCreatorTitles]     = useState<Title[]>([]);
+  const [creatorTitlesError, setCreatorTitlesError] = useState<string | null>(null);
   const [activeGenre, setActiveGenre] = useState<Genre | "All">("All");
   const [activeType, setActiveType] = useState<"all" | "movie" | "series">("all");
   const [sortBy, setSortBy] = useState<SortKey>("score");
 
   useEffect(() => {
-    fetch("/api/public/titles")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.titles) {
-          setCreatorTitles(
-            data.titles.map((t: any) => ({
-              ...t,
-              score: t.score || 0,
-              cast: t.cast || [],
-              genres: t.genres || [],
-            }))
-          );
+    async function loadCreatorTitles() {
+      try {
+        const res = await fetch("/api/public/titles");
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data?.error || `Failed to load creator titles (HTTP ${res.status})`);
         }
-      })
-      .catch(() => {});
+        if (!data.titles) {
+          throw new Error("Public titles API returned an unexpected response.");
+        }
+
+        setCreatorTitles(
+          data.titles.map((t: any) => ({
+            ...t,
+            score:  t.score  || 0,
+            cast:   t.cast   || [],
+            genres: t.genres || [],
+          }))
+        );
+      } catch (err: any) {
+        console.error("[Browse] Creator titles failed to load:", err.message);
+        setCreatorTitlesError(err.message);
+      }
+    }
+
+    loadCreatorTitles();
   }, []);
 
   const filtered = useMemo(() => {
@@ -91,9 +104,15 @@ export default function BrowsePage() {
           <p className="text-white/40 text-base">
             {filtered.length} title{filtered.length !== 1 ? "s" : ""} available
           </p>
-          <p className="text-xs italic hidden sm:block" style={{ color: "rgba(240,112,48,0.5)" }}>
-            New lanes. Not the same ones.
-          </p>
+          {creatorTitlesError ? (
+            <p className="text-xs" style={{ color: "rgba(255,100,80,0.55)" }}>
+              Creator titles could not be loaded.
+            </p>
+          ) : (
+            <p className="text-xs italic hidden sm:block" style={{ color: "rgba(240,112,48,0.5)" }}>
+              New lanes. Not the same ones.
+            </p>
+          )}
         </motion.div>
       </div>
 
