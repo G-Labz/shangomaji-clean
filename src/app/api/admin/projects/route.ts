@@ -123,7 +123,7 @@ export async function PATCH(req: NextRequest) {
         project_id:           id,
         creator_email:        existingProject.creator_email,
         status:               "active",
-        exclusivity_type:     "non-exclusive",
+        exclusivity_type:     "non_exclusive",
         monetization_enabled: false,
         distribution_start:   now,
         created_at:           now,
