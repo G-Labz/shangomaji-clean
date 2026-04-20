@@ -16,46 +16,42 @@ const GENRE_MAP: Record<string, string> = {
 };
 
 export async function GET() {
-  // Fetch only active title records joined with their project data.
-  // A title row is the authoritative gate for public visibility —
-  // project.status = "live" alone is not sufficient.
-  const { data: titleRows, error } = await supabase
+  // Step 1 — Fetch active title records.
+  // Two separate queries instead of a FK join to avoid PostgREST schema-cache
+  // stale-state issues after the titles table migration.
+  const { data: titleRows, error: titlesError } = await supabase
     .from("titles")
-    .select(`
-      id,
-      project_id,
-      creator_email,
-      status,
-      exclusivity_type,
-      monetization_enabled,
-      distribution_start,
-      distribution_end,
-      activated_at,
-      creator_projects (
-        id,
-        title,
-        logline,
-        description,
-        genres,
-        project_type,
-        cover_image_url,
-        banner_url,
-        sample_url,
-        trailer_url,
-        created_at,
-        updated_at
-      )
-    `)
+    .select("id, project_id, creator_email, status, exclusivity_type, monetization_enabled, distribution_start, distribution_end, activated_at")
     .eq("status", "active")
     .order("activated_at", { ascending: false });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (titlesError) {
+    return NextResponse.json({ error: titlesError.message }, { status: 500 });
   }
 
-  // Resolve creator names + handles from creator_applications
+  if (!titleRows || titleRows.length === 0) {
+    return NextResponse.json({ titles: [] });
+  }
+
+  // Step 2 — Fetch the corresponding project records.
+  const projectIds = titleRows.map((t: any) => t.project_id).filter(Boolean);
+
+  const { data: projectRows, error: projectsError } = await supabase
+    .from("creator_projects")
+    .select("id, title, logline, description, genres, project_type, cover_image_url, banner_url, sample_url, trailer_url, created_at, updated_at")
+    .in("id", projectIds);
+
+  if (projectsError) {
+    return NextResponse.json({ error: projectsError.message }, { status: 500 });
+  }
+
+  const projectMap = new Map(
+    (projectRows ?? []).map((p: any) => [p.id, p])
+  );
+
+  // Step 3 — Resolve creator names + handles from creator_applications.
   const emails = Array.from(
-    new Set((titleRows ?? []).map((t: any) => t.creator_email).filter(Boolean))
+    new Set(titleRows.map((t: any) => t.creator_email).filter(Boolean))
   );
 
   const { data: creatorRows } = emails.length
@@ -70,8 +66,9 @@ export async function GET() {
     (creatorRows ?? []).map((c: any) => [c.email.trim().toLowerCase(), c])
   );
 
-  const titles = (titleRows ?? []).map((t: any) => {
-    const p = t.creator_projects;
+  // Step 4 — Shape the response.
+  const titles = titleRows.map((t: any) => {
+    const p = projectMap.get(t.project_id);
     const creator = creatorMap.get((t.creator_email ?? "").trim().toLowerCase());
 
     return {
@@ -81,7 +78,7 @@ export async function GET() {
       title:       p?.title || "Untitled",
       tagline:     p?.logline || "",
       description: p?.description || p?.logline || "",
-      year:        p ? new Date(p.created_at).getFullYear() : null,
+      year:        p ? new Date(p.created_at).getFullYear() : new Date().getFullYear(),
       rating:      "NR",
       score:       0,
       runtime:     null,

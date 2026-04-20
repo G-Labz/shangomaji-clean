@@ -103,7 +103,6 @@ export async function POST(req: NextRequest) {
       .from("creator_projects")
       .update({
         status: "pending",
-        previous_status: "draft",
         submitted_at: submitAt,
         status_changed_at: submitAt,
         submission_count: 1,
@@ -245,7 +244,6 @@ export async function PATCH(req: NextRequest) {
   const now = new Date().toISOString();
   const updates: Record<string, any> = {
     status: targetStatus,
-    previous_status: project.status,
     status_changed_at: now,
     updated_at: now,
   };

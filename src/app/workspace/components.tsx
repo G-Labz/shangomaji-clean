@@ -272,6 +272,7 @@ export function ItemActions({
   onRequestRemoval,
   editHref,
   deleteBlockedReason,
+  isArchived,
 }: {
   onEdit?: () => void;
   onDelete?: () => void;
@@ -284,6 +285,11 @@ export function ItemActions({
   onRequestRemoval?: () => void;
   editHref?: string;
   deleteBlockedReason?: string;
+  /**
+   * Archived projects are an admin-managed terminal state.
+   * No creator actions are available — suppress all action buttons.
+   */
+  isArchived?: boolean;
 }) {
   const linkClass =
     "text-xs flex items-center gap-1 transition px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-white/20";
@@ -300,8 +306,9 @@ export function ItemActions({
         </button>
       ) : null}
 
-      {/* Live projects: show Request Removal instead of Delete */}
-      {onRequestRemoval ? (
+      {/* Archived: admin-managed terminal state — no creator actions shown */}
+      {isArchived ? null : onRequestRemoval ? (
+        /* Live projects: show Request Removal instead of Delete */
         <button
           onClick={onRequestRemoval}
           className={`${linkClass} text-yellow-400/70 hover:text-yellow-400 hover:border-yellow-400/30`}

@@ -48,11 +48,10 @@ export default function BrowsePage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const PLACEHOLDER = "/images/placeholder.png";
-    const validCreatorTitles = creatorTitles.filter(
-      (t) => t.posterUrl && t.posterUrl !== PLACEHOLDER
-    );
-    let list = [...titles, ...validCreatorTitles];
+    // Include all activated creator titles — the public titles API is the gate,
+    // not the presence of a custom poster. Titles without custom covers will
+    // render with the placeholder image, which is acceptable.
+    let list = [...titles, ...creatorTitles];
 
     if (activeGenre !== "All") {
       list = list.filter((t) => t.genres.includes(activeGenre));

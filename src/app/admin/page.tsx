@@ -35,7 +35,7 @@ export default function AdminPage() {
   const [filter, setFilter]         = useState<"all" | "pending" | "accepted" | "rejected">("all");
   const [view, setView]             = useState<"applications" | "projects">("applications");
   const [projectList, setProjectList]   = useState<any[]>([]);
-  const [projectFilter, setProjectFilter] = useState<"all" | "pending" | "in_review" | "approved" | "rejected" | "live">("all");
+  const [projectFilter, setProjectFilter] = useState<"all" | "pending" | "in_review" | "approved" | "rejected" | "live" | "archived">("all");
   const [projectLoading, setProjectLoading] = useState(false);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
@@ -172,6 +172,10 @@ export default function AdminPage() {
       );
     } catch (e: any) {
       alert(e.message);
+      // Reload from server so local state reflects actual DB state.
+      // This prevents stale-state issues (e.g. Archive button remaining
+      // visible after a failed or already-completed transition).
+      loadProjects();
     }
   }
 
@@ -218,6 +222,7 @@ export default function AdminPage() {
     approved:  projectList.filter((p) => p.status === "approved").length,
     rejected:  projectList.filter((p) => p.status === "rejected").length,
     live:      projectList.filter((p) => p.status === "live").length,
+    archived:  projectList.filter((p) => p.status === "archived").length,
   };
 
   const projectStatusColor: Record<string, string> = {
@@ -477,6 +482,7 @@ export default function AdminPage() {
                 { key: "approved",  label: "Approved"  },
                 { key: "rejected",  label: "Rejected"  },
                 { key: "live",      label: "Live"      },
+                { key: "archived",  label: "Archived"  },
               ] as const
             ).map((f) => (
               <button

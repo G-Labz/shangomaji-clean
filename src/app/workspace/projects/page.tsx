@@ -319,9 +319,11 @@ export default function WorkspaceProjects() {
 
       <div className="grid gap-3">
         {filtered.map((project) => {
-          const canDelete = project.status === "draft" || project.status === "rejected";
-          const isLive    = project.status === "live";
-          const blocked   = !canDelete && !isLive;
+          const canDelete  = project.status === "draft" || project.status === "rejected";
+          const isLive     = project.status === "live";
+          const isArchived = project.status === "archived";
+          // archived is an admin-managed terminal state — no creator action is possible or shown
+          const blocked    = !canDelete && !isLive && !isArchived;
 
           return (
             <Card key={project.id} className="flex flex-col md:flex-row md:items-center gap-4">
@@ -355,6 +357,7 @@ export default function WorkspaceProjects() {
                     ? () => setRemovalProject(project)
                     : undefined
                 }
+                isArchived={isArchived}
               />
             </Card>
           );

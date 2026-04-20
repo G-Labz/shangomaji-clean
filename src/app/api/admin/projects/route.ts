@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from("creator_projects")
     .select("*")
-    .in("status", ["pending", "in_review", "approved", "rejected", "live"])
+    .in("status", ["pending", "in_review", "approved", "rejected", "live", "archived"])
     .order("updated_at", { ascending: false });
 
   if (error) {
