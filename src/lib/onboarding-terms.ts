@@ -11,42 +11,42 @@ export type TermsSection = {
 };
 
 export const ONBOARDING_INTRO =
-  "You've been accepted into ShangoMaji. Before you can publish, read the platform terms below and confirm.";
+  "You've been accepted to ShangoMaji. Read the terms below and accept to continue.";
 
 export const ONBOARDING_TERMS: TermsSection[] = [
   {
     heading: "What ShangoMaji is",
     body:
-      "ShangoMaji is a curated, creator-first distribution platform for culture-driven stories. It is not an open upload free-for-all. Every title on the platform is personally reviewed and activated for distribution by the editorial team.",
+      "ShangoMaji is a curated platform for culture-driven stories. It is not an open-upload service. Every title is editorially reviewed before it goes live.",
   },
   {
     heading: "What you keep",
     body:
-      "You retain ownership of the content you create. Your work is your work. Acceptance of these terms does not transfer copyright or underlying rights to ShangoMaji.",
+      "You retain full ownership of the work you create. Accepting these terms does not transfer copyright or any underlying rights to ShangoMaji.",
   },
   {
     heading: "What ShangoMaji controls",
     body:
-      "While your title is active on the platform, ShangoMaji controls its distribution position, curation and editorial surfacing, moderation, and decisions made in the interest of platform integrity. Editorial decisions are final.",
+      "While your title is active on the platform, ShangoMaji controls distribution, curation, editorial placement, and moderation. Decisions made in the interest of platform integrity are final.",
   },
   {
     heading: "Removal is not casual",
     body:
-      "Once a title is live, it cannot be instantly deleted. Removal requires a formal request and editorial review. This protects the platform, the audience, and other creators who depend on a stable catalog.",
+      "Once a title is live, it cannot be instantly removed. Takedown requires a formal request and editorial review. This protects the catalog, the audience, and the creators who depend on it.",
   },
   {
     heading: "First-conversation expectation",
     body:
-      "If outside interest in your title emerges — distribution, licensing, adaptation, or commercial partnerships — ShangoMaji expects the first conversation. This is a platform relationship, not a one-sided hosting arrangement.",
+      "If outside interest in your title emerges, whether distribution, licensing, or adaptation, ShangoMaji expects the first conversation. This is a mutual relationship.",
   },
   {
     heading: "Future distribution structure",
     body:
-      "Monetization and distribution structure on the platform may be platform-mediated and will be communicated clearly as it is rolled out. Participation in future platform-mediated structures is part of being an active ShangoMaji creator.",
+      "Revenue and distribution models will evolve. Changes will be communicated clearly before they take effect. Participation in those structures is part of being an active creator on ShangoMaji.",
   },
   {
     heading: "Participation rules",
     body:
-      "Creators are expected to act in good faith toward the platform, the audience, and other creators. Conduct that undermines platform integrity is grounds for review and, if necessary, removal of privileges.",
+      "Creators are expected to act in good faith toward the platform, the audience, and each other. Conduct that undermines platform integrity is grounds for review and possible removal.",
   },
 ];

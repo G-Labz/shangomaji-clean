@@ -120,7 +120,7 @@ export default async function CreatorOnboardingPage({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "3rem 1.5rem 4rem",
+        padding: "5rem 1.5rem 4rem",
       }}
     >
       <div style={{ width: "100%", maxWidth: 640 }}>
@@ -128,7 +128,7 @@ export default async function CreatorOnboardingPage({
           style={{
             display: "inline-block",
             padding: "0.25rem 0.75rem",
-            marginBottom: "1.25rem",
+            marginBottom: "1.5rem",
             backgroundColor: "rgba(245,197,24,0.1)",
             border: "1px solid rgba(245,197,24,0.3)",
             borderRadius: 999,
@@ -142,11 +142,11 @@ export default async function CreatorOnboardingPage({
           Creator Onboarding
         </div>
 
-        <h1 style={{ margin: "0 0 0.75rem", fontSize: "1.9rem", fontWeight: 700, lineHeight: 1.2 }}>
+        <h1 style={{ margin: "0 0 1rem", fontSize: "1.9rem", fontWeight: 700, lineHeight: 1.2 }}>
           Welcome to ShangoMaji.
         </h1>
 
-        <p style={{ margin: "0 0 2rem", color: "#bbb", lineHeight: 1.65, fontSize: "1rem" }}>
+        <p style={{ margin: "0 0 2.5rem", color: "#bbb", lineHeight: 1.65, fontSize: "1rem" }}>
           {ONBOARDING_INTRO}
         </p>
 
@@ -203,8 +203,8 @@ export default async function CreatorOnboardingPage({
             lineHeight: 1.55,
           }}
         >
-          By clicking Accept, you confirm you have read and agree to participate under
-          ShangoMaji platform terms {ONBOARDING_TERMS_VERSION}.
+          By clicking Accept, you confirm you have read and agree to these
+          terms ({ONBOARDING_TERMS_VERSION}).
         </p>
       </div>
     </div>

@@ -52,17 +52,17 @@ export default function OnboardingAcceptClient({
         }}
       >
         <div style={{ fontWeight: 600, color: "rgba(134,239,172,1)", marginBottom: 6 }}>
-          Onboarding accepted.
+          Terms accepted.
         </div>
         <p style={{ margin: 0 }}>
-          We've sent a password setup email
+          A password setup email has been sent
           {email ? (
             <>
               {" "}
               to <span style={{ color: "#fff" }}>{email}</span>
             </>
           ) : null}
-          . Check your inbox to finish setting up your ShangoMaji account.
+          . Check your inbox to finish creating your account.
         </p>
       </div>
     );
