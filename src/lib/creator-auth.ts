@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 // Creator approval is stored in creator_applications.status
 // Real status values: "pending" | "accepted" | "rejected"
@@ -16,6 +16,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 //   pending                         → /creators/pending
 //   rejected                        → /creators/rejected
 //   no record                       → /creators/apply
+//
+// Implementation notes:
+//   - This function reads onboarding state using the SERVICE ROLE client so
+//     the gate is immune to RLS policy on creator_onboarding. The write side
+//     (acceptance API, admin API) already uses service role; the read side
+//     must match, otherwise the gate can silently miss a real acceptance
+//     when RLS is enabled without a SELECT policy.
+//   - The function also handles multiple application rows for the same email
+//     (re-applications, test records, case variants): it looks across ALL
+//     matching applications and considers the creator onboarded if ANY
+//     accepted application has an accepted onboarding row.
 
 export type CreatorDestination =
   | "/workspace"
@@ -24,48 +35,74 @@ export type CreatorDestination =
   | "/creators/rejected"
   | "/creators/onboarding/required";
 
+function svc() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
 export async function checkCreatorApproval(
-  supabase: SupabaseClient,
   email: string
 ): Promise<CreatorDestination> {
   const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return "/creators/apply";
 
-  const { data, error } = await supabase
+  const supabase = svc();
+
+  // Fetch ALL applications for this email, newest first. Covers re-applications,
+  // test records, and case/whitespace variants.
+  const { data: apps, error } = await supabase
     .from("creator_applications")
-    .select("id, status")
+    .select("id, status, submitted_at")
     .ilike("email", normalizedEmail)
-    .limit(1);
+    .order("submitted_at", { ascending: false });
 
-  const row = (data as any[])?.[0] ?? null;
-
-  if (error || !row) {
+  if (error) {
+    console.error("checkCreatorApproval: application lookup failed", {
+      email: normalizedEmail,
+      error: error.message,
+    });
+    // Fail safely: send to apply rather than silently pass a non-approved user.
     return "/creators/apply";
   }
 
-  if (row.status === "pending") {
-    return "/creators/pending";
+  if (!apps || apps.length === 0) {
+    return "/creators/apply";
   }
 
-  if (row.status === "rejected") {
-    return "/creators/rejected";
+  const accepted = apps.filter((a: any) => a.status === "accepted");
+
+  if (accepted.length === 0) {
+    // No accepted application. Determine destination from the most recent row.
+    const latest = apps[0] as any;
+    if (latest.status === "pending")  return "/creators/pending";
+    if (latest.status === "rejected") return "/creators/rejected";
+    return "/creators/apply";
   }
 
-  if (row.status === "accepted") {
-    // Gate on explicit onboarding acceptance.
-    const { data: onboardingRow } = await supabase
-      .from("creator_onboarding")
-      .select("accepted_at")
-      .eq("application_id", row.id)
-      .maybeSingle();
+  // Check whether ANY accepted application has a completed onboarding record.
+  const acceptedIds = accepted.map((a: any) => a.id);
+  const { data: onboardingRows, error: onboardingError } = await supabase
+    .from("creator_onboarding")
+    .select("application_id, accepted_at")
+    .in("application_id", acceptedIds);
 
-    const acceptedAt = (onboardingRow as any)?.accepted_at ?? null;
-
-    if (acceptedAt) {
-      return "/workspace";
-    }
+  if (onboardingError) {
+    console.error("checkCreatorApproval: onboarding lookup failed", {
+      email: normalizedEmail,
+      acceptedIds,
+      error: onboardingError.message,
+    });
+    // Fail safely: require onboarding. Never silently unlock the workspace.
     return "/creators/onboarding/required";
   }
 
-  // Unknown status — treat as not approved
-  return "/creators/apply";
+  const hasAcceptedOnboarding = (onboardingRows ?? []).some(
+    (r: any) => r?.accepted_at != null
+  );
+
+  return hasAcceptedOnboarding
+    ? "/workspace"
+    : "/creators/onboarding/required";
 }

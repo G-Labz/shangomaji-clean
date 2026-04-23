@@ -115,10 +115,20 @@ This link is unique to you. If you didn't apply to ShangoMaji, you can ignore th
             </tr>
             <tr>
               <td style="padding:8px 32px 24px;">
-                <a href="${escapeHtml(opts.onboardingUrl)}"
-                   style="display:inline-block;background:linear-gradient(90deg,#e53e2a,#f07030,#f5c518);color:#000;text-decoration:none;font-weight:600;font-size:15px;padding:12px 22px;border-radius:10px;">
-                  Review terms and continue
-                </a>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0;border-collapse:separate;">
+                  <tr>
+                    <td align="center" bgcolor="#f5c518" style="background-color:#f5c518;background-image:linear-gradient(90deg,#e53e2a,#f07030,#f5c518);border-radius:10px;">
+                      <a href="${escapeHtml(opts.onboardingUrl)}"
+                         style="display:inline-block;padding:13px 26px;color:#0c0806;text-decoration:none;font-weight:700;font-size:15px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.01em;border:1px solid #f5c518;border-radius:10px;mso-padding-alt:0;">
+                        Review terms and continue
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:14px 0 0;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.6;">
+                  Button not working? Paste this link into your browser:<br />
+                  <a href="${escapeHtml(opts.onboardingUrl)}" style="color:#f5c518;word-break:break-all;">${escapeHtml(opts.onboardingUrl)}</a>
+                </p>
               </td>
             </tr>
             <tr>
@@ -265,10 +275,20 @@ ${footer}
             </tr>
             <tr>
               <td style="padding:8px 32px 24px;">
-                <a href="${escapeHtml(opts.setupUrl)}"
-                   style="display:inline-block;background:linear-gradient(90deg,#e53e2a,#f07030,#f5c518);color:#000;text-decoration:none;font-weight:600;font-size:15px;padding:12px 22px;border-radius:10px;">
-                  ${escapeHtml(cta)}
-                </a>
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0;border-collapse:separate;">
+                  <tr>
+                    <td align="center" bgcolor="#f5c518" style="background-color:#f5c518;background-image:linear-gradient(90deg,#e53e2a,#f07030,#f5c518);border-radius:10px;">
+                      <a href="${escapeHtml(opts.setupUrl)}"
+                         style="display:inline-block;padding:13px 26px;color:#0c0806;text-decoration:none;font-weight:700;font-size:15px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.01em;border:1px solid #f5c518;border-radius:10px;mso-padding-alt:0;">
+                        ${escapeHtml(cta)}
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:14px 0 0;color:rgba(255,255,255,0.55);font-size:12px;line-height:1.6;">
+                  Button not working? Paste this link into your browser:<br />
+                  <a href="${escapeHtml(opts.setupUrl)}" style="color:#f5c518;word-break:break-all;">${escapeHtml(opts.setupUrl)}</a>
+                </p>
               </td>
             </tr>
             <tr>

@@ -18,7 +18,7 @@ export default async function WorkspaceLayout({
     redirect("/creators/login");
   }
 
-  const destination = await checkCreatorApproval(supabase, user.email);
+  const destination = await checkCreatorApproval(user.email);
 
   if (destination !== "/workspace") {
     redirect(destination);
