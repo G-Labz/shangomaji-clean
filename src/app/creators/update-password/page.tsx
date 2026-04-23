@@ -72,27 +72,10 @@ export default function UpdatePasswordPage() {
           return;
         }
 
-        // PKCE code exchange — the default path for @supabase/ssr + inviteUserByEmail.
-        const code = query.get("code");
-        if (code) {
-          const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-          if (cancelled) return;
-          if (exErr) {
-            setError(
-              /expired|invalid/i.test(exErr.message || "")
-                ? "This link has expired or is no longer valid. Please request a new link."
-                : (exErr.message || "Could not verify your link."),
-            );
-            goStage("error");
-          } else {
-            // Clean the URL so a browser refresh doesn't retry a consumed code.
-            window.history.replaceState({}, "", window.location.pathname);
-            goStage("ready");
-          }
-          return;
-        }
-
-        // Email OTP verification (token_hash + type) — older invite/recovery links.
+        // Preferred path: hashed-token OTP verification. This is what our
+        // server-generated invite and recovery links use. It requires NO
+        // client-side PKCE verifier, so it works when the email is opened in
+        // a different browser or an in-app webview.
         const tokenHash = query.get("token_hash") || hash.get("token_hash");
         const typeParam = query.get("type")       || hash.get("type");
         if (tokenHash && typeParam) {
@@ -103,9 +86,31 @@ export default function UpdatePasswordPage() {
           if (cancelled) return;
           if (otpErr) {
             setError(
-              /expired|invalid/i.test(otpErr.message || "")
+              /expired|invalid|otp/i.test(otpErr.message || "")
                 ? "This link has expired or is no longer valid. Please request a new link."
                 : (otpErr.message || "Could not verify your link."),
+            );
+            goStage("error");
+          } else {
+            window.history.replaceState({}, "", window.location.pathname);
+            goStage("ready");
+          }
+          return;
+        }
+
+        // Legacy fallback: PKCE code exchange. Only reachable for stale links
+        // issued before the token_hash flow was adopted. This will fail if the
+        // code verifier isn't in this browser's storage (different device or
+        // in-app webview) — we surface that truthfully.
+        const code = query.get("code");
+        if (code) {
+          const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (cancelled) return;
+          if (exErr) {
+            setError(
+              /verifier|expired|invalid/i.test(exErr.message || "")
+                ? "This link is no longer valid. Please request a new setup link."
+                : (exErr.message || "Could not verify your link."),
             );
             goStage("error");
           } else {

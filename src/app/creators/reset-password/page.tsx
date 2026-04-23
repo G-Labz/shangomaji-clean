@@ -1,11 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase-browser";
 
 export default function ResetPasswordPage() {
-  const supabase = createClient();
-
   const [email, setEmail]     = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent]       = useState(false);
@@ -16,18 +13,28 @@ export default function ResetPasswordPage() {
     setError(null);
     setLoading(true);
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: window.location.origin + "/creators/update-password",
-    });
+    // We call our own server route rather than `supabase.auth.resetPasswordForEmail`.
+    // The server generates a hashed-token recovery link (no PKCE verifier) and
+    // sends a branded ShangoMaji email via Resend. The link works when opened
+    // in a different browser/app from the one that requested the reset.
+    try {
+      const res = await fetch("/api/creators/reset-password", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email: email.trim() }),
+      });
 
-    setLoading(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Something went wrong. Please try again.");
+      }
 
-    if (resetError) {
-      setError("Something went wrong. Please try again.");
-      return;
+      setSent(true);
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setSent(true);
   }
 
   return (
