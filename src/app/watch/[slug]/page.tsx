@@ -122,12 +122,10 @@ export default function WatchPage({ params, searchParams }: PageProps) {
   );
 }
 
-// ── Helper ────────────────────────────────────────────────
-function isDirectVideo(url: string): boolean {
-  return /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
-}
-
 // ── Creator title playback fallback ──────────────────────
+// Phase 1: Bunny Stream embed only. Sample/trailer fallbacks were removed —
+// only playable, media-bound titles reach the public catalog now, so a creator
+// title here either has an embed URL or it is unavailable.
 function CreatorWatchFallback({ slug }: { slug: string }) {
   const router = useRouter();
   const [title, setTitle] = useState<any>(null);
@@ -149,77 +147,78 @@ function CreatorWatchFallback({ slug }: { slug: string }) {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center z-[100]">
-        <p className="text-white/40 text-sm">Loading...</p>
+        <p className="text-white/40 text-sm">Loading…</p>
       </div>
     );
   }
 
-  if (!title) return notFound();
+  // Title not found in the public (gated) catalog → render the unavailable state.
+  // We do not fall back to raw sample/trailer URLs in Phase 1.
+  if (!title || !title.playbackEmbedUrl) {
+    return <UnavailableState onBack={handleBack} title={title} />;
+  }
 
-  const sampleUrl: string | null = title.sampleUrl || null;
-  const trailerUrl: string | null = title.trailerUrl || null;
+  return (
+    <div className="fixed inset-0 bg-black z-[100] flex flex-col">
+      <div className="flex items-center gap-4 px-5 py-4 bg-black/90 z-10">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 text-white/70 hover:text-white text-sm transition"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="hidden sm:inline">Back</span>
+        </button>
+        <p className="text-white font-semibold text-sm md:text-base truncate">
+          {title.title}
+        </p>
+      </div>
 
-  // CASE 1 — direct sample
-  if (sampleUrl && isDirectVideo(sampleUrl)) {
-    return (
-      <div className="fixed inset-0 bg-black z-[100]">
-        <VideoPlayer
-          videoUrl={sampleUrl}
+      <div className="flex-1 relative bg-black">
+        <iframe
+          src={title.playbackEmbedUrl}
           title={title.title}
-          subtitle="Sample"
-          backdropUrl={title.backdropUrl}
-          onBack={handleBack}
-          hasNext={false}
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="absolute inset-0 w-full h-full border-0"
         />
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  // CASE 2 — direct trailer
-  if (trailerUrl && isDirectVideo(trailerUrl)) {
-    return (
-      <div className="fixed inset-0 bg-black z-[100]">
-        <VideoPlayer
-          videoUrl={trailerUrl}
-          title={title.title}
-          subtitle="Trailer"
-          backdropUrl={title.backdropUrl}
-          onBack={handleBack}
-          hasNext={false}
-        />
-      </div>
-    );
-  }
-
-  // CASE 3 & 4 — no direct playable media (external URL or nothing)
+function UnavailableState({
+  onBack,
+  title,
+}: {
+  onBack: () => void;
+  title: any;
+}) {
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center gap-6 px-6 text-center">
       <button
-        onClick={handleBack}
+        onClick={onBack}
         className="absolute top-6 left-6 text-white/50 hover:text-white text-sm transition flex items-center gap-1.5"
       >
         ← Back
       </button>
 
-      {title.backdropUrl && title.backdropUrl !== "/images/placeholder.png" && (
+      {title?.backdropUrl && title.backdropUrl !== "/images/placeholder.png" && (
         <div
           className="absolute inset-0 bg-cover bg-center opacity-10 pointer-events-none"
           style={{ backgroundImage: `url(${title.backdropUrl})` }}
         />
       )}
 
-      <div className="relative z-10 flex flex-col items-center gap-4 max-w-md">
-        <p className="text-white/30 text-xs uppercase tracking-widest">
-          {title.type === "series" ? "Series" : "Film"}
-        </p>
-        <h1 className="text-white font-bold text-3xl md:text-4xl leading-tight">
-          {title.title}
-        </h1>
-        <p className="text-white/50 text-sm">
-          Playback is not available on ShangoMaji yet.
-        </p>
-        <p className="text-white/25 text-xs">
-          Trailers and previews must be uploaded directly to ShangoMaji.
+      <div className="relative z-10 flex flex-col items-center gap-3 max-w-md">
+        {title?.title && (
+          <h1 className="text-white font-bold text-3xl md:text-4xl leading-tight">
+            {title.title}
+          </h1>
+        )}
+        <p className="text-white/60 text-sm">
+          This title isn’t available right now.
         </p>
       </div>
     </div>

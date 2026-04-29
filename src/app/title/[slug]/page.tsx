@@ -424,6 +424,26 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
             </div>
           )}
 
+          {/* Watch CTA — only when playable media is bound to this title */}
+          <div className="flex items-center gap-3 flex-wrap mb-8">
+            {title.playable ? (
+              <Link
+                href={`/watch/${title.slug}`}
+                className="flex items-center gap-2.5 bg-white text-black font-semibold px-7 py-3.5 rounded-xl hover:bg-white/90 active:scale-95 transition-all duration-200 text-sm"
+              >
+                <Play size={16} fill="currentColor" />
+                {title.type === "series" ? "Play S1 E1" : "Play"}
+              </Link>
+            ) : (
+              <span
+                className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs uppercase tracking-widest"
+                style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                Coming soon
+              </span>
+            )}
+          </div>
+
           {title.creatorName ? (
             <motion.div
               className="py-5 border-t border-white/5"

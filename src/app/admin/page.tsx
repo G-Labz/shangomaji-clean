@@ -44,6 +44,10 @@ export default function AdminPage() {
   const [rejectionInput, setRejectionInput]   = useState("");
   const [rejectBusy, setRejectBusy]           = useState(false);
 
+  // Bunny media binding (Phase 1) — keyed by project id
+  const [mediaInputs, setMediaInputs] = useState<Record<string, string>>({});
+  const [mediaBusy, setMediaBusy]     = useState<string | null>(null);
+
   const headers = { "x-admin-password": password };
 
   async function login() {
@@ -207,6 +211,40 @@ export default function AdminPage() {
       alert(e.message);
     } finally {
       setRejectBusy(false);
+    }
+  }
+
+  // Save Bunny video ID + media_ready flag for a live project's title row.
+  async function saveMedia(projectId: string, opts: { bunnyVideoId?: string; mediaReady?: boolean }) {
+    setMediaBusy(projectId);
+    try {
+      const res = await fetch("/api/admin/titles/media", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          ...(opts.bunnyVideoId !== undefined ? { bunnyVideoId: opts.bunnyVideoId } : {}),
+          ...(opts.mediaReady   !== undefined ? { mediaReady:   opts.mediaReady   } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Media update failed");
+      setProjectList((prev) =>
+        prev.map((p) =>
+          p.id === projectId
+            ? {
+                ...p,
+                bunny_video_id:      data.title?.bunny_video_id      ?? p.bunny_video_id,
+                bunny_thumbnail_url: data.title?.bunny_thumbnail_url ?? p.bunny_thumbnail_url,
+                media_ready:         data.title?.media_ready         ?? p.media_ready,
+              }
+            : p
+        )
+      );
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setMediaBusy(null);
     }
   }
 
@@ -582,6 +620,68 @@ export default function AdminPage() {
                           <Field label="Removal Reason" value={project.removal_reason} full />
                         )}
                       </div>
+
+                      {/* ── Bunny media binding (live projects only) ── */}
+                      {project.status === "live" && (
+                        <div className="mt-5 pt-4 border-t border-white/5 space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <p className="text-xs uppercase tracking-widest text-neutral-500">
+                              Bunny Stream
+                            </p>
+                            <span
+                              className={`text-[11px] px-2 py-0.5 rounded border ${
+                                project.media_ready
+                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                  : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                              }`}
+                            >
+                              {project.media_ready ? "Media ready" : "Not playable yet"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <input
+                              type="text"
+                              placeholder="Bunny video ID"
+                              defaultValue={project.bunny_video_id || ""}
+                              onChange={(e) =>
+                                setMediaInputs((s) => ({ ...s, [project.id]: e.target.value }))
+                              }
+                              className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40"
+                            />
+                            <button
+                              onClick={() =>
+                                saveMedia(project.id, {
+                                  bunnyVideoId:
+                                    mediaInputs[project.id] !== undefined
+                                      ? mediaInputs[project.id]
+                                      : project.bunny_video_id || "",
+                                })
+                              }
+                              disabled={mediaBusy === project.id}
+                              className="px-3 py-2 rounded text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
+                            >
+                              {mediaBusy === project.id ? "Saving…" : "Save ID"}
+                            </button>
+                            <button
+                              onClick={() => saveMedia(project.id, { mediaReady: !project.media_ready })}
+                              disabled={mediaBusy === project.id}
+                              className={`px-3 py-2 rounded text-xs font-medium border transition disabled:opacity-50 ${
+                                project.media_ready
+                                  ? "border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                                  : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                              }`}
+                            >
+                              {project.media_ready ? "Mark not ready" : "Mark media ready"}
+                            </button>
+                          </div>
+
+                          <p className="text-[11px] text-neutral-500 leading-relaxed">
+                            A title only appears in the public catalog when it has a Bunny video ID
+                            and is marked media ready.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Rejection input */}
                       {rejectingId === project.id && (

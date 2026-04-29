@@ -27,7 +27,7 @@ const ADMIN_TRANSITIONS: Record<string, string[]> = {
 export async function GET(req: NextRequest) {
   if (!checkAuth(req)) return unauthorized();
 
-  const { data, error } = await supabase
+  const { data: projects, error } = await supabase
     .from("creator_projects")
     .select("*")
     .in("status", ["pending", "in_review", "approved", "rejected", "live", "archived"])
@@ -37,7 +37,38 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ projects: data ?? [] });
+  // Attach each project's title media fields (Phase 1 — Bunny binding).
+  // Only "live" projects have a title row, but a separate query is cheaper
+  // than a per-row join and avoids PostgREST FK resolution.
+  const liveIds = (projects ?? [])
+    .filter((p: any) => p.status === "live")
+    .map((p: any) => p.id);
+
+  const titlesByProject = new Map<string, any>();
+  if (liveIds.length) {
+    const { data: titleRows } = await supabase
+      .from("titles")
+      .select("id, project_id, bunny_video_id, bunny_thumbnail_url, media_ready, status")
+      .in("project_id", liveIds)
+      .neq("status", "removed");
+    for (const t of titleRows ?? []) {
+      titlesByProject.set(t.project_id, t);
+    }
+  }
+
+  const enriched = (projects ?? []).map((p: any) => {
+    const t = titlesByProject.get(p.id);
+    return {
+      ...p,
+      title_id:                t?.id              ?? null,
+      bunny_video_id:          t?.bunny_video_id  ?? null,
+      bunny_thumbnail_url:     t?.bunny_thumbnail_url ?? null,
+      media_ready:             t?.media_ready     ?? false,
+      title_status:            t?.status          ?? null,
+    };
+  });
+
+  return NextResponse.json({ projects: enriched });
 }
 
 export async function PATCH(req: NextRequest) {

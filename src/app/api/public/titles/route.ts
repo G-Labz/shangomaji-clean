@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { buildBunnyEmbedUrl, buildBunnyThumbnailUrl } from "@/lib/bunny";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,8 +22,10 @@ export async function GET() {
   // stale-state issues after the titles table migration.
   const { data: titleRows, error: titlesError } = await supabase
     .from("titles")
-    .select("id, project_id, creator_email, status, exclusivity_type, monetization_enabled, distribution_start, distribution_end, activated_at")
+    .select("id, project_id, creator_email, status, exclusivity_type, monetization_enabled, distribution_start, distribution_end, activated_at, bunny_video_id, bunny_thumbnail_url, media_ready")
     .eq("status", "active")
+    .eq("media_ready", true)
+    .not("bunny_video_id", "is", null)
     .order("activated_at", { ascending: false });
 
   if (titlesError) {
@@ -67,42 +70,54 @@ export async function GET() {
   );
 
   // Step 4 — Shape the response.
-  const titles = titleRows.map((t: any) => {
-    const p = projectMap.get(t.project_id);
-    const creator = creatorMap.get((t.creator_email ?? "").trim().toLowerCase());
+  // Server-side construction of the Bunny embed URL keeps the iframe src
+  // assembly out of the client and lets us drop any title where the runtime
+  // env vars aren't configured.
+  const titles = titleRows
+    .map((t: any) => {
+      const p = projectMap.get(t.project_id);
+      const creator = creatorMap.get((t.creator_email ?? "").trim().toLowerCase());
 
-    return {
-      id:          `cp-${t.project_id}`,
-      slug:        `cp-${t.project_id}`,
-      titleId:     t.id,
-      title:       p?.title || "Untitled",
-      tagline:     p?.logline || "",
-      description: p?.description || p?.logline || "",
-      year:        p ? new Date(p.created_at).getFullYear() : new Date().getFullYear(),
-      rating:      "NR",
-      score:       0,
-      runtime:     null,
-      seasons:     null,
-      genres:      (p?.genres || []).map((g: string) => GENRE_MAP[g] || g),
-      type:        (p?.project_type || "").toLowerCase() === "series" ? "series" : "movie",
-      backdropUrl: p?.banner_url || p?.cover_image_url || "/images/placeholder.png",
-      posterUrl:   p?.cover_image_url || "/images/placeholder.png",
-      cast:        [],
-      studio:      "ShangoMaji Creators",
-      creatorEmail:          t.creator_email,
-      creatorName:           creator?.name || null,
-      creatorHandle:         creator?.handle || null,
-      sampleUrl:             p?.sample_url || null,
-      trailerUrl:            p?.trailer_url || null,
-      exclusivityType:       t.exclusivity_type,
-      monetizationEnabled:   t.monetization_enabled,
-      distributionStart:     t.distribution_start,
-      distributionEnd:       t.distribution_end,
-      activatedAt:           t.activated_at,
-      isNew:                 true,
-      isCreatorProject:      true,
-    };
-  });
+      const playbackEmbedUrl = buildBunnyEmbedUrl(t.bunny_video_id);
+      if (!playbackEmbedUrl) return null;
+
+      const bunnyThumb = t.bunny_thumbnail_url || buildBunnyThumbnailUrl(t.bunny_video_id);
+
+      return {
+        id:          `cp-${t.project_id}`,
+        slug:        `cp-${t.project_id}`,
+        titleId:     t.id,
+        title:       p?.title || "Untitled",
+        tagline:     p?.logline || "",
+        description: p?.description || p?.logline || "",
+        year:        p ? new Date(p.created_at).getFullYear() : new Date().getFullYear(),
+        rating:      "NR",
+        score:       0,
+        runtime:     null,
+        seasons:     null,
+        genres:      (p?.genres || []).map((g: string) => GENRE_MAP[g] || g),
+        type:        (p?.project_type || "").toLowerCase() === "series" ? "series" : "movie",
+        backdropUrl: p?.banner_url || p?.cover_image_url || bunnyThumb || "/images/placeholder.png",
+        posterUrl:   p?.cover_image_url || bunnyThumb || "/images/placeholder.png",
+        cast:        [],
+        studio:      "ShangoMaji Creators",
+        creatorEmail:          t.creator_email,
+        creatorName:           creator?.name || null,
+        creatorHandle:         creator?.handle || null,
+        sampleUrl:             p?.sample_url || null,
+        trailerUrl:            p?.trailer_url || null,
+        exclusivityType:       t.exclusivity_type,
+        monetizationEnabled:   t.monetization_enabled,
+        distributionStart:     t.distribution_start,
+        distributionEnd:       t.distribution_end,
+        activatedAt:           t.activated_at,
+        playable:              true,
+        playbackEmbedUrl,
+        isNew:                 true,
+        isCreatorProject:      true,
+      };
+    })
+    .filter(Boolean);
 
   return NextResponse.json({ titles });
 }
