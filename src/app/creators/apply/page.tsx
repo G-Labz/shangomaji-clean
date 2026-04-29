@@ -30,15 +30,12 @@ interface FormData {
 }
 
 const GENRE_OPTIONS = [
-  "Afro Cyberpunk",
   "Mythology",
-  "Folklore",
   "Action",
   "Drama",
   "Spiritual",
   "Sci-Fi",
   "Coming of Age",
-  "Caribbean Folklore",
   "Historical",
   "Fantasy",
   "Thriller",
@@ -196,7 +193,7 @@ export default function ApplyPage() {
     }
 
     if (step === 3) {
-      if (!form.influences.trim()) e.influences = "Share at least one influence.";
+      if (!form.influences.trim()) e.influences = "Tell us at least one influence.";
       if (!form.whyShangoMaji.trim()) e.whyShangoMaji = "Tell us why ShangoMaji.";
     }
 
@@ -279,7 +276,7 @@ export default function ApplyPage() {
                 background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
               }}
             >
-              Back to Platform
+              Back to ShangoMaji
             </Link>
           </div>
         </motion.div>
@@ -503,7 +500,7 @@ export default function ApplyPage() {
                       </div>
                       <button className="flex items-center gap-2 px-4 py-3.5 glass rounded-xl text-ink-muted hover:text-white text-xs transition-colors flex-shrink-0">
                         <Upload size={13} />
-                        Upload
+                        Add file
                       </button>
                     </div>
                   </Field>
@@ -538,7 +535,7 @@ export default function ApplyPage() {
                   </Field>
                   <Field
                     label="Why ShangoMaji?"
-                    hint="Not a formal answer. Why does this platform feel like the right home for what you make?"
+                    hint="Not a formal answer. Why does this feel like the right home for what you make?"
                     error={errors.whyShangoMaji}
                   >
                     <Textarea
@@ -570,7 +567,7 @@ export default function ApplyPage() {
                       Your Links
                     </h2>
                     <p className="text-ink-faint text-sm">
-                      All optional. Share what's relevant.
+                      All optional.
                     </p>
                   </div>
                   <Field label="Instagram">

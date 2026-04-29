@@ -28,7 +28,7 @@ export default function WhyPage() {
             style={{ background: "linear-gradient(90deg, #e53e2a, #f5c518)" }} />
           <span className="text-xs uppercase tracking-[0.25em] font-mono"
             style={{ color: "rgba(240,112,48,0.7)" }}>
-            More than a platform. A signal.
+            More than a catalog. A signal.
           </span>
         </motion.div>
 
@@ -120,7 +120,7 @@ export default function WhyPage() {
             onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.55)")}
             onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}
           >
-            ← Back to platform
+            ← Back to ShangoMaji
           </Link>
         </motion.div>
       </div>

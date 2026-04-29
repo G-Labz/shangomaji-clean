@@ -29,7 +29,7 @@ interface ProjectDraft {
 }
 
 const TYPES  = ["Series", "Film", "Short"];
-const GENRES = ["Afrofuturism", "Mythic", "Folklore", "Sci-Fi", "Drama", "Spiritual"];
+const GENRES = ["Mythic", "Sci-Fi", "Drama", "Spiritual", "Action", "Coming of Age"];
 
 interface PageProps {
   params: { id: string };
@@ -610,7 +610,7 @@ export default function EditProjectPage({ params }: PageProps) {
                 ))}
               </div>
             </Field>
-            <Field label="Trailer URL" hint="Paste a link — direct video upload is not supported.">
+            <Field label="Trailer URL" hint="Paste a link. Direct file submissions are not supported.">
               <input
                 value={draft.trailerUrl}
                 onChange={(e) => set("trailerUrl")(e.target.value)}
@@ -677,7 +677,7 @@ export default function EditProjectPage({ params }: PageProps) {
               />
               {uploading["banner"] && <p className="text-xs text-ink-faint">Uploading…</p>}
             </Field>
-            <Field label="Sample / Screener URL" hint="Paste a link — direct video upload is not supported.">
+            <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
               <input
                 value={draft.sampleUrl}
                 onChange={(e) => set("sampleUrl")(e.target.value)}

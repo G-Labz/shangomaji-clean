@@ -35,7 +35,7 @@ export default function OnboardingRequiredPage() {
 
         <p style={{ margin: "0 0 1.25rem", color: "#bbb", lineHeight: 1.65 }}>
           You've been accepted into ShangoMaji, but you haven't reviewed and accepted
-          the platform terms yet. Open the onboarding link we emailed to you to continue.
+          the terms yet. Open the onboarding link we emailed to you to continue.
         </p>
 
         <p style={{ margin: "0 0 2rem", color: "#888", lineHeight: 1.65, fontSize: "0.9rem" }}>

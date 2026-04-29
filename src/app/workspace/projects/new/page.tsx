@@ -37,7 +37,7 @@ const emptyDraft: ProjectDraft = {
 
 const DELIVERABLES = ["Poster", "Banner", "Trailer", "Full Episode", "Stills"];
 const TYPES = ["Series", "Film", "Short"];
-const GENRES = ["Afrofuturism", "Mythic", "Folklore", "Sci-Fi", "Drama", "Spiritual"];
+const GENRES = ["Mythic", "Sci-Fi", "Drama", "Spiritual", "Action", "Coming of Age"];
 
 export default function WorkspaceNewProject() {
   const router = useRouter();
@@ -365,10 +365,10 @@ export default function WorkspaceNewProject() {
                 </div>
               )}
             </Field>
-            <Field label="Trailer URL" hint="Paste a link — direct video upload is not supported.">
+            <Field label="Trailer URL" hint="Paste a link. Direct file submissions are not supported.">
               <input value={draft.trailerUrl} onChange={(e) => set("trailerUrl")(e.target.value)} placeholder="https://youtube.com/... or direct link" />
             </Field>
-            <Field label="Sample / Screener URL" hint="Paste a link — direct video upload is not supported.">
+            <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
               <input value={draft.sampleUrl} onChange={(e) => set("sampleUrl")(e.target.value)} placeholder="https://..." />
             </Field>
           </div>

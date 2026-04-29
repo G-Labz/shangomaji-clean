@@ -26,15 +26,12 @@ interface ProjectForm {
 }
 
 const GENRE_OPTIONS = [
-  "Afro Cyberpunk",
   "Mythology",
-  "Folklore",
   "Action",
   "Drama",
   "Spiritual",
   "Sci-Fi",
   "Coming of Age",
-  "Caribbean Folklore",
   "Historical",
   "Fantasy",
   "Thriller",
@@ -178,11 +175,11 @@ export default function CreatorUploadPage() {
           setForm((f) => ({ ...f, creatorName: data.creator.name }));
         }
       } else {
-        setAccessError("You must be accepted as a creator to upload content.");
+        setAccessError("You must be accepted as a creator to submit content.");
       }
     } catch (err) {
       console.error("Creator access check failed", err);
-      setAccessError("You must be accepted as a creator to upload content.");
+      setAccessError("You must be accepted as a creator to submit content.");
     } finally {
       setAccessChecking(false);
     }
@@ -283,7 +280,7 @@ export default function CreatorUploadPage() {
               Verify Access
             </h1>
             <p className="text-ink-faint text-sm max-w-sm mx-auto">
-              Enter the email you applied with. Only accepted creators can upload content.
+              Enter the email you applied with. Only accepted creators can submit content.
             </p>
           </div>
 
@@ -338,10 +335,10 @@ export default function CreatorUploadPage() {
             Creator Portal
           </p>
           <h1 className="text-display font-bold text-4xl md:text-5xl text-white tracking-tight mb-3">
-            Upload Your Project
+            Submit Your Project
           </h1>
           <p className="text-ink-faint text-sm max-w-md mx-auto">
-            Everything we need to review, list, and publish your work on ShangoMaji.
+            Everything we need to review and consider your work for ShangoMaji.
           </p>
           {creatorInfo && (
             <p className="text-xs text-ink-faint mt-3">
@@ -406,7 +403,7 @@ export default function CreatorUploadPage() {
                       Start with the foundation.
                     </p>
                     <h2 className="text-white font-semibold text-xl mb-1">Project</h2>
-                    <p className="text-ink-faint text-sm">What are you bringing to the platform?</p>
+                    <p className="text-ink-faint text-sm">What are you submitting for consideration?</p>
                   </div>
                   <Field label="Project Title" error={errors.title}>
                     <Input value={form.title} onChange={set("title")} placeholder="The title of your work" />
@@ -450,7 +447,7 @@ export default function CreatorUploadPage() {
                       Show us what it looks like.
                     </p>
                     <h2 className="text-white font-semibold text-xl mb-1">Media</h2>
-                    <p className="text-ink-faint text-sm">Artwork and video links. Direct URLs only — file upload coming soon.</p>
+                    <p className="text-ink-faint text-sm">Artwork and video links. Direct URLs only.</p>
                   </div>
                   <Field label="Thumbnail URL" hint="Portrait poster image. Direct link to hosted image." error={errors.thumbnailUrl}>
                     <Input value={form.thumbnailUrl} onChange={set("thumbnailUrl")} placeholder="https://..." />

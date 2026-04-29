@@ -1,9 +1,9 @@
 export default function HelpPage() {
   const faqs = [
-    { q: "What is ShangoMaji?", a: "ShangoMaji is a global anime culture network focused on creators, storytelling, and expanding the future of anime." },
-    { q: "How can I join the community?", a: "Join our Discord and participate in discussions, creator challenges, and events." },
-    { q: "How do I get featured?", a: "We regularly spotlight creators. Stay active, share your work, and participate in community initiatives." },
-    { q: "Who is this platform for?", a: "Creators, anime fans, and anyone interested in culture, storytelling, and new worlds." },
+    { q: "What is ShangoMaji?", a: "ShangoMaji is a curated space for anime-influenced storytelling — films, series, and creative work from invited creators." },
+    { q: "How do I get access?", a: "Creators are selected by invitation. Viewers can watch titles in the catalog and follow announcements on Discord." },
+    { q: "How do creators get featured?", a: "We spotlight creators we've selected. If you're interested in being considered, apply through the creators page." },
+    { q: "Who is ShangoMaji for?", a: "Anime fans who want more. Creators building the next wave. Anyone looking for something worth watching." },
   ];
   return (
     <div className="min-h-screen pt-28 pb-20 px-6 md:px-10">

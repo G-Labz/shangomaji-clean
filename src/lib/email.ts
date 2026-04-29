@@ -80,7 +80,7 @@ function buildOnboardingEmailBody(opts: { name: string; onboardingUrl: string })
 
 You've been accepted into ShangoMaji.
 
-Before you can publish, we need you to review and accept the minimum platform terms. This takes about a minute.
+Before you can publish, we need you to review and accept the minimum terms. This takes about a minute.
 
 Open your onboarding page:
 ${opts.onboardingUrl}
@@ -109,7 +109,7 @@ This link is unique to you. If you didn't apply to ShangoMaji, you can ignore th
                   You've been accepted.
                 </h1>
                 <p style="margin:0 0 16px;color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;">
-                  Hi ${escapeHtml(first)}, welcome. Before you can publish, review the platform terms and confirm. This takes about a minute.
+                  Hi ${escapeHtml(first)}, welcome. Before you can publish, review the terms and confirm. This takes about a minute.
                 </p>
               </td>
             </tr>
@@ -228,7 +228,7 @@ function buildPasswordSetupEmailBody(opts: {
     : "Reset your password.";
 
   const intro = isInvite
-    ? "You've accepted the ShangoMaji platform terms. Create your password below to finish setting up your creator account."
+    ? "You've accepted the ShangoMaji terms. Create your password below to finish setting up your creator account."
     : "We received a request to reset the password for your ShangoMaji creator account. Use the button below to set a new one.";
 
   const cta = isInvite ? "Set your password" : "Reset your password";

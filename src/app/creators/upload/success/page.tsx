@@ -44,7 +44,7 @@ export default function UploadSuccessPage() {
             className="px-6 py-3 rounded-xl text-black font-semibold text-sm transition-all active:scale-95"
             style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
           >
-            Back to Platform
+            Back to ShangoMaji
           </Link>
         </div>
       </motion.div>

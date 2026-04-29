@@ -49,7 +49,6 @@ export function CulturalContextPanel() {
         <div className="pt-5" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
           <p className="text-white font-semibold mb-2">Join the Wave</p>
           <p className="mb-5 max-w-md" style={{ color: "rgba(255,255,255,0.55)" }}>
-            This is where creators and fans build together. Share your work.
             Find your people. Shape what comes next.
           </p>
           <a

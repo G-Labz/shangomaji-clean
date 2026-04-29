@@ -15,9 +15,7 @@ export default function HomePage() {
   const trending    = getTrending();
   const newReleases = getNewReleases();
   const originals   = getOriginals();
-  const cyberpunk   = getByGenre("Afro Cyberpunk");
   const mythology   = getByGenre("Mythology & Gods");
-  const diaspora    = getByGenre("Diaspora Stories");
   const spirits     = getByGenre("Spirits & the Unseen");
   const futures     = getByGenre("Futures & Sci-Fi");
   const martial     = getByGenre("Martial Worlds");
@@ -70,9 +68,7 @@ export default function HomePage() {
           <ContentRow label="The Stage" titles={creatorTitles} />
         ) : null}
         <ContentRow label="ShangoMaji Originals"   titles={originals}   variant="landscape" />
-        <ContentRow label="Afro Cyberpunk"         titles={cyberpunk}   variant="landscape" />
         <ContentRow label="Mythology & Gods"       titles={mythology} />
-        <ContentRow label="Diaspora Stories"       titles={diaspora} />
         <ContentRow label="Spirits & the Unseen"   titles={spirits}     variant="landscape" />
         <ContentRow label="Futures & Sci-Fi"       titles={futures} />
         <ContentRow label="Martial Worlds"         titles={martial} />

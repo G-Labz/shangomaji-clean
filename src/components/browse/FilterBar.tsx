@@ -6,15 +6,12 @@ import type { Genre } from "@/data/mockData";
 
 // ─── Genre descriptions — shown on hover ──────
 const GENRE_DESCRIPTIONS: Record<Genre, string> = {
-  "Afro Cyberpunk":         "Neo cities. Tech meets tradition. The future is African.",
-  "Mythology & Gods":       "Orishas, ancestors, divine powers. Epic myth made cinematic.",
-  "Diaspora Stories":       "Identity, belonging, dual worlds. The in-between.",
-  "Folklore & the Ancient": "Griots, oral tradition, the old world retold at anime scale.",
-  "Martial Worlds":         "Warrior epics. African samurai. Combat with cultural depth.",
-  "Futures & Sci-Fi":       "Afrofuturism proper. Space, time, what comes after.",
-  "Spirits & the Unseen":   "Rooted in real spiritual tradition. The veil between worlds.",
-  "Coming of Age":          "Growing up across cultures. Finding yourself.",
-  "Short Films":            "Compact, precise, powerful. The short form done right.",
+  "Mythology & Gods":     "Divine powers, ancient myth, epic scale made cinematic.",
+  "Martial Worlds":       "Warrior epics. Precision combat. Stories built on discipline.",
+  "Futures & Sci-Fi":     "Space, time, and what comes after. The long view.",
+  "Spirits & the Unseen": "The veil between worlds. Tradition and the unknown.",
+  "Coming of Age":        "Finding yourself. The hardest story to tell well.",
+  "Short Films":          "Compact, precise, powerful. The short form done right.",
 };
 
 interface FilterBarProps {

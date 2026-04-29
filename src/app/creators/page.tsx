@@ -28,13 +28,13 @@ const PILLARS = [
   },
   {
     icon: Users,
-    title: "Real Community",
-    body: "This isn't just a platform. It's a living network. Conversations, reactions, momentum.",
+    title: "Curated, Not Open",
+    body: "Every title is reviewed. Every release is intentional. Quality over volume, always.",
   },
   {
     icon: Zap,
     title: "Creator First",
-    body: "You own your work. You build your audience. We provide the stage. Not the limits.",
+    body: "You own your work. We provide the stage.",
   },
 ];
 
@@ -56,8 +56,8 @@ const PROCESS_STEPS = [
   },
   {
     number: "04",
-    title: "Publish",
-    body: "Your work goes live. Your audience starts building.",
+    title: "Live",
+    body: "Your work joins the catalog. Your audience starts building.",
   },
 ];
 
@@ -356,9 +356,9 @@ export default function CreatorsPage() {
               The Process
             </p>
             <h2 className="text-display font-bold text-4xl md:text-5xl text-white tracking-tight">
-              How you get
+              How selection
               <br />
-              <span className="brand-text">on the platform.</span>
+              <span className="brand-text">works.</span>
             </h2>
           </motion.div>
 

@@ -297,7 +297,7 @@ export default function ProfilePage() {
                     paddingBottom: 1,
                   }}
                 >
-                  {uploadingAvatar ? "Uploading…" : "Upload photo"}
+                  {uploadingAvatar ? "Adding…" : "Add photo"}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -344,7 +344,7 @@ export default function ProfilePage() {
                 justifyContent: "center",
               }}>
                 {!form.bannerUrl && (
-                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.2)" }}>No banner uploaded</span>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.2)" }}>No banner added</span>
                 )}
               </div>
               <label
@@ -358,7 +358,7 @@ export default function ProfilePage() {
                   display: "inline-block",
                 }}
               >
-                {uploadingBanner ? "Uploading…" : "Upload banner"}
+                {uploadingBanner ? "Adding…" : "Add banner"}
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"

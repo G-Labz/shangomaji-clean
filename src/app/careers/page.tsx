@@ -7,9 +7,8 @@ export default function CareersPage() {
         <h1 className="text-display font-bold text-4xl md:text-5xl text-white mb-6 tracking-tight">Careers at ShangoMaji</h1>
 
         <div className="space-y-3 text-base leading-relaxed mb-12" style={{ color: "rgba(255,255,255,0.60)" }}>
-          <p style={{ color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>We're building something bigger than a platform.</p>
-          <p>We're building a new wave in anime culture.</p>
-          <p>ShangoMaji is a growing network focused on creators, storytelling, and global cultural expansion. As we grow, we're looking for people who want to help shape the future of anime and creative media.</p>
+          <p style={{ color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>We're building a new wave in anime.</p>
+          <p>ShangoMaji is focused on creators, storytelling, and shaping what comes next. As we grow, we're looking for people who want to help build it.</p>
         </div>
 
         <div className="pt-8 mb-12" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>

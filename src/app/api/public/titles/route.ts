@@ -8,11 +8,8 @@ const supabase = createClient(
 );
 
 const GENRE_MAP: Record<string, string> = {
-  "Afrofuturism": "Afro Cyberpunk",
-  "Mythic": "Mythology & Gods",
-  "Folklore": "Folklore & the Ancient",
-  "Sci-Fi": "Futures & Sci-Fi",
-  "Drama": "Diaspora Stories",
+  "Mythic":    "Mythology & Gods",
+  "Sci-Fi":    "Futures & Sci-Fi",
   "Spiritual": "Spirits & the Unseen",
 };
 

@@ -23,7 +23,6 @@ const FILTERS = [
   { key: "pending",  label: "Pending"  },
   { key: "draft",    label: "Drafts"   },
   { key: "rejected", label: "Rejected" },
-  { key: "archived", label: "Archived" },
 ];
 
 function matchesFilter(status: string, filter: string): boolean {
@@ -38,7 +37,6 @@ function deleteBlockReason(status: string): string {
   if (status === "pending")   return "Projects under review cannot be deleted.";
   if (status === "in_review") return "Projects under review cannot be deleted.";
   if (status === "approved")  return "Approved projects cannot be deleted.";
-  if (status === "archived")  return "Archived projects cannot be deleted.";
   return "This project cannot be deleted.";
 }
 
@@ -59,7 +57,9 @@ export default function WorkspaceProjects() {
         const res  = await fetch("/api/creators/projects");
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Could not load projects");
-        const raw: Project[] = data.projects ?? [];
+        const raw: Project[] = (data.projects ?? []).filter(
+          (p: Project) => p.status !== "archived"
+        );
         const seen = new Map<string, Project>();
         raw.forEach((p) => { if (!seen.has(p.id)) seen.set(p.id, p); });
         setProjects(Array.from(seen.values()));
@@ -253,7 +253,7 @@ export default function WorkspaceProjects() {
           My Projects
         </h1>
         <p className="text-ink-faint text-sm mt-1">
-          Track drafts, review status, and go live when you're ready.
+          Track drafts and review status.
         </p>
       </div>
 
@@ -319,11 +319,9 @@ export default function WorkspaceProjects() {
 
       <div className="grid gap-3">
         {filtered.map((project) => {
-          const canDelete  = project.status === "draft" || project.status === "rejected";
-          const isLive     = project.status === "live";
-          const isArchived = project.status === "archived";
-          // archived is an admin-managed terminal state — no creator action is possible or shown
-          const blocked    = !canDelete && !isLive && !isArchived;
+          const canDelete = project.status === "draft" || project.status === "rejected";
+          const isLive    = project.status === "live";
+          const blocked   = !canDelete && !isLive;
 
           return (
             <Card key={project.id} className="flex flex-col md:flex-row md:items-center gap-4">
@@ -357,7 +355,6 @@ export default function WorkspaceProjects() {
                     ? () => setRemovalProject(project)
                     : undefined
                 }
-                isArchived={isArchived}
               />
             </Card>
           );

@@ -236,7 +236,7 @@ export default function WorkspaceMedia() {
         <Card className="text-center py-8">
           <p className="text-ink-faint text-sm">
             {filter === "All"
-              ? "No media yet. Upload assets when creating a project."
+              ? "No media yet. Add assets when creating a project."
               : "No media matches this filter."}
           </p>
         </Card>

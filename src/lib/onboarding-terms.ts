@@ -17,7 +17,7 @@ export const ONBOARDING_TERMS: TermsSection[] = [
   {
     heading: "What ShangoMaji is",
     body:
-      "ShangoMaji is a curated platform for culture-driven stories. It is not an open-upload service. Every title is editorially reviewed before it goes live.",
+      "ShangoMaji is a curated service for culture-driven stories. It is not an open-upload service. Every title is editorially reviewed before it goes live.",
   },
   {
     heading: "What you keep",
@@ -27,7 +27,7 @@ export const ONBOARDING_TERMS: TermsSection[] = [
   {
     heading: "What ShangoMaji controls",
     body:
-      "While your title is active on the platform, ShangoMaji controls distribution, curation, editorial placement, and moderation. Decisions made in the interest of platform integrity are final.",
+      "While your title is active on ShangoMaji, we control distribution, curation, editorial placement, and moderation. Decisions made in the interest of editorial integrity are final.",
   },
   {
     heading: "Removal is not casual",
@@ -47,6 +47,6 @@ export const ONBOARDING_TERMS: TermsSection[] = [
   {
     heading: "Participation rules",
     body:
-      "Creators are expected to act in good faith toward the platform, the audience, and each other. Conduct that undermines platform integrity is grounds for review and possible removal.",
+      "Creators are expected to act in good faith toward ShangoMaji, the audience, and each other. Conduct that undermines editorial integrity is grounds for review and possible removal.",
   },
 ];

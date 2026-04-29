@@ -7,10 +7,10 @@ export default function PrivacyPage() {
         <div className="space-y-10 text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.60)" }}>
           <p style={{ color: "rgba(255,255,255,0.75)" }}>ShangoMaji respects your privacy.</p>
           {[
-            { title: "1. Information We Collect", body: "We may collect email addresses (for waitlists, newsletters, or accounts) and basic usage data to improve the platform." },
-            { title: "2. How We Use Information", body: "We use your information to improve user experience, communicate updates and opportunities, and grow the ShangoMaji community." },
-            { title: "3. Data Protection", body: "We do not sell your personal information. Your data is handled securely and only used for platform-related purposes." },
-            { title: "4. Third-Party Services", body: "We may use third-party tools (analytics, email services, etc.) to operate the platform." },
+            { title: "1. Information We Collect", body: "We may collect email addresses (for waitlists, newsletters, or accounts) and basic usage data to improve ShangoMaji." },
+            { title: "2. How We Use Information", body: "We use your information to improve the experience for viewers and creators, and to communicate updates and opportunities." },
+            { title: "3. Data Protection", body: "We do not sell your personal information. Your data is handled securely and only used internally." },
+            { title: "4. Third-Party Tools", body: "We may use third-party tools (analytics, email, etc.) to operate ShangoMaji." },
             { title: "5. Your Control", body: "You can unsubscribe or request removal of your data at any time." },
           ].map(({ title, body }) => (
             <div key={title} className="pt-8" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
