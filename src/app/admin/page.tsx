@@ -48,6 +48,14 @@ export default function AdminPage() {
   const [mediaInputs, setMediaInputs] = useState<Record<string, string>>({});
   const [mediaBusy, setMediaBusy]     = useState<string | null>(null);
 
+  // Archive confirmation gate — typed-title required before archive proceeds.
+  // Archive removes a live work from the public catalog. It is intentionally
+  // not a one-click action.
+  const [archiveTarget, setArchiveTarget]   = useState<{ id: string; title: string } | null>(null);
+  const [archiveConfirm, setArchiveConfirm] = useState("");
+  const [archiveBusy, setArchiveBusy]       = useState(false);
+  const [archiveError, setArchiveError]     = useState("");
+
   const headers = { "x-admin-password": password };
 
   async function login() {
@@ -214,6 +222,62 @@ export default function AdminPage() {
     }
   }
 
+  // Archive — requires typed-title confirmation. live → archived only.
+  async function confirmArchive() {
+    if (!archiveTarget) return;
+    const expected = archiveTarget.title.trim();
+    const provided = archiveConfirm.trim();
+    if (!expected || provided !== expected) {
+      setArchiveError("Typed title does not match.");
+      return;
+    }
+    setArchiveBusy(true);
+    setArchiveError("");
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: archiveTarget.id,
+          status: "archived",
+          confirmTitle: provided,
+        }),
+      });
+      const data = await res.json();
+
+      // 207 — archive committed but the title cascade failed; still update UI.
+      if (res.status === 207) {
+        setProjectList((prev) =>
+          prev.map((p) =>
+            p.id === archiveTarget.id
+              ? { ...p, status: "archived", updated_at: new Date().toISOString() }
+              : p
+          )
+        );
+        alert(`⚠️ Distribution warning:\n\n${data.distributionWarning}`);
+        setArchiveTarget(null);
+        setArchiveConfirm("");
+        return;
+      }
+
+      if (!res.ok) throw new Error(data?.error || "Archive failed");
+
+      setProjectList((prev) =>
+        prev.map((p) =>
+          p.id === archiveTarget.id
+            ? { ...p, status: "archived", updated_at: new Date().toISOString() }
+            : p
+        )
+      );
+      setArchiveTarget(null);
+      setArchiveConfirm("");
+    } catch (e: any) {
+      setArchiveError(e.message || "Archive failed");
+    } finally {
+      setArchiveBusy(false);
+    }
+  }
+
   // Save Bunny video ID + media_ready flag for a live project's title row.
   async function saveMedia(projectId: string, opts: { bunnyVideoId?: string; mediaReady?: boolean }) {
     setMediaBusy(projectId);
@@ -332,6 +396,96 @@ export default function AdminPage() {
   // ── Dashboard ──
   return (
     <div className="min-h-screen px-4 py-8 max-w-6xl mx-auto">
+      {/* Archive confirmation gate */}
+      {archiveTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => {
+            if (archiveBusy) return;
+            setArchiveTarget(null);
+            setArchiveConfirm("");
+            setArchiveError("");
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-xl border border-white/10 bg-[#141010] p-6 space-y-5"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-400/80 font-semibold mb-2">
+                Catalog Action
+              </p>
+              <h3 className="text-white text-lg font-semibold">
+                Archive this work?
+              </h3>
+            </div>
+
+            <div className="space-y-2 text-sm text-neutral-400 leading-relaxed">
+              <p>
+                This removes <span className="text-white">{archiveTarget.title || "this title"}</span> from
+                public catalog visibility.
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-neutral-400">
+                <li>The work is not deleted.</li>
+                <li>This is an admin catalog action, not a creator action.</li>
+                <li>Use only when removal from public distribution is intentional.</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs text-neutral-500">
+                Type the project title exactly to confirm:
+              </label>
+              <p className="text-[11px] text-neutral-600 font-mono break-words">
+                {archiveTarget.title}
+              </p>
+              <input
+                type="text"
+                value={archiveConfirm}
+                onChange={(e) => {
+                  setArchiveConfirm(e.target.value);
+                  if (archiveError) setArchiveError("");
+                }}
+                disabled={archiveBusy}
+                placeholder="Project title"
+                autoFocus
+                className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-yellow-500/50 transition"
+              />
+              {archiveError && (
+                <p className="text-red-400 text-xs">{archiveError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (archiveBusy) return;
+                  setArchiveTarget(null);
+                  setArchiveConfirm("");
+                  setArchiveError("");
+                }}
+                disabled={archiveBusy}
+                className="px-4 py-2 rounded-md text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmArchive}
+                disabled={
+                  archiveBusy ||
+                  archiveConfirm.trim() !== (archiveTarget.title || "").trim() ||
+                  !archiveTarget.title.trim()
+                }
+                className="px-4 py-2 rounded-md text-xs font-semibold border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                {archiveBusy ? "Archiving…" : "Archive from Catalog"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -768,10 +922,14 @@ export default function AdminPage() {
                           </button>
                         )}
 
-                        {/* live: Archive */}
+                        {/* live: Archive (opens typed-confirmation gate) */}
                         {project.status === "live" && (
                           <button
-                            onClick={() => updateProjectStatus(project.id, "archived")}
+                            onClick={() => {
+                              setArchiveTarget({ id: project.id, title: project.title || "" });
+                              setArchiveConfirm("");
+                              setArchiveError("");
+                            }}
                             className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
                           >
                             Archive

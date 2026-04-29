@@ -82,7 +82,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { id, status, rejectionReason } = body;
+  const { id, status, rejectionReason, confirmTitle } = body;
 
   if (!id || !status) {
     return NextResponse.json({ error: "ID and status are required" }, { status: 400 });
@@ -96,10 +96,10 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  // STEP 1 — Fetch current project status before making any changes
+  // STEP 1 — Fetch current project before making any changes
   const { data: existingProject, error: fetchError } = await supabase
     .from("creator_projects")
-    .select("status, creator_email")
+    .select("status, creator_email, title")
     .eq("id", id)
     .single();
 
@@ -126,6 +126,25 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
+  // Archive is a deliberate catalog action: must come from live AND require
+  // a typed-title confirmation that matches the project's current title.
+  // The UI also enforces this, but we re-check server-side so curl/scripts
+  // can't bypass it.
+  if (status === "archived") {
+    const expected = (existingProject.title ?? "").trim();
+    const provided = typeof confirmTitle === "string" ? confirmTitle.trim() : "";
+    if (!expected || provided !== expected) {
+      return NextResponse.json(
+        {
+          error:
+            "Archive requires the exact project title as confirmation. " +
+            "This action removes the work from the public catalog and must be deliberate.",
+        },
+        { status: 422 }
+      );
+    }
+  }
+
   // STEP 3 — Run the update
   const now = new Date().toISOString();
   const updates: Record<string, any> = {
@@ -144,6 +163,33 @@ export async function PATCH(req: NextRequest) {
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  // STEP 4a — On archive, also gate the public catalog by flipping the
+  // matching title row(s) out of "active". The public titles API filters on
+  // titles.status === "active", so this ensures archived works disappear
+  // from /api/public/titles immediately.
+  // (Audit logging: not yet built — future migration. See README/migrations
+  // for tracking. Do not add an ad-hoc audit table in this pass.)
+  if (status === "archived") {
+    const { error: titleArchiveError } = await supabase
+      .from("titles")
+      .update({ status: "removed" })
+      .eq("project_id", id)
+      .neq("status", "removed");
+
+    if (titleArchiveError) {
+      console.error("Title archive cascade failed", { id, error: titleArchiveError.message });
+      return NextResponse.json(
+        {
+          success: true,
+          distributionWarning:
+            `Project archived, but the catalog title row could not be flipped out of "active". ` +
+            `Error: ${titleArchiveError.message}. The title may still be visible publicly until this is resolved.`,
+        },
+        { status: 207 }
+      );
+    }
   }
 
   // STEP 4 — Detect approved → live transition and create title record
