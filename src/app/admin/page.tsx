@@ -775,6 +775,91 @@ export default function AdminPage() {
                         )}
                       </div>
 
+                      {/* ── License panel (approved & live) ── */}
+                      {(project.status === "approved" || project.status === "live") && (
+                        <div className="mt-5 pt-4 border-t border-white/5 space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <p className="text-xs uppercase tracking-widest text-neutral-500">
+                              Standard Distribution License v1
+                            </p>
+                            {project.license ? (
+                              <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                Executed
+                              </span>
+                            ) : project.status === "live" ? (
+                              <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
+                                License missing (legacy)
+                              </span>
+                            ) : (
+                              <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                                Not signed — activation blocked
+                              </span>
+                            )}
+                          </div>
+
+                          {project.license ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                              <Field label="Signer" value={project.license.signer_legal_name} />
+                              <Field label="Signer Email" value={project.license.signer_email} />
+                              <Field label="Term" value={`${project.license.term_years} year(s)`} />
+                              <Field
+                                label="Signed"
+                                value={
+                                  project.license.signed_at
+                                    ? new Date(project.license.signed_at).toUTCString()
+                                    : ""
+                                }
+                              />
+                              <Field
+                                label="Term Start"
+                                value={
+                                  project.license.term_start
+                                    ? new Date(project.license.term_start).toUTCString()
+                                    : "Pending activation"
+                                }
+                              />
+                              <Field
+                                label="Term End"
+                                value={
+                                  project.license.term_end
+                                    ? new Date(project.license.term_end).toUTCString()
+                                    : "Pending activation"
+                                }
+                              />
+                              <div className="md:col-span-2">
+                                <a
+                                  href={
+                                    project.license.pdf_url ??
+                                    `/api/licenses/${project.license.id}/receipt`
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
+                                >
+                                  View receipt
+                                </a>
+                                {!project.license.pdf_url && (
+                                  <span className="text-neutral-500 text-[11px] ml-2">
+                                    (HTML — PDF generation is future work)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : project.status === "live" ? (
+                            <p className="text-[11px] text-neutral-500 leading-relaxed">
+                              This title was activated before the license layer existed. New activations
+                              now require an executed license. No automatic backfill is performed.
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-neutral-500 leading-relaxed">
+                              The creator must execute the license at{" "}
+                              <span className="text-neutral-300">/license/{project.id}</span>{" "}
+                              before distribution can be activated.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       {/* ── Bunny media binding (live projects only) ── */}
                       {project.status === "live" && (
                         <div className="mt-5 pt-4 border-t border-white/5 space-y-3">
@@ -912,14 +997,23 @@ export default function AdminPage() {
                           </>
                         )}
 
-                        {/* approved: Activate Distribution */}
+                        {/* approved: Activate Distribution (requires executed license) */}
                         {project.status === "approved" && (
-                          <button
-                            onClick={() => updateProjectStatus(project.id, "live")}
-                            className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition"
-                          >
-                            Activate Distribution
-                          </button>
+                          project.license ? (
+                            <button
+                              onClick={() => updateProjectStatus(project.id, "live")}
+                              className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition"
+                            >
+                              Activate Distribution
+                            </button>
+                          ) : (
+                            <span
+                              title="An executed license is required before distribution can be activated."
+                              className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
+                            >
+                              Activate Distribution — license required
+                            </span>
+                          )
                         )}
 
                         {/* live: Archive (opens typed-confirmation gate) */}

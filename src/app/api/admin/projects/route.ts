@@ -56,8 +56,26 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Attach each project's executed license, if any. Used by admin UI to:
+  //   1. show a License panel ("Executed" / "Not signed")
+  //   2. surface activation gating ("approved without license → blocked")
+  //   3. display term start/end after activation.
+  const allIds = (projects ?? []).map((p: any) => p.id);
+  const licensesByProject = new Map<string, any>();
+  if (allIds.length) {
+    const { data: licenseRows } = await supabase
+      .from("creator_licenses")
+      .select("id, project_id, status, term_years, signer_legal_name, signer_email, signed_at, term_start, term_end, pdf_url")
+      .in("project_id", allIds)
+      .eq("status", "executed");
+    for (const l of licenseRows ?? []) {
+      licensesByProject.set(l.project_id, l);
+    }
+  }
+
   const enriched = (projects ?? []).map((p: any) => {
     const t = titlesByProject.get(p.id);
+    const l = licensesByProject.get(p.id);
     return {
       ...p,
       title_id:                t?.id              ?? null,
@@ -65,6 +83,7 @@ export async function GET(req: NextRequest) {
       bunny_thumbnail_url:     t?.bunny_thumbnail_url ?? null,
       media_ready:             t?.media_ready     ?? false,
       title_status:            t?.status          ?? null,
+      license:                 l ?? null,
     };
   });
 
@@ -124,6 +143,29 @@ export async function PATCH(req: NextRequest) {
       { error: `Cannot transition from "${previousStatus}" to "${status}".` },
       { status: 422 }
     );
+  }
+
+  // Distribution activation requires an executed Standard Distribution
+  // License v1 for this project. Server-side check; the admin UI also
+  // disables the button, but curl/scripts must hit the same gate.
+  if (previousStatus === "approved" && status === "live") {
+    const { data: license, error: licErr } = await supabase
+      .from("creator_licenses")
+      .select("id")
+      .eq("project_id", id)
+      .eq("status", "executed")
+      .maybeSingle();
+
+    if (licErr) {
+      return NextResponse.json({ error: licErr.message }, { status: 500 });
+    }
+
+    if (!license) {
+      return NextResponse.json(
+        { error: "Distribution activation requires an executed license." },
+        { status: 422 }
+      );
+    }
   }
 
   // Archive is a deliberate catalog action: must come from live AND require
@@ -218,6 +260,45 @@ export async function PATCH(req: NextRequest) {
         },
         { status: 207 }
       );
+    }
+
+    // STEP 5 — Stamp the executed license with term_start / term_end.
+    // term_start is set only if currently null (do not overwrite existing).
+    // term_end = term_start + term_years, calculated in JS to keep the
+    // migration free of date arithmetic dependencies.
+    const { data: licenseRow, error: licenseFetchErr } = await supabase
+      .from("creator_licenses")
+      .select("id, term_years, term_start")
+      .eq("project_id", id)
+      .eq("status", "executed")
+      .maybeSingle();
+
+    if (!licenseFetchErr && licenseRow && !licenseRow.term_start) {
+      const start = new Date(now);
+      const end   = new Date(start);
+      end.setUTCFullYear(end.getUTCFullYear() + Number(licenseRow.term_years));
+
+      const { error: termErr } = await supabase
+        .from("creator_licenses")
+        .update({
+          term_start: start.toISOString(),
+          term_end:   end.toISOString(),
+          updated_at: now,
+        })
+        .eq("id", licenseRow.id);
+
+      if (termErr) {
+        console.error("License term stamping failed after activation", { id, error: termErr.message });
+        return NextResponse.json(
+          {
+            success: true,
+            distributionWarning:
+              `Project is now live, but the license term window could not be recorded. ` +
+              `Error: ${termErr.message}. The license is still executed; an admin should retry the term stamp.`,
+          },
+          { status: 207 }
+        );
+      }
     }
   }
 
