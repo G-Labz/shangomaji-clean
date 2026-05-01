@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { SDL_ACKS, isValidTermYears } from "@/lib/standard-distribution-license";
+import {
+  SDL_ACKS,
+  isValidTermYears,
+  isValidLegalName,
+  LEGAL_NAME_ERROR,
+} from "@/lib/standard-distribution-license";
 
 // SDL v1 license execution endpoint.
 //
@@ -106,6 +111,7 @@ export async function POST(req: NextRequest) {
     termYears,
     signerLegalName,
     typedSignature,
+    legalNameCertificationAck,
   } = body;
 
   if (!projectId) {
@@ -122,9 +128,9 @@ export async function POST(req: NextRequest) {
   const legalName = typeof signerLegalName === "string" ? signerLegalName.trim() : "";
   const typed     = typeof typedSignature   === "string" ? typedSignature.trim()   : "";
 
-  if (!legalName) {
+  if (!isValidLegalName(legalName)) {
     return NextResponse.json(
-      { error: "Signer legal name is required." },
+      { error: LEGAL_NAME_ERROR },
       { status: 422 }
     );
   }
@@ -132,6 +138,17 @@ export async function POST(req: NextRequest) {
   if (typed !== legalName) {
     return NextResponse.json(
       { error: "Typed signature must match the signer legal name exactly." },
+      { status: 422 }
+    );
+  }
+
+  // Standalone legal-name truth attestation (separate from the seven SDL acks).
+  if (legalNameCertificationAck !== true) {
+    return NextResponse.json(
+      {
+        error:
+          "You must certify that the legal name and typed signature are accurate and belong to you.",
+      },
       { status: 422 }
     );
   }
@@ -208,13 +225,14 @@ export async function POST(req: NextRequest) {
     signer_email:      email,
     signed_ip,
     signed_user_agent,
-    ip_ownership_ack:          true,
-    distribution_grant_ack:    true,
-    no_unilateral_removal_ack: true,
-    catalog_control_ack:       true,
-    rofn_ack:                  true,
-    downstream_ack:            true,
-    authority_ack:             true,
+    ip_ownership_ack:             true,
+    distribution_grant_ack:       true,
+    no_unilateral_removal_ack:    true,
+    catalog_control_ack:          true,
+    rofn_ack:                     true,
+    downstream_ack:               true,
+    authority_ack:                true,
+    legal_name_certification_ack: true,
     status: "executed" as const,
   };
 

@@ -31,6 +31,42 @@ export function isValidTermYears(n: unknown): n is SDLTermYears {
   return typeof n === "number" && (SDL_TERM_YEARS as readonly number[]).includes(n);
 }
 
+// Legal-name validation for SDL execution.
+//
+// We are not asserting government-ID equivalence — this is a written
+// attestation. The rules below catch the common loose-input cases ("Marlon",
+// "test", "asdf") while remaining permissive of hyphenated / apostrophed /
+// multi-part international names. We do not require a middle name and do
+// not pattern-match against a last-name database.
+const LEGAL_NAME_PLACEHOLDERS = new Set([
+  "test", "tester", "testing",
+  "none", "n/a", "na",
+  "asdf", "qwerty",
+  "fake", "anonymous", "anon",
+  "first last", "firstname lastname",
+]);
+
+export function isValidLegalName(raw: unknown): boolean {
+  if (typeof raw !== "string") return false;
+  const trimmed = raw.trim();
+  if (trimmed.length < 4) return false;
+
+  if (LEGAL_NAME_PLACEHOLDERS.has(trimmed.toLowerCase())) return false;
+
+  const parts = trimmed.split(/\s+/);
+  if (parts.length < 2) return false;
+
+  // Each whitespace-separated part must have at least 2 visible characters.
+  // Letters, hyphens, apostrophes, and accented letters are accepted.
+  for (const p of parts) {
+    if (p.length < 2) return false;
+  }
+
+  return true;
+}
+
+export const LEGAL_NAME_ERROR = "Enter your full legal name, first and last.";
+
 export const SDL_SECTIONS: SDLSection[] = [
   {
     heading: "1. Ownership",

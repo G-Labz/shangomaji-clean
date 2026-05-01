@@ -135,11 +135,21 @@ export async function GET(
     <dt>Signed At (UTC)</dt>      <dd>${escapeHtml(formatDate(license.signed_at))}</dd>
     <dt>Signed IP</dt>            <dd>${escapeHtml(license.signed_ip ?? "—")}</dd>
     <dt>Signed User-Agent</dt>    <dd>${escapeHtml(license.signed_user_agent ?? "—")}</dd>
+    <dt>Legal-Name Certification</dt><dd>${
+      license.legal_name_certification_ack === true
+        ? "Certified by signer at execution"
+        : "Not on record (pre-certification execution)"
+    }</dd>
   </dl>
 
   <h2 style="font-size:16px;margin:28px 0 12px;">Acknowledgments at Signing</h2>
   <ul class="acks">
     ${acksHtml}
+    <li><strong>Legal-name truth attestation:</strong> ${
+      license.legal_name_certification_ack === true
+        ? "I certify that the legal name and typed signature entered are accurate and belong to me."
+        : "Not captured for this execution."
+    }</li>
   </ul>
 
   <h2 style="font-size:16px;margin:28px 0 12px;">${escapeHtml(SDL_TITLE)} — Full Terms</h2>

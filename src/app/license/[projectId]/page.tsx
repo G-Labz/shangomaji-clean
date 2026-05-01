@@ -9,6 +9,8 @@ import {
   SDL_TERM_YEARS,
   SDL_TITLE,
   SDL_VERSION,
+  isValidLegalName,
+  LEGAL_NAME_ERROR,
   type AckKey,
   type SDLTermYears,
 } from "@/lib/standard-distribution-license";
@@ -51,6 +53,7 @@ export default function LicensePage() {
   const [acks, setAcks]               = useState<Record<AckKey, boolean>>(() =>
     Object.fromEntries(SDL_ACKS.map((a) => [a.key, false])) as Record<AckKey, boolean>
   );
+  const [legalNameCertAck, setLegalNameCertAck] = useState(false);
   const [submitBusy, setSubmitBusy]   = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -87,13 +90,15 @@ export default function LicensePage() {
     () => SDL_ACKS.every((a) => acks[a.key] === true),
     [acks]
   );
-  const signatureMatches = legalName.trim().length > 0 && signature.trim() === legalName.trim();
+  const legalNameValid   = isValidLegalName(legalName);
+  const signatureMatches = legalNameValid && signature.trim() === legalName.trim();
   const canSubmit =
     !submitBusy &&
     termYears !== null &&
-    legalName.trim().length > 0 &&
+    legalNameValid &&
     signatureMatches &&
-    allAcksTrue;
+    allAcksTrue &&
+    legalNameCertAck;
 
   async function submitLicense() {
     if (!canSubmit || termYears === null) return;
@@ -105,6 +110,7 @@ export default function LicensePage() {
         termYears,
         signerLegalName: legalName.trim(),
         typedSignature:  signature.trim(),
+        legalNameCertificationAck: legalNameCertAck === true,
       };
       for (const a of SDL_ACKS) body[a.key] = acks[a.key] === true;
 
@@ -156,9 +162,13 @@ export default function LicensePage() {
     return (
       <Shell>
         <Eyebrow>{SDL_VERSION}</Eyebrow>
-        <h1 style={titleStyle}>License executed</h1>
-        <p style={{ ...bodyText, marginBottom: 24 }}>
-          {SDL_TITLE} for <strong style={{ color: "white" }}>{state.project.title}</strong> is on file.
+        <h1 style={titleStyle}>License executed.</h1>
+        <p style={{ ...bodyText, marginBottom: 8 }}>
+          Your {SDL_TITLE} for <strong style={{ color: "white" }}>{state.project.title}</strong> is on file.
+        </p>
+        <p style={{ ...bodyText, marginBottom: 24, fontSize: 14 }}>
+          Distribution is now <strong style={{ color: "white" }}>pending ShangoMaji activation</strong>.
+          Your selected term begins only when activation occurs.
         </p>
 
         <Card>
@@ -251,24 +261,29 @@ export default function LicensePage() {
 
       {/* Signature */}
       <SectionHeader>Sign</SectionHeader>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
         <div>
-          <label style={fieldLabel}>Signer legal name</label>
+          <label style={fieldLabel}>Full legal name (first and last)</label>
           <input
             type="text"
             value={legalName}
             onChange={(e) => setLegalName(e.target.value)}
-            placeholder="Full legal name"
+            placeholder="e.g. Jane A. Doe"
             style={inputStyle}
           />
+          {legalName.trim().length > 0 && !legalNameValid && (
+            <p style={{ color: "#fca5a5", fontSize: 12, marginTop: 6 }}>
+              {LEGAL_NAME_ERROR}
+            </p>
+          )}
         </div>
         <div>
-          <label style={fieldLabel}>Typed signature (must match exactly)</label>
+          <label style={fieldLabel}>Typed signature (must match the legal name exactly)</label>
           <input
             type="text"
             value={signature}
             onChange={(e) => setSignature(e.target.value)}
-            placeholder={legalName.trim() || "Type your full legal name"}
+            placeholder={legalNameValid ? legalName.trim() : "Type your full legal name"}
             style={inputStyle}
           />
           {signature.length > 0 && !signatureMatches && (
@@ -277,6 +292,30 @@ export default function LicensePage() {
             </p>
           )}
         </div>
+      </div>
+
+      {/* Standalone legal-name truth attestation. Separate from the seven SDL acks. */}
+      <div
+        style={{
+          marginBottom: 28,
+          padding: 14,
+          border: "1px solid rgba(245,197,24,0.25)",
+          background: "rgba(245,197,24,0.05)",
+          borderRadius: 10,
+        }}
+      >
+        <label style={{ ...ackRow, alignItems: "flex-start" }}>
+          <input
+            type="checkbox"
+            checked={legalNameCertAck}
+            onChange={(e) => setLegalNameCertAck(e.target.checked)}
+            style={{ marginTop: 3, accentColor: "#f5c518" }}
+          />
+          <span style={{ ...bodyText, fontSize: 13, lineHeight: 1.5 }}>
+            I certify that the legal name and typed signature entered above are accurate
+            and belong to me.
+          </span>
+        </label>
       </div>
 
       {submitError && (
@@ -289,7 +328,7 @@ export default function LicensePage() {
           disabled={!canSubmit}
           style={canSubmit ? primaryBtn : primaryBtnDisabled}
         >
-          {submitBusy ? "Executing…" : "Execute license"}
+          {submitBusy ? "Executing…" : "Execute License"}
         </button>
         <BackLink />
       </div>

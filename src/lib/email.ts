@@ -328,17 +328,19 @@ export async function sendLicenseRequestEmail(opts: {
     return { ok: false, error: "ONBOARDING_EMAIL_FROM is not configured." };
   }
 
-  const subject = `Action required: Sign license for ${opts.projectTitle}`;
+  const subject = `Selected for distribution consideration: ${opts.projectTitle}`;
 
   const text =
-`Your project "${opts.projectTitle}" has been approved for distribution consideration on ShangoMaji.
+`Selected for distribution consideration.
 
-Before distribution can be activated, you need to execute the Standard Distribution License v1 for this project. Approval does not guarantee distribution and the work is not yet live.
+Your project "${opts.projectTitle}" has been approved for distribution consideration on ShangoMaji.
 
-Open the license:
+Before ShangoMaji can activate distribution, you must execute the Standard Distribution License for this work. The license is tied to this specific project. You will select your license term — 1, 2, 3, or 5 years — and sign.
+
+Distribution is not yet live. The term begins only when ShangoMaji activates distribution.
+
+Review and sign the license:
 ${opts.licenseUrl}
-
-You'll select your term, review the agreement, and sign. After execution, ShangoMaji will activate distribution from there.
 
 — ShangoMaji`;
 
@@ -358,14 +360,20 @@ You'll select your term, review the agreement, and sign. After execution, Shango
             </tr>
             <tr>
               <td style="padding:0 32px 8px;">
-                <h1 style="margin:12px 0 8px;color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">
-                  Action required: sign license
+                <p style="margin:8px 0 0;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.55);font-weight:600;">
+                  Distribution consideration
+                </p>
+                <h1 style="margin:8px 0 12px;color:#ffffff;font-size:24px;font-weight:700;line-height:1.25;letter-spacing:-0.01em;">
+                  Selected: ${escapeHtml(opts.projectTitle)}
                 </h1>
-                <p style="margin:0 0 12px;color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;">
-                  Your project <strong style="color:#fff;">${escapeHtml(opts.projectTitle)}</strong> has been approved for distribution consideration. Before distribution can be activated, execute the Standard Distribution License v1 for this project.
+                <p style="margin:0 0 14px;color:rgba(255,255,255,0.78);font-size:15px;line-height:1.6;">
+                  Your project has been approved for distribution consideration on ShangoMaji.
+                </p>
+                <p style="margin:0 0 14px;color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;">
+                  Before ShangoMaji can activate distribution, you must execute the <strong style="color:#fff;">Standard Distribution License</strong> for this work. The license is tied to this specific project. You will select your license term — <strong style="color:#fff;">1, 2, 3, or 5 years</strong> — and sign.
                 </p>
                 <p style="margin:0 0 16px;color:rgba(255,255,255,0.55);font-size:13px;line-height:1.6;">
-                  Approval does not guarantee distribution. The work is not yet live.
+                  Distribution is not yet live. Your selected term begins only when ShangoMaji activates distribution.
                 </p>
               </td>
             </tr>
@@ -376,7 +384,7 @@ You'll select your term, review the agreement, and sign. After execution, Shango
                     <td align="center" bgcolor="#f5c518" style="background-color:#f5c518;background-image:linear-gradient(90deg,#e53e2a,#f07030,#f5c518);border-radius:10px;">
                       <a href="${escapeHtml(opts.licenseUrl)}"
                          style="display:inline-block;padding:13px 26px;color:#0c0806;text-decoration:none;font-weight:700;font-size:15px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.01em;border:1px solid #f5c518;border-radius:10px;mso-padding-alt:0;">
-                        Open license
+                        Review and Sign License
                       </a>
                     </td>
                   </tr>
@@ -390,7 +398,7 @@ You'll select your term, review the agreement, and sign. After execution, Shango
             <tr>
               <td style="padding:0 32px 32px;border-top:1px solid rgba(255,255,255,0.06);">
                 <p style="margin:20px 0 0;color:rgba(255,255,255,0.4);font-size:12px;line-height:1.6;">
-                  You'll select your term, review the agreement, and sign. After execution, ShangoMaji will activate distribution.
+                  This is a per-project license. After you sign, ShangoMaji will handle activation from there. Approval is a selection for distribution, not a guarantee that the work is live.
                 </p>
               </td>
             </tr>

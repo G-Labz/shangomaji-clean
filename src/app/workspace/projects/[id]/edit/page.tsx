@@ -556,13 +556,13 @@ export default function EditProjectPage({ params }: PageProps) {
           <div className="flex-1 text-sm">
             <p className="text-white font-medium">
               {licenseStatus === "executed"
-                ? "Standard Distribution License executed."
-                : "One step before going live: execute your Standard Distribution License."}
+                ? "License executed. Distribution is pending ShangoMaji activation."
+                : "Selected for distribution consideration."}
             </p>
             <p className="text-ink-faint text-xs mt-0.5">
               {licenseStatus === "executed"
-                ? "ShangoMaji will activate distribution from here."
-                : "Select your term, review the agreement, and sign. This unlocks distribution activation."}
+                ? "Your selected term begins when activation occurs."
+                : "Review and sign the Standard Distribution License — this is the required next step before activation."}
             </p>
           </div>
           <Link
@@ -575,7 +575,7 @@ export default function EditProjectPage({ params }: PageProps) {
                   : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
             }}
           >
-            {licenseStatus === "executed" ? "View License" : "Sign License"}
+            {licenseStatus === "executed" ? "View License" : "Review and Sign License"}
           </Link>
         </div>
       )}

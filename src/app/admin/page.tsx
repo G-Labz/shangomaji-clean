@@ -790,7 +790,9 @@ export default function AdminPage() {
                             </p>
                             {project.license ? (
                               <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                                Executed
+                                {project.status === "approved"
+                                  ? "Executed — ready for activation"
+                                  : "Executed"}
                               </span>
                             ) : project.status === "live" ? (
                               <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
@@ -802,6 +804,13 @@ export default function AdminPage() {
                               </span>
                             )}
                           </div>
+
+                          {project.license && project.status === "approved" && (
+                            <p className="text-[11px] text-emerald-300/90 leading-relaxed">
+                              License is on file. Distribution can be activated now.
+                              Media binding (Bunny video ID) becomes available after activation.
+                            </p>
+                          )}
 
                           {project.license ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -860,8 +869,8 @@ export default function AdminPage() {
                             <div className="space-y-2">
                               <p className="text-[11px] text-neutral-500 leading-relaxed">
                                 The creator must execute the license before distribution can be activated.
-                                A license-required email is sent at approval, and the link below is also
-                                visible to the creator in their workspace.
+                                A license-required email is sent at approval and the workspace surfaces
+                                the same link. If the email failed, hand the URL below to the creator.
                               </p>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">
@@ -903,47 +912,72 @@ export default function AdminPage() {
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <input
-                              type="text"
-                              placeholder="Bunny video ID"
-                              defaultValue={project.bunny_video_id || ""}
-                              onChange={(e) =>
-                                setMediaInputs((s) => ({ ...s, [project.id]: e.target.value }))
-                              }
-                              className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40"
-                            />
-                            <button
-                              onClick={() =>
-                                saveMedia(project.id, {
-                                  bunnyVideoId:
-                                    mediaInputs[project.id] !== undefined
-                                      ? mediaInputs[project.id]
-                                      : project.bunny_video_id || "",
-                                })
-                              }
-                              disabled={mediaBusy === project.id}
-                              className="px-3 py-2 rounded text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
-                            >
-                              {mediaBusy === project.id ? "Saving…" : "Save ID"}
-                            </button>
-                            <button
-                              onClick={() => saveMedia(project.id, { mediaReady: !project.media_ready })}
-                              disabled={mediaBusy === project.id}
-                              className={`px-3 py-2 rounded text-xs font-medium border transition disabled:opacity-50 ${
-                                project.media_ready
-                                  ? "border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
-                                  : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                              }`}
-                            >
-                              {project.media_ready ? "Mark not ready" : "Mark media ready"}
-                            </button>
-                          </div>
+                          {(() => {
+                            const effectiveVideoId = (
+                              mediaInputs[project.id] !== undefined
+                                ? mediaInputs[project.id]
+                                : project.bunny_video_id || ""
+                            ).trim();
+                            const hasVideoId       = effectiveVideoId.length > 0;
+                            const wantsMarkReady   = !project.media_ready;
+                            const markReadyBlocked = wantsMarkReady && !hasVideoId;
 
-                          <p className="text-[11px] text-neutral-500 leading-relaxed">
-                            A title only appears in the public catalog when it has a Bunny video ID
-                            and is marked media ready.
-                          </p>
+                            return (
+                              <>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <input
+                                    type="text"
+                                    placeholder="Bunny video ID"
+                                    defaultValue={project.bunny_video_id || ""}
+                                    onChange={(e) =>
+                                      setMediaInputs((s) => ({ ...s, [project.id]: e.target.value }))
+                                    }
+                                    className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40"
+                                  />
+                                  <button
+                                    onClick={() =>
+                                      saveMedia(project.id, { bunnyVideoId: effectiveVideoId })
+                                    }
+                                    disabled={mediaBusy === project.id}
+                                    className="px-3 py-2 rounded text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
+                                  >
+                                    {mediaBusy === project.id ? "Saving…" : "Save ID"}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (markReadyBlocked) return;
+                                      saveMedia(project.id, { mediaReady: !project.media_ready });
+                                    }}
+                                    disabled={mediaBusy === project.id || markReadyBlocked}
+                                    title={
+                                      markReadyBlocked
+                                        ? "Paste the Bunny Stream Video ID before marking media ready."
+                                        : undefined
+                                    }
+                                    className={`px-3 py-2 rounded text-xs font-medium border transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                                      project.media_ready
+                                        ? "border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                                        : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                    }`}
+                                  >
+                                    {project.media_ready ? "Mark not ready" : "Mark media ready"}
+                                  </button>
+                                </div>
+
+                                {markReadyBlocked ? (
+                                  <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                                    Paste the Bunny Stream Video ID, save it, then mark media ready.
+                                    A title only appears in the public catalog when both are in place.
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                                    A title only appears in the public catalog when it has a Bunny video ID
+                                    and is marked media ready.
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
 
