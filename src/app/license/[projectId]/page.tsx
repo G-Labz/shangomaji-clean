@@ -31,6 +31,7 @@ type LicenseRow = {
 type ApiState = {
   project: { id: string; title: string; status: string } | null;
   license: LicenseRow | null;
+  suggestedSignerName: string | null;
   error: string | null;
   loading: boolean;
 };
@@ -42,6 +43,7 @@ export default function LicensePage() {
   const [state, setState] = useState<ApiState>({
     project: null,
     license: null,
+    suggestedSignerName: null,
     error:   null,
     loading: true,
   });
@@ -69,17 +71,26 @@ export default function LicensePage() {
         return data;
       })
       .then((data) => {
+        const suggested =
+          typeof data.suggestedSignerName === "string" && data.suggestedSignerName.trim().length > 0
+            ? data.suggestedSignerName.trim()
+            : null;
         setState({
           project: data.project ?? null,
           license: data.license ?? null,
+          suggestedSignerName: suggested,
           error:   null,
           loading: false,
         });
+        if (!data.license && suggested) {
+          setLegalName((prev) => (prev.trim().length === 0 ? suggested : prev));
+        }
       })
       .catch((err: any) => {
         setState({
           project: null,
           license: null,
+          suggestedSignerName: null,
           error:   err.message || "Could not load license state",
           loading: false,
         });

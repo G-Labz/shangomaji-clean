@@ -29,6 +29,12 @@ type ApplicationRow = {
   id: string;
   email: string;
   name: string | null;
+  // Structured identity (migration 014). May be null on legacy applications.
+  first_name: string | null;
+  last_name: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
   handle: string | null;
   origin: string | null;
   influences: string | null;
@@ -56,6 +62,25 @@ type ProfileRow = {
   application_id: string | null;
   hydrated_from_application_at: string | null;
 };
+
+// Prefer structured first+last when both are present; fall back to legacy
+// `name`. Returns null if neither yields a usable string.
+function deriveDisplayName(app: ApplicationRow): string | null {
+  const first = clean(app.first_name);
+  const last  = clean(app.last_name);
+  if (first && last) return `${first} ${last}`;
+  return clean(app.name);
+}
+
+// Profile schema has city + country but no region. When structured city is
+// present, fold region into city for display ("Lagos, Lagos State"). Falls
+// back to legacy `origin` when no structured city was captured.
+function deriveCityForProfile(app: ApplicationRow): string | null {
+  const city   = clean(app.city);
+  const region = clean(app.region);
+  if (city) return region ? `${city}, ${region}` : city;
+  return clean(app.origin);
+}
 
 function clean(s: string | null | undefined): string | null {
   if (typeof s !== "string") return null;
@@ -86,7 +111,7 @@ export async function findApplicationForEmail(
   const { data, error } = await admin
     .from("creator_applications")
     .select(
-      "id, email, name, handle, origin, influences, instagram, twitter, youtube, website, status, submitted_at"
+      "id, email, name, first_name, last_name, city, region, country, handle, origin, influences, instagram, twitter, youtube, website, status, submitted_at"
     )
     .ilike("email", normalized)
     .order("submitted_at", { ascending: false });
@@ -99,6 +124,11 @@ export async function findApplicationForEmail(
     id:         chosen.id,
     email:      chosen.email,
     name:       chosen.name,
+    first_name: chosen.first_name ?? null,
+    last_name:  chosen.last_name ?? null,
+    city:       chosen.city ?? null,
+    region:     chosen.region ?? null,
+    country:    chosen.country ?? null,
     handle:     chosen.handle,
     origin:     chosen.origin,
     influences: chosen.influences,
@@ -151,9 +181,13 @@ export async function hydrateCreatorProfile(
   const now = new Date().toISOString();
 
   // Source values from the application, normalized.
-  const srcDisplayName = clean(app.name);
+  // Identity prefers the structured first+last over legacy `name`.
+  // Location prefers structured city (combined with region) + country
+  // over the legacy single-field `origin`.
+  const srcDisplayName = deriveDisplayName(app);
   const srcHandle      = normalizeHandle(app.handle);
-  const srcCity        = clean(app.origin);          // origin → city (single freeform field)
+  const srcCity        = deriveCityForProfile(app);
+  const srcCountry     = clean(app.country);
   const srcBioLong     = clean(app.influences);      // influences → bio_long (creator's own words)
   const srcInstagram   = clean(app.instagram);
   const srcTwitter     = clean(app.twitter);
@@ -167,6 +201,7 @@ export async function hydrateCreatorProfile(
       handle:       srcHandle,
       bio_long:     srcBioLong,
       city:         srcCity,
+      country:      srcCountry,
       website:      srcWebsite,
       instagram:    srcInstagram,
       twitter:      srcTwitter,
@@ -219,6 +254,7 @@ export async function hydrateCreatorProfile(
   fillIfEmpty("handle",       srcHandle);
   fillIfEmpty("bio_long",     srcBioLong);
   fillIfEmpty("city",         srcCity);
+  fillIfEmpty("country",      srcCountry);
   fillIfEmpty("website",      srcWebsite);
   fillIfEmpty("instagram",    srcInstagram);
   fillIfEmpty("twitter",      srcTwitter);

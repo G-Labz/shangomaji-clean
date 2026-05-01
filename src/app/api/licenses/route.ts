@@ -77,6 +77,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: licErr.message }, { status: 500 });
   }
 
+  // Suggested signer name for prefill on the license form. Prefer the
+  // structured first+last (migration 014); fall back to legacy `name`. The
+  // creator can still edit before signing — this is a UX nudge, not a bypass
+  // of the license-form validators (full legal name + signature match +
+  // certification checkbox are all still enforced).
+  let suggestedSignerName: string | null = null;
+  if (!license) {
+    const { data: appRows } = await admin
+      .from("creator_applications")
+      .select("first_name, last_name, name, status, submitted_at")
+      .ilike("email", email)
+      .order("submitted_at", { ascending: false });
+    const accepted = (appRows ?? []).find((a: any) => a.status === "accepted");
+    const chosen   = accepted ?? (appRows ?? [])[0];
+    if (chosen) {
+      const first = (chosen.first_name ?? "").trim();
+      const last  = (chosen.last_name  ?? "").trim();
+      if (first && last) {
+        suggestedSignerName = `${first} ${last}`;
+      } else {
+        const legacy = (chosen.name ?? "").trim();
+        suggestedSignerName = legacy || null;
+      }
+    }
+  }
+
   return NextResponse.json({
     project: {
       id:     project.id,
@@ -84,6 +110,7 @@ export async function GET(req: NextRequest) {
       status: project.status,
     },
     license: license ?? null,
+    suggestedSignerName,
   });
 }
 

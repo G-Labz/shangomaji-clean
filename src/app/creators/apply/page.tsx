@@ -4,14 +4,24 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Check, Upload, AlertCircle } from "lucide-react";
+import {
+  validateNamePart,
+  validateCity,
+  validateRegion,
+  validateCountry,
+  COUNTRY_LIST,
+} from "@/lib/creator-identity";
 
 // ─── Form state types ─────────────────────────
 interface FormData {
-  // Step 1 — About You
-  name: string;
+  // Step 1 — About You (structured identity)
+  firstName: string;
+  lastName: string;
   handle: string;
   email: string;
-  origin: string;
+  city: string;
+  region: string;
+  country: string;
   // Step 2 — Your Work
   projectTitle: string;
   projectType: string;
@@ -57,10 +67,13 @@ const STEPS = [
 ];
 
 const emptyForm: FormData = {
-  name: "",
+  firstName: "",
+  lastName: "",
   handle: "",
   email: "",
-  origin: "",
+  city: "",
+  region: "",
+  country: "",
   projectTitle: "",
   projectType: "",
   genres: [],
@@ -178,11 +191,25 @@ export default function ApplyPage() {
     const e: Record<string, string> = {};
 
     if (step === 1) {
-      if (!form.name.trim()) e.name = "Name is required.";
+      const firstRes = validateNamePart(form.firstName, "first_name");
+      if (!firstRes.ok) e.firstName = firstRes.error.message;
+
+      const lastRes = validateNamePart(form.lastName, "last_name");
+      if (!lastRes.ok) e.lastName = lastRes.error.message;
+
       if (!form.handle.trim()) e.handle = "Handle is required.";
+
       if (!form.email.trim()) e.email = "Email is required.";
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email address.";
-      if (!form.origin.trim()) e.origin = "Tell us where you're from.";
+
+      const cityRes = validateCity(form.city);
+      if (!cityRes.ok) e.city = cityRes.error.message;
+
+      const regionRes = validateRegion(form.region);
+      if (!regionRes.ok) e.region = regionRes.error.message;
+
+      const countryRes = validateCountry(form.country);
+      if (!countryRes.ok) e.country = countryRes.error.message;
     }
 
     if (step === 2) {
@@ -379,12 +406,27 @@ export default function ApplyPage() {
                       About You
                     </h2>
                     <p className="text-ink-faint text-sm">
-                      Tell us who you are and where you're from.
+                      Use your real legal name. This identity is used on the distribution license you sign later.
                     </p>
                   </div>
-                  <Field label="Full Name" error={errors.name}>
-                    <Input value={form.name} onChange={set("name")} placeholder="Your name" />
-                  </Field>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="First Legal Name" error={errors.firstName}>
+                      <Input
+                        value={form.firstName}
+                        onChange={set("firstName")}
+                        placeholder="First name"
+                      />
+                    </Field>
+                    <Field label="Last Legal Name" error={errors.lastName}>
+                      <Input
+                        value={form.lastName}
+                        onChange={set("lastName")}
+                        placeholder="Last name"
+                      />
+                    </Field>
+                  </div>
+
                   <Field
                     label="Creator Handle"
                     hint="This becomes your public URL on ShangoMaji: shangomaji.com/creators/your-handle"
@@ -397,15 +439,55 @@ export default function ApplyPage() {
                       prefix="@"
                     />
                   </Field>
+
                   <Field label="Email Address" error={errors.email}>
                     <Input value={form.email} onChange={set("email")} placeholder="you@example.com" />
                   </Field>
-                  <Field
-                    label="Where Are You From?"
-                    hint="City, country or diaspora context. Whatever feels true."
-                    error={errors.origin}
-                  >
-                    <Input value={form.origin} onChange={set("origin")} placeholder="e.g. Lagos, Nigeria / London, UK" />
+
+                  <div className="space-y-1.5 pt-2">
+                    <p className="text-xs uppercase tracking-widest text-ink-faint">
+                      Location
+                    </p>
+                    <p className="text-xs text-ink-faint leading-relaxed">
+                      Real city, region, and country. No "Earth" or "Internet".
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Field label="City" error={errors.city}>
+                      <Input
+                        value={form.city}
+                        onChange={set("city")}
+                        placeholder="e.g. Lagos"
+                      />
+                    </Field>
+                    <Field label="State / Province / Region" error={errors.region}>
+                      <Input
+                        value={form.region}
+                        onChange={set("region")}
+                        placeholder="e.g. Lagos State"
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Country" error={errors.country}>
+                    <div className="flex items-center bg-surface-raised border border-white/10 rounded-xl overflow-hidden focus-within:border-brand-orange/50 transition-colors">
+                      <select
+                        value={form.country}
+                        onChange={(e) => set("country")(e.target.value)}
+                        className="flex-1 bg-transparent px-4 py-3.5 text-white text-sm outline-none appearance-none"
+                        style={{ colorScheme: "dark" }}
+                      >
+                        <option value="" disabled>
+                          Select a country
+                        </option>
+                        {COUNTRY_LIST.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </Field>
                 </div>
               )}
@@ -608,11 +690,12 @@ export default function ApplyPage() {
                       Review
                     </p>
                     {[
-                      { label: "Name", value: form.name },
-                      { label: "Handle", value: `@${form.handle}` },
-                      { label: "Project", value: form.projectTitle },
-                      { label: "Type", value: form.projectType },
-                      { label: "Genres", value: form.genres.join(", ") },
+                      { label: "Name",     value: `${form.firstName} ${form.lastName}`.trim() },
+                      { label: "Handle",   value: form.handle ? `@${form.handle}` : "" },
+                      { label: "Location", value: [form.city, form.region, form.country].filter(Boolean).join(", ") },
+                      { label: "Project",  value: form.projectTitle },
+                      { label: "Type",     value: form.projectType },
+                      { label: "Genres",   value: form.genres.join(", ") },
                     ].map(({ label, value }) => value ? (
                       <div key={label} className="flex justify-between text-sm gap-4">
                         <span className="text-ink-faint flex-shrink-0">{label}</span>
