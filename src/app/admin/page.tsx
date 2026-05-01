@@ -161,7 +161,9 @@ export default function AdminPage() {
       });
       const data = await res.json();
 
-      // 207 — transition committed but a side-effect (e.g. title creation) failed
+      // 207 — transition committed but a side-effect (title creation, license
+      // term stamping, license-required email) failed. Update local state
+      // truthfully and surface whichever warning came back.
       if (res.status === 207) {
         setProjectList((prev) =>
           prev.map((p) =>
@@ -170,7 +172,11 @@ export default function AdminPage() {
               : p
           )
         );
-        alert(`⚠️ Distribution warning:\n\n${data.distributionWarning}`);
+        const warning =
+          data?.distributionWarning ||
+          data?.licenseEmailWarning  ||
+          "Side-effect warning (no detail).";
+        alert(`⚠️ Warning:\n\n${warning}`);
         return;
       }
 
@@ -854,7 +860,8 @@ export default function AdminPage() {
                             <div className="space-y-2">
                               <p className="text-[11px] text-neutral-500 leading-relaxed">
                                 The creator must execute the license before distribution can be activated.
-                                The link below is shown to the creator in their workspace as well.
+                                A license-required email is sent at approval, and the link below is also
+                                visible to the creator in their workspace.
                               </p>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">

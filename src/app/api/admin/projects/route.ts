@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendLicenseRequestEmail } from "@/lib/email";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -234,6 +235,34 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // STEP 4b — On transition into `approved`, drive the creator to license
+  // execution. The workspace UI also surfaces the CTA, but a direct email
+  // makes the next step explicit and out-of-band durable.
+  // Failure is reported as a warning (207); approval itself is not rolled
+  // back because email delivery failed. We do NOT pretend the email went
+  // out — admin is told truthfully when delivery fails.
+  let licenseEmailWarning: string | null = null;
+  if (status === "approved" && previousStatus !== "approved") {
+    const proto = req.headers.get("x-forwarded-proto") ?? "https";
+    const host  = req.headers.get("host");
+    const origin =
+      process.env.NEXT_PUBLIC_SITE_URL ?? (host ? `${proto}://${host}` : "");
+    const licenseUrl = `${origin}/license/${id}`;
+
+    const result = await sendLicenseRequestEmail({
+      to:           existingProject.creator_email,
+      projectTitle: existingProject.title ?? "your project",
+      licenseUrl,
+    });
+
+    if (!result.ok) {
+      licenseEmailWarning =
+        `Approval saved, but the license-required email could not be sent. ` +
+        `Reason: ${result.error}. ` +
+        `Hand the creator the URL directly: ${licenseUrl}`;
+    }
+  }
+
   // STEP 4 — Detect approved → live transition and create title record
   if (previousStatus === "approved" && status === "live") {
     const { error: titleError } = await supabase
@@ -300,6 +329,13 @@ export async function PATCH(req: NextRequest) {
         );
       }
     }
+  }
+
+  if (licenseEmailWarning) {
+    return NextResponse.json(
+      { success: true, licenseEmailWarning },
+      { status: 207 }
+    );
   }
 
   return NextResponse.json({ success: true });

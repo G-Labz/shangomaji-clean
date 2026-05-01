@@ -51,6 +51,7 @@ export default function WorkspaceProjects() {
   const [removalProject, setRemovalProject] = useState<Project | null>(null);
   const [removalReason, setRemovalReason]   = useState("");
   const [removalBusy, setRemovalBusy]       = useState(false);
+  const [submittingId, setSubmittingId]     = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
 
   useEffect(() => {
@@ -117,6 +118,30 @@ export default function WorkspaceProjects() {
       showFeedback(`"${project.title}" deleted.`);
     } catch (err: any) {
       showError(err.message || "Delete failed");
+    }
+  }
+
+  // Submit a draft for review directly from the list (draft → pending).
+  // Mirrors the edit page's Submit for Review action, so a creator never
+  // has to open the edit page just to find the submit button.
+  async function handleSubmitDraft(project: Project) {
+    setSubmittingId(project.id);
+    try {
+      const res = await fetch("/api/creators/projects", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ id: project.id, status: "pending" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Submit failed");
+      setProjects((prev) =>
+        prev.map((p) => (p.id === project.id ? { ...p, status: "pending" } : p))
+      );
+      showFeedback(`"${project.title}" submitted for review.`);
+    } catch (err: any) {
+      showError(err.message || "Submit failed");
+    } finally {
+      setSubmittingId(null);
     }
   }
 
@@ -325,9 +350,11 @@ export default function WorkspaceProjects() {
           const isLive    = project.status === "live";
           const blocked   = !canDelete && !isLive;
 
+          const isDraft           = project.status === "draft";
           const isApproved        = project.status === "approved";
           const licenseExecuted   = project.license_status === "executed";
           const needsLicense      = isApproved && !licenseExecuted;
+          const isSubmittingThis  = submittingId === project.id;
 
           return (
             <Card key={project.id} className="flex flex-col gap-4">
@@ -362,17 +389,29 @@ export default function WorkspaceProjects() {
                   </p>
                 </div>
 
-                <ItemActions
-                  editHref={`/workspace/projects/${project.id}/edit`}
-                  onDelete={canDelete ? () => handleDelete(project) : undefined}
-                  onDeleteBlocked={blocked ? (reason) => showError(reason) : undefined}
-                  deleteBlockedReason={blocked ? deleteBlockReason(project.status) : undefined}
-                  onRequestRemoval={
-                    isLive && !project.removal_requested
-                      ? () => setRemovalProject(project)
-                      : undefined
-                  }
-                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isDraft && (
+                    <button
+                      onClick={() => handleSubmitDraft(project)}
+                      disabled={isSubmittingThis}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-black transition active:scale-95 disabled:opacity-50"
+                      style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
+                    >
+                      {isSubmittingThis ? "Submitting…" : "Submit for Review"}
+                    </button>
+                  )}
+                  <ItemActions
+                    editHref={`/workspace/projects/${project.id}/edit`}
+                    onDelete={canDelete ? () => handleDelete(project) : undefined}
+                    onDeleteBlocked={blocked ? (reason) => showError(reason) : undefined}
+                    deleteBlockedReason={blocked ? deleteBlockReason(project.status) : undefined}
+                    onRequestRemoval={
+                      isLive && !project.removal_requested
+                        ? () => setRemovalProject(project)
+                        : undefined
+                    }
+                  />
+                </div>
               </div>
 
               {/* Approved projects: surface the license step. Without an executed

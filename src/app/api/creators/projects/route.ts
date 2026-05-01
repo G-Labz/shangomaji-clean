@@ -11,6 +11,16 @@ function svc() {
 
 // Phase 4.9 lifecycle — allowed creator transitions (target → [allowed sources])
 // Creators may only submit: draft → pending
+//
+// NOTE: this route writes `status_changed_at`, `submitted_at`, `submission_count`,
+// and reads `removal_requested`. Those columns are added by
+// `src/migrations/006_phase_4_9_lifecycle.sql`. If a deployed Supabase
+// instance has not run that migration, you will see errors like
+//   "Could not find the 'status_changed_at' column of 'creator_projects'
+//    in the schema cache"
+// Fix: run migration 006 in the Supabase SQL editor and reload the
+// PostgREST schema cache (Supabase Dashboard → API → "Reload schema cache",
+// or wait ~60s after the migration runs). Do not paper this over with code.
 const CREATOR_TRANSITIONS: Record<string, string[]> = {
   pending: ["draft"],
 };
