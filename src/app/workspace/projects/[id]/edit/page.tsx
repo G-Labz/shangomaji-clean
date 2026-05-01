@@ -43,6 +43,7 @@ export default function EditProjectPage({ params }: PageProps) {
   const [projectStatus, setProjectStatus]   = useState<string>("draft");
   const [rejectionReason, setRejectionReason] = useState<string>("");
   const [removalRequested, setRemovalRequested] = useState(false);
+  const [licenseStatus, setLicenseStatus]   = useState<"executed" | "none">("none");
   const [loading, setLoading]               = useState(true);
   const [saving, setSaving]                 = useState(false);
   const [saved, setSaved]                   = useState(false);
@@ -80,6 +81,7 @@ export default function EditProjectPage({ params }: PageProps) {
         setProjectStatus(project.status || "draft");
         setRejectionReason(project.rejection_reason || "");
         setRemovalRequested(project.removal_requested ?? false);
+        setLicenseStatus(project.license_status === "executed" ? "executed" : "none");
         setDraft({
           title:      project.title || "",
           type:       project.project_type || "",
@@ -534,6 +536,49 @@ export default function EditProjectPage({ params }: PageProps) {
           }
         />
       </div>
+
+      {/* Approved projects: license-required / license-executed banner.
+          Without an executed license, distribution cannot be activated. */}
+      {projectStatus === "approved" && (
+        <div
+          className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3 rounded-lg border"
+          style={{
+            borderColor:
+              licenseStatus === "executed"
+                ? "rgba(52,211,153,0.25)"
+                : "rgba(245,197,24,0.3)",
+            background:
+              licenseStatus === "executed"
+                ? "rgba(52,211,153,0.06)"
+                : "rgba(245,197,24,0.06)",
+          }}
+        >
+          <div className="flex-1 text-sm">
+            <p className="text-white font-medium">
+              {licenseStatus === "executed"
+                ? "Standard Distribution License executed."
+                : "One step before going live: execute your Standard Distribution License."}
+            </p>
+            <p className="text-ink-faint text-xs mt-0.5">
+              {licenseStatus === "executed"
+                ? "ShangoMaji will activate distribution from here."
+                : "Select your term, review the agreement, and sign. This unlocks distribution activation."}
+            </p>
+          </div>
+          <Link
+            href={`/license/${id}`}
+            className="px-4 py-2 rounded-lg text-xs font-semibold text-black transition active:scale-95 self-start md:self-auto"
+            style={{
+              background:
+                licenseStatus === "executed"
+                  ? "rgba(255,255,255,0.85)"
+                  : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+            }}
+          >
+            {licenseStatus === "executed" ? "View License" : "Sign License"}
+          </Link>
+        </div>
+      )}
 
       {/* Edit form */}
       <div className="grid gap-4 lg:grid-cols-3">

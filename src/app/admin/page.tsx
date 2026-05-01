@@ -851,11 +851,29 @@ export default function AdminPage() {
                               now require an executed license. No automatic backfill is performed.
                             </p>
                           ) : (
-                            <p className="text-[11px] text-neutral-500 leading-relaxed">
-                              The creator must execute the license at{" "}
-                              <span className="text-neutral-300">/license/{project.id}</span>{" "}
-                              before distribution can be activated.
-                            </p>
+                            <div className="space-y-2">
+                              <p className="text-[11px] text-neutral-500 leading-relaxed">
+                                The creator must execute the license before distribution can be activated.
+                                The link below is shown to the creator in their workspace as well.
+                              </p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">
+                                  /license/{project.id}
+                                </code>
+                                <button
+                                  onClick={() => {
+                                    const url =
+                                      typeof window !== "undefined"
+                                        ? `${window.location.origin}/license/${project.id}`
+                                        : `/license/${project.id}`;
+                                    navigator.clipboard?.writeText(url);
+                                  }}
+                                  className="px-2 py-1 rounded text-[11px] font-medium border border-white/15 text-white hover:bg-white/10 transition"
+                                >
+                                  Copy creator URL
+                                </button>
+                              </div>
+                            </div>
                           )}
                         </div>
                       )}

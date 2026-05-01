@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
+
+function svc() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 // Phase 4.9 lifecycle — allowed creator transitions (target → [allowed sources])
 // Creators may only submit: draft → pending
@@ -35,7 +43,36 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ projects: data ?? [] });
+  // Enrich with executed-license state so the workspace can show
+  // "License required" / "License executed" CTAs on approved projects.
+  // Read with the service role to keep this side of the gate immune to
+  // RLS configuration on creator_licenses.
+  const projects = data ?? [];
+  const ids = projects.map((p: any) => p.id);
+  const licensesByProject = new Map<string, { id: string; status: string }>();
+
+  if (ids.length) {
+    const admin = svc();
+    const { data: licenseRows } = await admin
+      .from("creator_licenses")
+      .select("id, project_id, status")
+      .in("project_id", ids)
+      .eq("status", "executed");
+    for (const l of licenseRows ?? []) {
+      licensesByProject.set(l.project_id, { id: l.id, status: l.status });
+    }
+  }
+
+  const enriched = projects.map((p: any) => {
+    const l = licensesByProject.get(p.id);
+    return {
+      ...p,
+      license_status: l ? "executed" : "none",
+      license_id:     l?.id ?? null,
+    };
+  });
+
+  return NextResponse.json({ projects: enriched });
 }
 
 export async function POST(req: NextRequest) {

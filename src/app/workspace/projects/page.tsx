@@ -14,6 +14,8 @@ type Project = {
   description: string | null;
   updated_at: string;
   removal_requested?: boolean;
+  license_status?: "executed" | "none";
+  license_id?: string | null;
 };
 
 // Phase 4.9 filters — pending covers pending+in_review, live is the public state
@@ -323,39 +325,95 @@ export default function WorkspaceProjects() {
           const isLive    = project.status === "live";
           const blocked   = !canDelete && !isLive;
 
+          const isApproved        = project.status === "approved";
+          const licenseExecuted   = project.license_status === "executed";
+          const needsLicense      = isApproved && !licenseExecuted;
+
           return (
-            <Card key={project.id} className="flex flex-col md:flex-row md:items-center gap-4">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <p className="text-white font-semibold text-base">{project.title}</p>
-                  <StatusBadge status={project.status} />
-                  {project.project_type && <Pill>{project.project_type}</Pill>}
-                  {project.genres?.map((g) => <Pill key={g}>{g}</Pill>)}
-                  {isLive && project.removal_requested && (
-                    <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
-                      Removal Requested
-                    </span>
+            <Card key={project.id} className="flex flex-col gap-4">
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <p className="text-white font-semibold text-base">{project.title}</p>
+                    <StatusBadge status={project.status} />
+                    {project.project_type && <Pill>{project.project_type}</Pill>}
+                    {project.genres?.map((g) => <Pill key={g}>{g}</Pill>)}
+                    {isLive && project.removal_requested && (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
+                        Removal Requested
+                      </span>
+                    )}
+                    {needsLicense && (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
+                        License required
+                      </span>
+                    )}
+                    {isApproved && licenseExecuted && (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">
+                        License executed
+                      </span>
+                    )}
+                  </div>
+                  {project.logline && (
+                    <p className="text-ink-faint text-sm">{project.logline}</p>
                   )}
+                  <p className="text-[11px] text-ink-muted">
+                    Last updated {formatDate(project.updated_at)}
+                  </p>
                 </div>
-                {project.logline && (
-                  <p className="text-ink-faint text-sm">{project.logline}</p>
-                )}
-                <p className="text-[11px] text-ink-muted">
-                  Last updated {formatDate(project.updated_at)}
-                </p>
+
+                <ItemActions
+                  editHref={`/workspace/projects/${project.id}/edit`}
+                  onDelete={canDelete ? () => handleDelete(project) : undefined}
+                  onDeleteBlocked={blocked ? (reason) => showError(reason) : undefined}
+                  deleteBlockedReason={blocked ? deleteBlockReason(project.status) : undefined}
+                  onRequestRemoval={
+                    isLive && !project.removal_requested
+                      ? () => setRemovalProject(project)
+                      : undefined
+                  }
+                />
               </div>
 
-              <ItemActions
-                editHref={`/workspace/projects/${project.id}/edit`}
-                onDelete={canDelete ? () => handleDelete(project) : undefined}
-                onDeleteBlocked={blocked ? (reason) => showError(reason) : undefined}
-                deleteBlockedReason={blocked ? deleteBlockReason(project.status) : undefined}
-                onRequestRemoval={
-                  isLive && !project.removal_requested
-                    ? () => setRemovalProject(project)
-                    : undefined
-                }
-              />
+              {/* Approved projects: surface the license step. Without an executed
+                  license, distribution cannot be activated. */}
+              {isApproved && (
+                <div
+                  className="flex flex-col md:flex-row md:items-center gap-3 px-3 py-3 rounded-lg border"
+                  style={{
+                    borderColor: licenseExecuted
+                      ? "rgba(52,211,153,0.25)"
+                      : "rgba(245,197,24,0.3)",
+                    background: licenseExecuted
+                      ? "rgba(52,211,153,0.06)"
+                      : "rgba(245,197,24,0.06)",
+                  }}
+                >
+                  <div className="flex-1 text-sm">
+                    <p className="text-white font-medium">
+                      {licenseExecuted
+                        ? "Standard Distribution License executed."
+                        : "One step before going live: execute your Standard Distribution License."}
+                    </p>
+                    <p className="text-ink-faint text-xs mt-0.5">
+                      {licenseExecuted
+                        ? "ShangoMaji will activate distribution from here."
+                        : "Select your term, review the agreement, and sign. This unlocks distribution activation."}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/license/${project.id}`}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold text-black transition active:scale-95 self-start md:self-auto"
+                    style={{
+                      background: licenseExecuted
+                        ? "rgba(255,255,255,0.85)"
+                        : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                    }}
+                  >
+                    {licenseExecuted ? "View License" : "Sign License"}
+                  </Link>
+                </div>
+              )}
             </Card>
           );
         })}
