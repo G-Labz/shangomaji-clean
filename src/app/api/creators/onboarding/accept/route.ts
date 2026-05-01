@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { ONBOARDING_TERMS_VERSION } from "@/lib/onboarding-terms";
 import { sendPasswordSetupEmail } from "@/lib/email";
+import { hydrateCreatorProfile } from "@/lib/hydrate-creator-profile";
 
 // Service-role client — onboarding acceptance bypasses RLS by design.
 // The token itself is the authorization proof.
@@ -77,6 +78,25 @@ export async function POST(req: NextRequest) {
       { error: "Could not record acceptance. Please try again." },
       { status: 500 }
     );
+  }
+
+  // Hydrate creator_profiles from the application immediately after the
+  // legal acceptance event. Best-effort — failure here does NOT roll back
+  // acceptance, since acceptance is the legal event and the profile fallback
+  // path will retry on next workspace load.
+  try {
+    const hydration = await hydrateCreatorProfile(supabase, row.email);
+    if (!hydration.ok) {
+      console.error("Profile hydration failed at onboarding-accept", {
+        email: row.email,
+        error: hydration.error,
+      });
+    }
+  } catch (err: any) {
+    console.error("Profile hydration threw at onboarding-accept", {
+      email: row.email,
+      error: err?.message,
+    });
   }
 
   // Trigger password setup email. This happens AFTER acceptance, so the
