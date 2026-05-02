@@ -78,18 +78,42 @@ export function reviewToPayload(s: AdminReviewState) {
 
 // Project-level summary of where the institutional gates currently stand.
 // Returned to the parent so it can disable Approve and render copy.
+//
+// The two failure axes are surfaced *separately* (creator integrity vs review
+// record) so the admin UI can display both blockers inline rather than
+// conflating them into a single misleading message.
 export function gateState(project: any, review: AdminReviewState) {
   const integrityErr = validateCreatorIntegrity(project as CreatorIntegrityInput);
   const reviewMerged: AdminReviewInput = { ...project, ...reviewToPayload(review) };
   const completenessErr = validateAdminReviewComplete(reviewMerged);
   const passingErr      = isReviewPassing(reviewMerged);
+
+  // The review failure surface is "review-not-complete" first; only if the
+  // record is fully complete do we fall through to the rights/craft posture
+  // failure that `isReviewPassing` adds on top.
+  const reviewMessage =
+    completenessErr?.message ??
+    (passingErr && passingErr !== completenessErr ? passingErr.message : null);
+
+  // A "legacy" project is one that predates Submission Integrity v1 entirely:
+  // none of the three structured creator-integrity selectors were ever
+  // written. Used by the parent to swap in an explicit "reject and resubmit"
+  // copy block (the institutional answer for legacy works).
+  const isLegacyMissingIntegrity =
+    integrityErr !== null &&
+    !project?.thesis_path &&
+    !project?.ai_usage &&
+    !project?.prior_distribution;
+
   return {
-    integrityComplete:  integrityErr === null,
-    integrityMessage:   integrityErr?.message ?? null,
-    reviewComplete:     completenessErr === null,
-    reviewMessage:      completenessErr?.message ?? null,
-    approvalAllowed:    integrityErr === null && passingErr === null,
-    approvalBlockedMessage: passingErr?.message ?? integrityErr?.message ?? null,
+    integrityComplete:        integrityErr === null,
+    integrityMessage:         integrityErr?.message ?? null,
+    reviewComplete:           completenessErr === null,
+    reviewPassing:            passingErr === null,
+    reviewMessage,
+    approvalAllowed:          integrityErr === null && passingErr === null,
+    approvalBlockedMessage:   passingErr?.message ?? integrityErr?.message ?? null,
+    isLegacyMissingIntegrity,
   };
 }
 

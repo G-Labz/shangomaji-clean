@@ -87,26 +87,42 @@ export default function AdminPage() {
     if (!review) return;
     setReviewBusy(projectId);
     try {
+      const payload = reviewToPayload(review);
       const res = await fetch("/api/admin/projects", {
         method:  "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
-        body:    JSON.stringify({ id: projectId, action: "saveReview", ...reviewToPayload(review) }),
+        body:    JSON.stringify({ id: projectId, action: "saveReview", ...payload }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Save failed");
       // Reflect persisted reviewed_at/by on the local row so the panel updates.
+      const now = new Date().toISOString();
       setProjectList((prev) =>
         prev.map((p) =>
           p.id === projectId
             ? {
                 ...p,
-                ...reviewToPayload(review),
-                reviewed_at: new Date().toISOString(),
-                reviewed_by: p.reviewed_by ?? "admin",
+                ...payload,
+                reviewed_at: now,
+                reviewed_by:  p.reviewed_by ?? "admin",
               }
             : p
         )
       );
+      // Re-sync the local review state from the canonical post-save shape so
+      // the gate reads from the same values that were just persisted. Without
+      // this, multi-tab / concurrent-admin saves can leave the locked-button
+      // gate computing against a stale local copy.
+      const synced = reviewFromProject({
+        review_thesis_confirmed:              payload.review_thesis_confirmed,
+        review_meaningful_presence_rationale: payload.review_meaningful_presence_rationale,
+        review_rights_posture:                payload.review_rights_posture,
+        review_craft_result:                  payload.review_craft_result,
+        review_catalog_fit:                   payload.review_catalog_fit,
+        review_decision_record:               payload.review_decision_record,
+        review_risk_notes:                    payload.review_risk_notes,
+      });
+      setReviewByProject((prev) => ({ ...prev, [projectId]: synced }));
       setReviewSavedFor(projectId);
       setTimeout(() => setReviewSavedFor((cur) => (cur === projectId ? null : cur)), 2000);
     } catch (e: any) {
@@ -1251,7 +1267,7 @@ export default function AdminPage() {
                                 title={gate.approvalBlockedMessage ?? undefined}
                                 className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
                               >
-                                Approval locked — review record required.
+                                Approval locked
                               </span>
                             )}
                             <button
@@ -1278,7 +1294,7 @@ export default function AdminPage() {
                                 title={gate.approvalBlockedMessage ?? undefined}
                                 className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
                               >
-                                Approval locked — review record required.
+                                Approval locked
                               </span>
                             )}
                             <button
@@ -1290,10 +1306,32 @@ export default function AdminPage() {
                           </>
                         )}
 
-                        {showApproveGate && gate.approvalBlockedMessage && (
-                          <span className="text-[11px] text-neutral-500 ml-2">
-                            {gate.approvalBlockedMessage}
-                          </span>
+                        {/* Inline approval-blocker diagnostics — show both axes
+                            (creator integrity and review record) when both fail,
+                            or the dedicated legacy copy when the work predates
+                            Submission Integrity v1. Visible always, not only on
+                            tooltip hover. */}
+                        {showApproveGate && !gate.approvalAllowed && (
+                          <div className="basis-full flex flex-col gap-0.5 mt-1">
+                            {gate.isLegacyMissingIntegrity ? (
+                              <p className="text-[11px] text-yellow-300/90 leading-relaxed">
+                                This work predates Submission Integrity v1. It must be rejected and resubmitted through the new integrity gate.
+                              </p>
+                            ) : (
+                              <>
+                                {gate.integrityMessage && (
+                                  <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                                    Creator integrity: {gate.integrityMessage}
+                                  </p>
+                                )}
+                                {gate.reviewMessage && (
+                                  <p className="text-[11px] text-neutral-400 leading-relaxed">
+                                    Review record: {gate.reviewMessage}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
                         )}
 
                         {/* approved: Activate Distribution (requires executed license) */}
