@@ -66,6 +66,15 @@ export default function AdminPage() {
   const [mediaInputs, setMediaInputs] = useState<Record<string, string>>({});
   const [mediaBusy, setMediaBusy]     = useState<string | null>(null);
 
+  // Admin Media Processing Lock v1 — reset modal state
+  const [resetTarget, setResetTarget] = useState<{ id: string; title: string } | null>(null);
+  const [resetReason, setResetReason] = useState("");
+  const [resetBusy,   setResetBusy]   = useState(false);
+  const [resetError,  setResetError]  = useState("");
+
+  // Admin refresh button busy flag
+  const [refreshing, setRefreshing] = useState(false);
+
   // Submission Integrity v1 — admin review state per project (keyed by id).
   // Lazily seeded from the project record when an admin expands it.
   const [reviewByProject, setReviewByProject] = useState<Record<string, AdminReviewState>>({});
@@ -241,6 +250,30 @@ export default function AdminPage() {
       alert(e.message);
     } finally {
       setProjectLoading(false);
+    }
+  }
+
+  // Refresh both applications and works without browser reload or sign-out.
+  // Used by the visible "Refresh Data" button in the admin header.
+  async function refreshAll() {
+    setRefreshing(true);
+    try {
+      const [appsRes, projRes] = await Promise.all([
+        fetch("/api/admin/applications", { headers }),
+        fetch("/api/admin/projects",      { headers }),
+      ]);
+      if (appsRes.ok) {
+        const appsData = await appsRes.json();
+        setApplications(appsData.applications ?? []);
+      }
+      if (projRes.ok) {
+        const projData = await projRes.json();
+        setProjectList(projData.projects ?? []);
+      }
+    } catch (e: any) {
+      alert(e?.message || "Refresh failed");
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -485,8 +518,49 @@ export default function AdminPage() {
     }
   }
 
-  // Save Bunny video ID + media_ready flag for a live project's title row.
-  async function saveMedia(projectId: string, opts: { bunnyVideoId?: string; mediaReady?: boolean }) {
+  // Apply a /api/admin/titles/media response to local state, mirroring all
+  // audit columns so the UI never renders stale processing state after an
+  // action. Used by save / submit / reset.
+  function applyMediaResponse(projectId: string, data: any) {
+    setProjectList((prev) =>
+      prev.map((p) =>
+        p.id === projectId
+          ? {
+              ...p,
+              bunny_video_id:                 data.title?.bunny_video_id                 ?? p.bunny_video_id,
+              bunny_thumbnail_url:            data.title?.bunny_thumbnail_url            ?? p.bunny_thumbnail_url,
+              media_ready:                    data.title?.media_ready                    ?? p.media_ready,
+              media_processing_submitted_at:  data.title?.media_processing_submitted_at  ?? p.media_processing_submitted_at,
+              media_processing_reset_at:      data.title?.media_processing_reset_at      ?? p.media_processing_reset_at,
+              media_processing_reset_reason:  data.title?.media_processing_reset_reason  ?? p.media_processing_reset_reason,
+              media_processing_history:       data.title?.media_processing_history       ?? p.media_processing_history,
+            }
+          : p
+      )
+    );
+  }
+
+  // Save Bunny video ID only. media_ready is intentionally not part of this
+  // call — the API rejects direct toggles. Submit/Reset are separate actions.
+  async function saveBunnyId(projectId: string, bunnyVideoId: string) {
+    setMediaBusy(projectId);
+    try {
+      const res = await fetch("/api/admin/titles/media", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, bunnyVideoId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Media update failed");
+      applyMediaResponse(projectId, data);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setMediaBusy(null);
+    }
+  }
+
+  async function submitMediaForProcessing(projectId: string, bunnyVideoId?: string) {
     setMediaBusy(projectId);
     try {
       const res = await fetch("/api/admin/titles/media", {
@@ -494,26 +568,33 @@ export default function AdminPage() {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          ...(opts.bunnyVideoId !== undefined ? { bunnyVideoId: opts.bunnyVideoId } : {}),
-          ...(opts.mediaReady   !== undefined ? { mediaReady:   opts.mediaReady   } : {}),
+          action: "submitForProcessing",
+          ...(bunnyVideoId ? { bunnyVideoId } : {}),
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Media update failed");
-      setProjectList((prev) =>
-        prev.map((p) =>
-          p.id === projectId
-            ? {
-                ...p,
-                bunny_video_id:      data.title?.bunny_video_id      ?? p.bunny_video_id,
-                bunny_thumbnail_url: data.title?.bunny_thumbnail_url ?? p.bunny_thumbnail_url,
-                media_ready:         data.title?.media_ready         ?? p.media_ready,
-              }
-            : p
-        )
-      );
+      if (!res.ok) throw new Error(data?.error || "Submit for processing failed");
+      applyMediaResponse(projectId, data);
     } catch (e: any) {
       alert(e.message);
+    } finally {
+      setMediaBusy(null);
+    }
+  }
+
+  async function resetMediaProcessing(projectId: string, reason: string) {
+    setMediaBusy(projectId);
+    try {
+      const res = await fetch("/api/admin/titles/media", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, action: "resetProcessing", reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Reset failed");
+      applyMediaResponse(projectId, data);
+    } catch (e: any) {
+      throw e;
     } finally {
       setMediaBusy(null);
     }
@@ -717,6 +798,104 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Reset processing modal */}
+      {resetTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => {
+            if (resetBusy) return;
+            setResetTarget(null);
+            setResetReason("");
+            setResetError("");
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-xl border border-white/10 bg-[#141010] p-6 space-y-5"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-400/80 font-semibold mb-2">
+                Internal Processing
+              </p>
+              <h3 className="text-white text-lg font-semibold">
+                Reset processing status?
+              </h3>
+            </div>
+
+            <div className="space-y-2 text-sm text-neutral-400 leading-relaxed">
+              <p>
+                This does not remove the Bunny video ID. It returns
+                <span className="text-white"> {resetTarget.title || "this work"} </span>
+                to "Not submitted" and records the reason.
+              </p>
+              <p>
+                Use only when the media binding was entered incorrectly or processing must restart.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs text-neutral-500">
+                Reason (required):
+              </label>
+              <textarea
+                value={resetReason}
+                onChange={(e) => {
+                  setResetReason(e.target.value);
+                  if (resetError) setResetError("");
+                }}
+                disabled={resetBusy}
+                rows={3}
+                placeholder="Why is processing being reset?"
+                className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-yellow-500/50 transition resize-none"
+              />
+              {resetError && (
+                <p className="text-red-400 text-xs">{resetError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (resetBusy) return;
+                  setResetTarget(null);
+                  setResetReason("");
+                  setResetError("");
+                }}
+                disabled={resetBusy}
+                className="px-4 py-2 rounded-md text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const reason = resetReason.trim();
+                  if (!reason) {
+                    setResetError("A reason is required.");
+                    return;
+                  }
+                  setResetBusy(true);
+                  setResetError("");
+                  try {
+                    await resetMediaProcessing(resetTarget.id, reason);
+                    setResetTarget(null);
+                    setResetReason("");
+                  } catch (e: any) {
+                    setResetError(e?.message || "Reset failed");
+                  } finally {
+                    setResetBusy(false);
+                  }
+                }}
+                disabled={resetBusy || !resetReason.trim()}
+                className="px-4 py-2 rounded-md text-xs font-semibold border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                {resetBusy ? "Resetting…" : "Confirm Reset"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -728,12 +907,21 @@ export default function AdminPage() {
           </h1>
           <p className="text-sm text-neutral-500 mt-1">{applications.length} total submissions</p>
         </div>
-        <button
-          onClick={() => { setAuthed(false); setPassword(""); }}
-          className="text-xs text-neutral-500 hover:text-white transition"
-        >
-          Lock
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={refreshAll}
+            disabled={refreshing}
+            className="text-xs px-3 py-1.5 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+          >
+            {refreshing ? "Refreshing…" : "Refresh Data"}
+          </button>
+          <button
+            onClick={() => { setAuthed(false); setPassword(""); }}
+            className="text-xs text-neutral-500 hover:text-white transition"
+          >
+            Lock
+          </button>
+        </div>
       </div>
 
       {/* View toggle */}
@@ -1363,8 +1551,7 @@ export default function AdminPage() {
                                 : project.bunny_video_id || ""
                             ).trim();
                             const hasVideoId       = effectiveVideoId.length > 0;
-                            const wantsMarkReady   = !project.media_ready;
-                            const markReadyBlocked = wantsMarkReady && !hasVideoId;
+                            const submitDisabled   = !hasVideoId || project.media_ready;
 
                             return (
                               <>
@@ -1373,42 +1560,65 @@ export default function AdminPage() {
                                     type="text"
                                     placeholder="Bunny video ID"
                                     defaultValue={project.bunny_video_id || ""}
+                                    disabled={project.media_ready}
                                     onChange={(e) =>
                                       setMediaInputs((s) => ({ ...s, [project.id]: e.target.value }))
                                     }
-                                    className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40"
+                                    className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40 disabled:opacity-50"
                                   />
                                   <button
-                                    onClick={() =>
-                                      saveMedia(project.id, { bunnyVideoId: effectiveVideoId })
-                                    }
-                                    disabled={mediaBusy === project.id}
+                                    onClick={() => saveBunnyId(project.id, effectiveVideoId)}
+                                    disabled={mediaBusy === project.id || project.media_ready}
                                     className="px-3 py-2 rounded text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
+                                    title={
+                                      project.media_ready
+                                        ? "Processing is locked. Reset processing status before changing the binding."
+                                        : undefined
+                                    }
                                   >
                                     {mediaBusy === project.id ? "Saving…" : "Save ID"}
                                   </button>
-                                  <button
-                                    onClick={() => {
-                                      if (markReadyBlocked) return;
-                                      saveMedia(project.id, { mediaReady: !project.media_ready });
-                                    }}
-                                    disabled={mediaBusy === project.id || markReadyBlocked}
-                                    title={
-                                      markReadyBlocked
-                                        ? "Paste the Bunny Stream Video ID before marking media ready."
-                                        : undefined
-                                    }
-                                    className={`px-3 py-2 rounded text-xs font-medium border transition disabled:opacity-40 disabled:cursor-not-allowed ${
-                                      project.media_ready
-                                        ? "border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
-                                        : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                                    }`}
-                                  >
-                                    {project.media_ready ? "Withdraw from processing" : "Submit for processing"}
-                                  </button>
+                                  {!project.media_ready && (
+                                    <button
+                                      onClick={() => {
+                                        if (submitDisabled) return;
+                                        submitMediaForProcessing(project.id, effectiveVideoId);
+                                      }}
+                                      disabled={mediaBusy === project.id || submitDisabled}
+                                      title={
+                                        !hasVideoId
+                                          ? "Save a Bunny Stream Video ID before submitting for processing."
+                                          : undefined
+                                      }
+                                      className="px-3 py-2 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                      Submit for processing
+                                    </button>
+                                  )}
+                                  {project.media_ready && (
+                                    <button
+                                      onClick={() => {
+                                        setResetTarget({
+                                          id:    project.id,
+                                          title: project.title || "",
+                                        });
+                                        setResetReason("");
+                                        setResetError("");
+                                      }}
+                                      disabled={mediaBusy === project.id}
+                                      className="px-3 py-2 rounded text-xs font-medium border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-50"
+                                    >
+                                      Reset processing status
+                                    </button>
+                                  )}
                                 </div>
 
-                                {markReadyBlocked ? (
+                                {project.media_ready ? (
+                                  <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                                    Processing has been submitted and is locked. Reset only if the media
+                                    binding was entered incorrectly or processing must be restarted.
+                                  </p>
+                                ) : !hasVideoId ? (
                                   <p className="text-[11px] text-yellow-300/80 leading-relaxed">
                                     Paste the Bunny Stream Video ID, save it, then submit for processing.
                                     Final activation is controlled by ShangoMaji.
@@ -1419,6 +1629,10 @@ export default function AdminPage() {
                                     and has been submitted for processing. Final activation is controlled by ShangoMaji.
                                   </p>
                                 )}
+
+                                <MediaProcessingHistory
+                                  history={project.media_processing_history}
+                                />
                               </>
                             );
                           })()}
@@ -1758,6 +1972,49 @@ function IdentityRow({ status }: { status: string | null }) {
         {tier.label}
       </span>
     </p>
+  );
+}
+
+function MediaProcessingHistory({ history }: { history: unknown }) {
+  const list = Array.isArray(history) ? history : [];
+  if (list.length === 0) return null;
+  const recent = list.slice(-3).reverse();
+  const labelFor = (a: string): string => {
+    if (a === "submitted_for_processing") return "Submitted for processing";
+    if (a === "processing_reset")         return "Processing reset";
+    if (a === "binding_updated")          return "Binding updated";
+    return a;
+  };
+  return (
+    <div className="mt-3 pt-3 border-t border-white/5">
+      <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1.5">
+        Processing History
+      </p>
+      <ul className="space-y-1">
+        {recent.map((e: any, idx: number) => (
+          <li
+            key={idx}
+            className="text-[11px] text-neutral-400 leading-relaxed flex items-start gap-2"
+          >
+            <span className="text-neutral-600 font-mono shrink-0">
+              {e?.at ? new Date(e.at).toUTCString() : "—"}
+            </span>
+            <span className="text-white">{labelFor(String(e?.action ?? "—"))}</span>
+            <span className="text-neutral-500">by {String(e?.by ?? "—")}</span>
+            {e?.reason && (
+              <span className="text-neutral-500 italic break-words">
+                — {String(e.reason)}
+              </span>
+            )}
+          </li>
+        ))}
+        {list.length > 3 && (
+          <li className="text-[10px] text-neutral-600">
+            (showing most recent 3 of {list.length} entries)
+          </li>
+        )}
+      </ul>
+    </div>
   );
 }
 

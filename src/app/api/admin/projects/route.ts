@@ -60,11 +60,11 @@ export async function GET(req: NextRequest) {
   if (liveIds.length) {
     const { data: titleRows } = await supabase
       .from("titles")
-      .select("id, project_id, bunny_video_id, bunny_thumbnail_url, media_ready, status")
+      .select("id, project_id, bunny_video_id, bunny_thumbnail_url, media_ready, status, media_processing_submitted_at, media_processing_reset_at, media_processing_reset_reason, media_processing_history")
       .in("project_id", liveIds)
       .neq("status", "removed");
     for (const t of titleRows ?? []) {
-      titlesByProject.set(t.project_id, t);
+      titlesByProject.set((t as any).project_id, t);
     }
   }
 
@@ -109,13 +109,17 @@ export async function GET(req: NextRequest) {
       identityByEmail.get((p.creator_email ?? "").trim().toLowerCase()) ?? null;
     return {
       ...p,
-      title_id:                t?.id              ?? null,
-      bunny_video_id:          t?.bunny_video_id  ?? null,
-      bunny_thumbnail_url:     t?.bunny_thumbnail_url ?? null,
-      media_ready:             t?.media_ready     ?? false,
-      title_status:            t?.status          ?? null,
-      license:                 l ?? null,
-      identity_status:         idStatus,
+      title_id:                       t?.id              ?? null,
+      bunny_video_id:                 t?.bunny_video_id  ?? null,
+      bunny_thumbnail_url:            t?.bunny_thumbnail_url ?? null,
+      media_ready:                    t?.media_ready     ?? false,
+      title_status:                   t?.status          ?? null,
+      media_processing_submitted_at:  t?.media_processing_submitted_at  ?? null,
+      media_processing_reset_at:      t?.media_processing_reset_at      ?? null,
+      media_processing_reset_reason:  t?.media_processing_reset_reason  ?? null,
+      media_processing_history:       t?.media_processing_history       ?? [],
+      license:                        l ?? null,
+      identity_status:                idStatus,
     };
   });
 
