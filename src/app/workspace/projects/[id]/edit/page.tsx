@@ -299,6 +299,7 @@ export default function EditProjectPage({ params }: PageProps) {
       if (res.status === 409) throw new Error("A removal request has already been submitted.");
       if (!res.ok) throw new Error(data?.error || "Request failed");
       setRemovalRequested(true);
+      setProjectStatus("removal_requested");
       setRemovalModalOpen(false);
       setRemovalReason("");
       showFeedback("Removal request submitted.");
@@ -547,8 +548,8 @@ export default function EditProjectPage({ params }: PageProps) {
               Edit Work
             </h1>
             <StatusBadge status={projectStatus} />
-            {isLive && removalRequested && (
-              <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
+            {projectStatus === "removal_requested" && (
+              <span className="text-[11px] px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
                 Removal Requested
               </span>
             )}
@@ -568,11 +569,18 @@ export default function EditProjectPage({ params }: PageProps) {
               ? "Removed from active catalog."
               : projectStatus === "rejected"
               ? "Not selected. Revise to create a new draft."
+              : projectStatus === "removal_requested"
+              ? "Removal request under review."
               : ""}
           </p>
           {isLive && (
             <p className="text-[11px] text-ink-muted">
               Subject to review. Removal may be denied during an active license term.
+            </p>
+          )}
+          {projectStatus === "removal_requested" && (
+            <p className="text-[11px] text-amber-300/80">
+              Editing is closed while the removal request is under review.
             </p>
           )}
         </div>

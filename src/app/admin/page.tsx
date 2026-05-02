@@ -44,9 +44,18 @@ export default function AdminPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [view, setView]             = useState<"applications" | "projects">("applications");
   const [projectList, setProjectList]   = useState<any[]>([]);
-  const [projectFilter, setProjectFilter] = useState<"all" | "pending" | "in_review" | "approved" | "rejected" | "live" | "archived">("all");
+  const [projectFilter, setProjectFilter] = useState<"all" | "pending" | "in_review" | "approved" | "rejected" | "live" | "archived" | "removal_requested">("all");
   const [projectLoading, setProjectLoading] = useState(false);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
+
+  // Lifecycle control busy flags (per-project, per-action)
+  const [restoreBusy, setRestoreBusy] = useState<string | null>(null);
+  const [reopenBusy,  setReopenBusy]  = useState<string | null>(null);
+  const [removalBusy, setRemovalBusy] = useState<string | null>(null);
+
+  // Optional reason input for resolveRemoval (keyed by project id + decision)
+  const [removalDenyReasonFor, setRemovalDenyReasonFor] = useState<string | null>(null);
+  const [removalDenyInput, setRemovalDenyInput]         = useState("");
 
   // Rejection reason state — tracks which project is being rejected
   const [rejectingId, setRejectingId]         = useState<string | null>(null);
@@ -319,7 +328,8 @@ export default function AdminPage() {
     }
   }
 
-  // Archive — requires typed-title confirmation. live → archived only.
+  // Archive — live archives require typed-title confirmation. Other source
+  // states are archived without confirmation (still gated server-side).
   async function confirmArchive() {
     if (!archiveTarget) return;
     const expected = archiveTarget.title.trim();
@@ -336,7 +346,7 @@ export default function AdminPage() {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
           id: archiveTarget.id,
-          status: "archived",
+          action: "archive",
           confirmTitle: provided,
         }),
       });
@@ -372,6 +382,106 @@ export default function AdminPage() {
       setArchiveError(e.message || "Archive failed");
     } finally {
       setArchiveBusy(false);
+    }
+  }
+
+  // ── Lifecycle Control v1: archive (non-live), restore, reopen, resolveRemoval ──
+  // Lightweight admin actions. Each round-trips the API and reloads the row
+  // from the server so the UI never lies about the post-action state.
+  async function archiveNonLive(projectId: string) {
+    if (!confirm("Archive this work? It will be removed from the catalog.")) return;
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: projectId, action: "archive" }),
+      });
+      const data = await res.json();
+      if (res.status === 207) {
+        await loadProjects();
+        alert(`⚠️ ${data?.distributionWarning || "Archive completed with a warning."}`);
+        return;
+      }
+      if (!res.ok) throw new Error(data?.error || "Archive failed");
+      await loadProjects();
+    } catch (e: any) {
+      alert(e.message);
+      loadProjects();
+    }
+  }
+
+  async function restoreFromArchive(projectId: string) {
+    setRestoreBusy(projectId);
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: projectId, action: "restore" }),
+      });
+      const data = await res.json();
+      if (res.status === 207) {
+        await loadProjects();
+        alert(`⚠️ ${data?.distributionWarning || "Restore completed with a warning."}`);
+        return;
+      }
+      if (!res.ok) throw new Error(data?.error || "Restore failed");
+      await loadProjects();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setRestoreBusy(null);
+    }
+  }
+
+  async function reopenForReview(projectId: string) {
+    setReopenBusy(projectId);
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ id: projectId, action: "reopen" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Reopen failed");
+      await loadProjects();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setReopenBusy(null);
+    }
+  }
+
+  async function resolveRemoval(
+    projectId: string,
+    decision: "approve" | "deny",
+    reason?: string
+  ) {
+    setRemovalBusy(projectId);
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: projectId,
+          action: "resolveRemoval",
+          decision,
+          ...(reason && reason.trim() ? { reason: reason.trim() } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 207) {
+        await loadProjects();
+        alert(`⚠️ ${data?.distributionWarning || "Resolution completed with a warning."}`);
+        return;
+      }
+      if (!res.ok) throw new Error(data?.error || "Resolution failed");
+      await loadProjects();
+      setRemovalDenyReasonFor(null);
+      setRemovalDenyInput("");
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setRemovalBusy(null);
     }
   }
 
@@ -415,23 +525,33 @@ export default function AdminPage() {
       : projectList.filter((p) => p.status === projectFilter);
 
   const projectCounts = {
-    all:       projectList.length,
-    pending:   projectList.filter((p) => p.status === "pending").length,
-    in_review: projectList.filter((p) => p.status === "in_review").length,
-    approved:  projectList.filter((p) => p.status === "approved").length,
-    rejected:  projectList.filter((p) => p.status === "rejected").length,
-    live:      projectList.filter((p) => p.status === "live").length,
-    archived:  projectList.filter((p) => p.status === "archived").length,
+    all:               projectList.length,
+    pending:           projectList.filter((p) => p.status === "pending").length,
+    in_review:         projectList.filter((p) => p.status === "in_review").length,
+    approved:          projectList.filter((p) => p.status === "approved").length,
+    rejected:          projectList.filter((p) => p.status === "rejected").length,
+    live:              projectList.filter((p) => p.status === "live").length,
+    archived:          projectList.filter((p) => p.status === "archived").length,
+    removal_requested: projectList.filter((p) => p.status === "removal_requested").length,
   };
 
+  const removalQueue = projectList.filter((p) => p.status === "removal_requested");
+
   const projectStatusColor: Record<string, string> = {
-    pending:   "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-    in_review: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    approved:  "bg-teal-500/20 text-teal-400 border-teal-500/30",
-    rejected:  "bg-red-500/20 text-red-400 border-red-500/30",
-    live:      "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    archived:  "bg-white/10 text-neutral-400 border-white/10",
+    pending:           "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    in_review:         "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    approved:          "bg-teal-500/20 text-teal-400 border-teal-500/30",
+    rejected:          "bg-red-500/20 text-red-400 border-red-500/30",
+    live:              "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    archived:          "bg-white/10 text-neutral-400 border-white/10",
+    removal_requested: "bg-amber-500/20 text-amber-300 border-amber-500/30",
   };
+
+  function statusDisplay(s: string): string {
+    if (s === "in_review") return "In Review";
+    if (s === "removal_requested") return "Removal Requested";
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
 
   // Default visible = pending + accepted. Rejected and Archived require an
   // explicit toggle so the working list stays focused on actionable rows.
@@ -865,13 +985,14 @@ export default function AdminPage() {
           <div className="flex gap-2 mb-6 flex-wrap">
             {(
               [
-                { key: "all",       label: "All"       },
-                { key: "pending",   label: "Pending"   },
-                { key: "in_review", label: "In Review" },
-                { key: "approved",  label: "Approved"  },
-                { key: "rejected",  label: "Rejected"  },
-                { key: "live",      label: "Live"      },
-                { key: "archived",  label: "Archived"  },
+                { key: "all",                label: "All"                },
+                { key: "pending",            label: "Pending"            },
+                { key: "in_review",          label: "In Review"          },
+                { key: "approved",           label: "Approved"           },
+                { key: "rejected",           label: "Rejected"           },
+                { key: "live",               label: "Live"               },
+                { key: "removal_requested",  label: "Removal Requested"  },
+                { key: "archived",           label: "Archived"           },
               ] as const
             ).map((f) => (
               <button
@@ -887,6 +1008,74 @@ export default function AdminPage() {
               </button>
             ))}
           </div>
+
+          {/* Removal Requests queue — surfaces all removal_requested rows
+              regardless of the current filter so admin always sees pending
+              requests at the top of the Works tab. */}
+          {!projectLoading && removalQueue.length > 0 && (
+            <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs uppercase tracking-widest text-amber-300/90 font-semibold">
+                  Removal Requests ({removalQueue.length})
+                </p>
+                <p className="text-[11px] text-neutral-500">
+                  Resolve to archive the work or restore it to the catalog.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {removalQueue.map((p: any) => (
+                  <div
+                    key={`removal-${p.id}`}
+                    className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm"
+                  >
+                    <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
+                      <p className="text-white font-medium">{p.title || "Untitled"}</p>
+                      <p className="text-xs text-neutral-400">{p.creator_email}</p>
+                      {p.removal_requested_at && (
+                        <p className="text-[11px] text-neutral-500">
+                          Requested {new Date(p.removal_requested_at).toUTCString()}
+                        </p>
+                      )}
+                    </div>
+                    {(p.removal_request_reason || p.removal_reason) && (
+                      <p className="text-xs text-neutral-400 mt-1.5 leading-relaxed">
+                        Reason: {p.removal_request_reason || p.removal_reason}
+                      </p>
+                    )}
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => {
+                          if (confirm("Approve removal? The work will be archived.")) {
+                            resolveRemoval(p.id, "approve");
+                          }
+                        }}
+                        disabled={removalBusy === p.id}
+                        className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
+                      >
+                        Approve Removal
+                      </button>
+                      <button
+                        onClick={() => {
+                          const reason = window.prompt("Optional reason for denial:") || "";
+                          resolveRemoval(p.id, "deny", reason);
+                        }}
+                        disabled={removalBusy === p.id}
+                        className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
+                      >
+                        Deny Removal
+                      </button>
+                      <button
+                        onClick={() => setExpandedProject(p.id)}
+                        className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-500 hover:text-white transition"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {projectLoading && <p className="text-neutral-500 text-sm">Loading projects...</p>}
 
@@ -924,15 +1113,8 @@ export default function AdminPage() {
                           projectStatusColor[project.status] || "text-neutral-400"
                         }`}
                       >
-                        {project.status === "in_review"
-                          ? "In Review"
-                          : project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                        {statusDisplay(project.status)}
                       </span>
-                      {project.removal_requested && (
-                        <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                          Removal Req.
-                        </span>
-                      )}
                       <span className="text-neutral-600 text-xs">
                         {new Date(project.updated_at).toLocaleDateString()}
                       </span>
@@ -967,10 +1149,44 @@ export default function AdminPage() {
                         {project.rejection_reason && (
                           <Field label="Rejection Reason" value={project.rejection_reason} full />
                         )}
-                        {project.removal_requested && project.removal_reason && (
-                          <Field label="Removal Reason" value={project.removal_reason} full />
+                        {(project.removal_request_reason || project.removal_reason) && (
+                          <Field
+                            label="Removal Request Reason"
+                            value={project.removal_request_reason || project.removal_reason}
+                            full
+                          />
+                        )}
+                        {project.removal_requested_at && (
+                          <Field
+                            label="Removal Requested"
+                            value={new Date(project.removal_requested_at).toUTCString()}
+                          />
+                        )}
+                        {project.removal_resolution && (
+                          <Field
+                            label="Removal Resolution"
+                            value={`${project.removal_resolution}${
+                              project.removal_resolved_at
+                                ? ` · ${new Date(project.removal_resolved_at).toUTCString()}`
+                                : ""
+                            }${
+                              project.removal_resolution_reason
+                                ? ` — ${project.removal_resolution_reason}`
+                                : ""
+                            }`}
+                            full
+                          />
+                        )}
+                        {project.previous_status_before_archive && (
+                          <Field
+                            label="Pre-archive State"
+                            value={statusDisplay(project.previous_status_before_archive)}
+                          />
                         )}
                       </div>
+
+                      <StateHistory entries={project.state_history} />
+
 
                       {/* ── Submission Integrity + Review (pending/in_review/approved) ── */}
                       {(project.status === "pending" ||
@@ -1367,13 +1583,125 @@ export default function AdminPage() {
                           </button>
                         )}
 
-                        {/* rejected / archived: terminal */}
-                        {(project.status === "rejected" || project.status === "archived") &&
-                          rejectingId !== project.id && (
-                            <span className="text-xs text-neutral-500">
-                              {project.status === "rejected" ? "Rejected — terminal state" : "Archived — terminal state"}
-                            </span>
-                          )}
+                        {/* pending / in_review / approved: Archive (no typed-title gate) */}
+                        {(project.status === "pending" ||
+                          project.status === "in_review" ||
+                          project.status === "approved") && (
+                          <button
+                            onClick={() => archiveNonLive(project.id)}
+                            className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
+                          >
+                            Archive
+                          </button>
+                        )}
+
+                        {/* rejected: Reopen for Review + Archive */}
+                        {project.status === "rejected" && rejectingId !== project.id && (
+                          <>
+                            <button
+                              onClick={() => reopenForReview(project.id)}
+                              disabled={reopenBusy === project.id}
+                              className="px-3 py-1.5 rounded text-xs font-medium border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition disabled:opacity-50"
+                            >
+                              {reopenBusy === project.id ? "Reopening…" : "Reopen for Review"}
+                            </button>
+                            <button
+                              onClick={() => archiveNonLive(project.id)}
+                              className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
+                            >
+                              Archive
+                            </button>
+                          </>
+                        )}
+
+                        {/* archived: Restore */}
+                        {project.status === "archived" && (
+                          (() => {
+                            const target = project.previous_status_before_archive;
+                            const canRestore = !!target;
+                            return canRestore ? (
+                              <button
+                                onClick={() => restoreFromArchive(project.id)}
+                                disabled={restoreBusy === project.id}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-50"
+                              >
+                                {restoreBusy === project.id
+                                  ? "Restoring…"
+                                  : `Restore to ${statusDisplay(target)}`}
+                              </button>
+                            ) : (
+                              <span
+                                title="Cannot restore because no previous state is recorded."
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
+                              >
+                                Restore unavailable — no prior state recorded
+                              </span>
+                            );
+                          })()
+                        )}
+
+                        {/* removal_requested: Approve / Deny */}
+                        {project.status === "removal_requested" && (
+                          <div className="basis-full flex flex-col gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                onClick={() => {
+                                  if (confirm("Approve removal? The work will be archived.")) {
+                                    resolveRemoval(project.id, "approve");
+                                  }
+                                }}
+                                disabled={removalBusy === project.id}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
+                              >
+                                {removalBusy === project.id ? "Working…" : "Approve Removal"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setRemovalDenyReasonFor(project.id);
+                                  setRemovalDenyInput("");
+                                }}
+                                disabled={removalBusy === project.id}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
+                              >
+                                Deny Removal
+                              </button>
+                            </div>
+                            {removalDenyReasonFor === project.id && (
+                              <div className="space-y-2">
+                                <p className="text-xs text-neutral-400">
+                                  Optional reason (shown in the audit log):
+                                </p>
+                                <textarea
+                                  value={removalDenyInput}
+                                  onChange={(e) => setRemovalDenyInput(e.target.value)}
+                                  placeholder="Reason for denial…"
+                                  rows={2}
+                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-amber-500/40 resize-none"
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() =>
+                                      resolveRemoval(project.id, "deny", removalDenyInput)
+                                    }
+                                    disabled={removalBusy === project.id}
+                                    className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-50"
+                                  >
+                                    {removalBusy === project.id ? "Denying…" : "Confirm Deny"}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setRemovalDenyReasonFor(null);
+                                      setRemovalDenyInput("");
+                                    }}
+                                    className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-500 hover:text-white transition"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                         );
                       })()}
@@ -1420,6 +1748,46 @@ function IdentityRow({ status }: { status: string | null }) {
         {tier.label}
       </span>
     </p>
+  );
+}
+
+function StateHistory({ entries }: { entries: unknown }) {
+  const list = Array.isArray(entries) ? entries : [];
+  if (list.length === 0) return null;
+  // Show most recent 5 transitions, newest first.
+  const recent = list.slice(-5).reverse();
+  return (
+    <div className="mt-5 pt-4 border-t border-white/5">
+      <p className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
+        State History
+      </p>
+      <ul className="space-y-1.5">
+        {recent.map((e: any, idx: number) => (
+          <li
+            key={idx}
+            className="text-[11px] text-neutral-400 leading-relaxed flex items-start gap-2"
+          >
+            <span className="text-neutral-600 font-mono shrink-0">
+              {e?.at ? new Date(e.at).toUTCString() : "—"}
+            </span>
+            <span className="text-neutral-300">
+              {String(e?.from ?? "—")} → <span className="text-white">{String(e?.to ?? "—")}</span>
+            </span>
+            <span className="text-neutral-500">by {String(e?.by ?? "—")}</span>
+            {e?.reason && (
+              <span className="text-neutral-500 italic break-words">
+                — {String(e.reason)}
+              </span>
+            )}
+          </li>
+        ))}
+        {list.length > 5 && (
+          <li className="text-[10px] text-neutral-600">
+            (showing most recent 5 of {list.length} transitions)
+          </li>
+        )}
+      </ul>
+    </div>
   );
 }
 

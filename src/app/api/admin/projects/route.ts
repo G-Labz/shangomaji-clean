@@ -8,6 +8,12 @@ import {
   type CreatorIntegrityInput,
   type AdminReviewInput,
 } from "@/lib/submission-integrity";
+import {
+  planTransition,
+  planRestore,
+  type LifecycleRow,
+  type ProjectStatus,
+} from "@/lib/lifecycle";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,22 +29,21 @@ function checkAuth(req: NextRequest) {
   return pw === process.env.ADMIN_PASSWORD;
 }
 
-// Phase 4.9 admin transitions (target → [allowed sources])
-const ADMIN_TRANSITIONS: Record<string, string[]> = {
-  in_review: ["pending"],
-  approved:  ["pending", "in_review"],
-  rejected:  ["pending", "in_review"],
-  live:      ["approved"],
-  archived:  ["live"],
-};
-
 export async function GET(req: NextRequest) {
   if (!checkAuth(req)) return unauthorized();
 
   const { data: projects, error } = await supabase
     .from("creator_projects")
     .select("*")
-    .in("status", ["pending", "in_review", "approved", "rejected", "live", "archived"])
+    .in("status", [
+      "pending",
+      "in_review",
+      "approved",
+      "rejected",
+      "live",
+      "archived",
+      "removal_requested",
+    ])
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -46,10 +51,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Attach each project's title media fields (Phase 1 — Bunny binding).
-  // Only "live" projects have a title row, but a separate query is cheaper
-  // than a per-row join and avoids PostgREST FK resolution.
   const liveIds = (projects ?? [])
-    .filter((p: any) => p.status === "live")
+    .filter((p: any) => p.status === "live" || p.status === "removal_requested")
     .map((p: any) => p.id);
 
   const titlesByProject = new Map<string, any>();
@@ -64,10 +67,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Attach each project's executed license, if any. Used by admin UI to:
-  //   1. show a License panel ("Executed" / "Not signed")
-  //   2. surface activation gating ("approved without license → blocked")
-  //   3. display term start/end after activation.
   const allIds = (projects ?? []).map((p: any) => p.id);
   const licensesByProject = new Map<string, any>();
   if (allIds.length) {
@@ -81,12 +80,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Identity Enforcement v1: attach the creator profile's identity_status by
-  // matching creator_email. Admin-only context — the column is never returned
-  // from public-facing routes. If migration 015 has not been run on this DB,
-  // the select column simply returns nothing and identity_status falls back
-  // to null in the UI (we render that as "Self-certified" by default since
-  // that is the migration's NOT NULL DEFAULT once run).
+  // Identity Enforcement v1
   const emails = Array.from(
     new Set(
       (projects ?? [])
@@ -127,6 +121,31 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ projects: enriched });
 }
 
+// Side-effect: when entering "archived" or "removal_requested" from a state
+// that has a public title row, flip the title out of "active" so it stops
+// appearing in /api/public/titles.
+async function cascadeTitleRemoval(projectId: string) {
+  const { error } = await supabase
+    .from("titles")
+    .update({ status: "removed" })
+    .eq("project_id", projectId)
+    .neq("status", "removed");
+  return error;
+}
+
+// Side-effect: when restoring back to "live" from removal_requested (denied),
+// reactivate the title row if one exists. New title rows are only created on
+// the approved → live transition, so this only flips an existing title back
+// from "removed" to "active".
+async function cascadeTitleRestore(projectId: string) {
+  const { error } = await supabase
+    .from("titles")
+    .update({ status: "active" })
+    .eq("project_id", projectId)
+    .eq("status", "removed");
+  return error;
+}
+
 export async function PATCH(req: NextRequest) {
   if (!checkAuth(req)) return unauthorized();
 
@@ -145,10 +164,6 @@ export async function PATCH(req: NextRequest) {
   }
 
   // ── Save review notes without transitioning status ────────────────────
-  // Allowed any time before terminal states; the goal is to let an admin
-  // record the review record incrementally during evaluation. Approval is
-  // a separate call (status: "approved") that re-validates the persisted
-  // record server-side.
   if (action === "saveReview") {
     const { data: cur, error: curErr } = await supabase
       .from("creator_projects")
@@ -158,7 +173,7 @@ export async function PATCH(req: NextRequest) {
     if (curErr || !cur) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
-    const blocked = new Set(["live", "archived", "rejected"]);
+    const blocked = new Set(["live", "archived", "rejected", "removal_requested"]);
     if (blocked.has(cur.status)) {
       return NextResponse.json(
         { error: `Review notes cannot be edited in "${cur.status}" state.` },
@@ -186,6 +201,228 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true, reviewSaved: true });
   }
 
+  // STEP 1 — Fetch current row (used by every action below).
+  const { data: existingProject, error: fetchError } = await supabase
+    .from("creator_projects")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !existingProject) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  const reviewer =
+    typeof body.reviewer === "string" && body.reviewer.trim()
+      ? body.reviewer.trim()
+      : "admin";
+
+  // ── Lifecycle Control: archive / restore / reopen / resolveRemoval ────
+  if (action === "archive") {
+    const allowed = new Set(["pending", "in_review", "approved", "rejected", "live"]);
+    if (!allowed.has(existingProject.status)) {
+      return NextResponse.json(
+        { error: `Archive is not valid from "${existingProject.status}".` },
+        { status: 422 }
+      );
+    }
+    // Live archives keep the institutional typed-title confirmation gate.
+    if (existingProject.status === "live") {
+      const expected = (existingProject.title ?? "").trim();
+      const provided = typeof confirmTitle === "string" ? confirmTitle.trim() : "";
+      if (!expected || provided !== expected) {
+        return NextResponse.json(
+          {
+            error:
+              "Archive requires the exact project title as confirmation. " +
+              "This action removes the work from the public catalog and must be deliberate.",
+          },
+          { status: 422 }
+        );
+      }
+    }
+
+    const planned = planTransition({
+      row: existingProject as LifecycleRow,
+      to: "archived",
+      by: "admin",
+      reason: typeof body.reason === "string" ? body.reason : null,
+    });
+    if (!planned.ok) {
+      return NextResponse.json({ error: planned.error }, { status: planned.status });
+    }
+
+    const { error: updErr } = await supabase
+      .from("creator_projects")
+      .update(planned.updates)
+      .eq("id", id);
+    if (updErr) {
+      return NextResponse.json({ error: updErr.message }, { status: 500 });
+    }
+
+    // Title cascade — only relevant when archiving from a state that had a
+    // public title row (live or removal_requested previously archived from
+    // live). Safe to run unconditionally; it filters by status="active".
+    const cascadeErr = await cascadeTitleRemoval(id);
+    if (cascadeErr) {
+      return NextResponse.json(
+        {
+          success: true,
+          distributionWarning:
+            `Project archived, but the catalog title row could not be flipped out of "active". ` +
+            `Error: ${cascadeErr.message}.`,
+        },
+        { status: 207 }
+      );
+    }
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "restore") {
+    const planned = planRestore({
+      row: existingProject as LifecycleRow,
+      by: "admin",
+      reason: typeof body.reason === "string" ? body.reason : null,
+    });
+    if (!planned.ok) {
+      return NextResponse.json({ error: planned.error }, { status: planned.status });
+    }
+
+    const { error: updErr } = await supabase
+      .from("creator_projects")
+      .update(planned.updates)
+      .eq("id", id);
+    if (updErr) {
+      return NextResponse.json({ error: updErr.message }, { status: 500 });
+    }
+
+    // If the restore lands back on "live", bring the public title back online
+    // (only flips existing "removed" rows; never creates new ones).
+    if (planned.to === "live") {
+      const cascadeErr = await cascadeTitleRestore(id);
+      if (cascadeErr) {
+        return NextResponse.json(
+          {
+            success: true,
+            restoredTo: planned.to,
+            distributionWarning:
+              `Project restored to "live", but the catalog title row could not be reactivated. ` +
+              `Error: ${cascadeErr.message}.`,
+          },
+          { status: 207 }
+        );
+      }
+    }
+    return NextResponse.json({ success: true, restoredTo: planned.to });
+  }
+
+  if (action === "reopen") {
+    if (existingProject.status !== "rejected") {
+      return NextResponse.json(
+        { error: `Reopen is only valid from "rejected".` },
+        { status: 422 }
+      );
+    }
+    const planned = planTransition({
+      row: existingProject as LifecycleRow,
+      to: "in_review",
+      by: "admin",
+      reason: typeof body.reason === "string" ? body.reason : null,
+    });
+    if (!planned.ok) {
+      return NextResponse.json({ error: planned.error }, { status: planned.status });
+    }
+    const { error: updErr } = await supabase
+      .from("creator_projects")
+      .update(planned.updates)
+      .eq("id", id);
+    if (updErr) {
+      return NextResponse.json({ error: updErr.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "resolveRemoval") {
+    if (existingProject.status !== "removal_requested") {
+      return NextResponse.json(
+        { error: `Resolve is only valid from "removal_requested".` },
+        { status: 422 }
+      );
+    }
+    const decision = typeof body.decision === "string" ? body.decision : "";
+    if (decision !== "approve" && decision !== "deny") {
+      return NextResponse.json(
+        { error: 'decision must be "approve" or "deny".' },
+        { status: 400 }
+      );
+    }
+    const target: ProjectStatus = decision === "approve" ? "archived" : "live";
+    const reason = typeof body.reason === "string" && body.reason.trim()
+      ? body.reason.trim()
+      : null;
+
+    const planned = planTransition({
+      row: existingProject as LifecycleRow,
+      to: target,
+      by: "admin",
+      reason,
+    });
+    if (!planned.ok) {
+      return NextResponse.json({ error: planned.error }, { status: planned.status });
+    }
+
+    const now = new Date().toISOString();
+    planned.updates.removal_resolved_at       = now;
+    planned.updates.removal_resolution        = decision === "approve" ? "approved" : "denied";
+    planned.updates.removal_resolution_reason = reason;
+    // On denial the work returns to "live" — clear the legacy boolean so the
+    // creator can request again later if circumstances change.
+    if (decision === "deny") {
+      planned.updates.removal_requested = false;
+    }
+
+    const { error: updErr } = await supabase
+      .from("creator_projects")
+      .update(planned.updates)
+      .eq("id", id);
+    if (updErr) {
+      return NextResponse.json({ error: updErr.message }, { status: 500 });
+    }
+
+    // Side-effects: approved removal → archive title; denied removal →
+    // reactivate any "removed" title row that may have been pre-flipped.
+    if (decision === "approve") {
+      const cascadeErr = await cascadeTitleRemoval(id);
+      if (cascadeErr) {
+        return NextResponse.json(
+          {
+            success: true,
+            distributionWarning:
+              `Removal approved (archived), but the catalog title row could not be flipped out of "active". ` +
+              `Error: ${cascadeErr.message}.`,
+          },
+          { status: 207 }
+        );
+      }
+    } else {
+      const cascadeErr = await cascadeTitleRestore(id);
+      if (cascadeErr) {
+        return NextResponse.json(
+          {
+            success: true,
+            distributionWarning:
+              `Removal denied (live), but the catalog title row could not be reactivated. ` +
+              `Error: ${cascadeErr.message}.`,
+          },
+          { status: 207 }
+        );
+      }
+    }
+
+    return NextResponse.json({ success: true, decision });
+  }
+
+  // ── Status-based transitions (pre-existing approve/reject/activate) ───
   if (!status) {
     return NextResponse.json({ error: "Status is required" }, { status: 400 });
   }
@@ -198,46 +435,34 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  // STEP 1 — Fetch current project before making any changes. Read the full
-  // row so the approval gate has access to integrity + review columns
-  // without a runtime-built column list (the Supabase typed select parser
-  // doesn't accept dynamic projections).
-  const { data: existingProject, error: fetchError } = await supabase
-    .from("creator_projects")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (fetchError || !existingProject) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  // Archive via status= is intentionally rejected; callers must use action=archive
+  if (status === "archived") {
+    return NextResponse.json(
+      { error: "Use action=archive to archive a work." },
+      { status: 400 }
+    );
   }
 
-  // STEP 2 — Store previous status in memory (not a DB column)
   const previousStatus = existingProject.status;
 
-  const allowedSources = ADMIN_TRANSITIONS[status];
-
-  if (!allowedSources) {
-    return NextResponse.json(
-      { error: `"${status}" is not a valid admin transition target.` },
-      { status: 422 }
-    );
-  }
-
-  if (!allowedSources.includes(previousStatus)) {
-    return NextResponse.json(
-      { error: `Cannot transition from "${previousStatus}" to "${status}".` },
-      { status: 422 }
-    );
+  // Plan the transition through the shared helper. This validates the source
+  // state and produces the state_history entry.
+  const planned = planTransition({
+    row: existingProject as LifecycleRow,
+    to: status as ProjectStatus,
+    by: "admin",
+    reason:
+      status === "rejected"
+        ? rejectionReason.trim()
+        : typeof body.reason === "string"
+        ? body.reason
+        : null,
+  });
+  if (!planned.ok) {
+    return NextResponse.json({ error: planned.error }, { status: planned.status });
   }
 
   // ── Approval gate (Submission Integrity v1) ──────────────────────────
-  // pending|in_review → approved is the institutional firewall. Both the
-  // creator's submission integrity record AND a passing admin review
-  // record must be on file before approval is granted. This validates
-  // the persisted columns plus any review fields in the body (which are
-  // also persisted as part of this call so the approval and the review
-  // record commit together).
   if (status === "approved") {
     const integrityErr = validateCreatorIntegrity(
       existingProject as unknown as CreatorIntegrityInput
@@ -274,9 +499,7 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // Distribution activation requires an executed Standard Distribution
-  // License v1 for this project. Server-side check; the admin UI also
-  // disables the button, but curl/scripts must hit the same gate.
+  // Distribution activation requires an executed Standard Distribution License
   if (previousStatus === "approved" && status === "live") {
     const { data: license, error: licErr } = await supabase
       .from("creator_licenses")
@@ -297,45 +520,18 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // Archive is a deliberate catalog action: must come from live AND require
-  // a typed-title confirmation that matches the project's current title.
-  // The UI also enforces this, but we re-check server-side so curl/scripts
-  // can't bypass it.
-  if (status === "archived") {
-    const expected = (existingProject.title ?? "").trim();
-    const provided = typeof confirmTitle === "string" ? confirmTitle.trim() : "";
-    if (!expected || provided !== expected) {
-      return NextResponse.json(
-        {
-          error:
-            "Archive requires the exact project title as confirmation. " +
-            "This action removes the work from the public catalog and must be deliberate.",
-        },
-        { status: 422 }
-      );
-    }
-  }
-
-  // STEP 3 — Run the update
-  const now = new Date().toISOString();
-  const updates: Record<string, any> = {
-    status,
-    updated_at: now,
-  };
+  // Build the final updates payload from the plan + status-specific fields.
+  const now = (planned.updates.updated_at as string) ?? new Date().toISOString();
+  const updates: Record<string, any> = { ...planned.updates };
 
   if (status === "rejected") {
     updates.rejection_reason = rejectionReason.trim();
   }
 
-  // Persist any admin review fields supplied with the call. On approval we
-  // also stamp reviewed_at / reviewed_by so the review record is durable.
   Object.assign(updates, pickAdminReviewColumns(body as AdminReviewInput));
   if (status === "approved") {
     updates.reviewed_at = now;
-    updates.reviewed_by =
-      typeof body.reviewer === "string" && body.reviewer.trim()
-        ? body.reviewer.trim()
-        : "admin";
+    updates.reviewed_by = reviewer;
   }
 
   const { error: updateError } = await supabase
@@ -347,39 +543,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  // STEP 4a — On archive, also gate the public catalog by flipping the
-  // matching title row(s) out of "active". The public titles API filters on
-  // titles.status === "active", so this ensures archived works disappear
-  // from /api/public/titles immediately.
-  // (Audit logging: not yet built — future migration. See README/migrations
-  // for tracking. Do not add an ad-hoc audit table in this pass.)
-  if (status === "archived") {
-    const { error: titleArchiveError } = await supabase
-      .from("titles")
-      .update({ status: "removed" })
-      .eq("project_id", id)
-      .neq("status", "removed");
-
-    if (titleArchiveError) {
-      console.error("Title archive cascade failed", { id, error: titleArchiveError.message });
-      return NextResponse.json(
-        {
-          success: true,
-          distributionWarning:
-            `Project archived, but the catalog title row could not be flipped out of "active". ` +
-            `Error: ${titleArchiveError.message}. The title may still be visible publicly until this is resolved.`,
-        },
-        { status: 207 }
-      );
-    }
-  }
-
   // STEP 4b — On transition into `approved`, drive the creator to license
-  // execution. The workspace UI also surfaces the CTA, but a direct email
-  // makes the next step explicit and out-of-band durable.
-  // Failure is reported as a warning (207); approval itself is not rolled
-  // back because email delivery failed. We do NOT pretend the email went
-  // out — admin is told truthfully when delivery fails.
   let licenseEmailWarning: string | null = null;
   if (status === "approved" && previousStatus !== "approved") {
     const proto = req.headers.get("x-forwarded-proto") ?? "https";
@@ -402,7 +566,7 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // STEP 4 — Detect approved → live transition and create title record
+  // STEP 4 — approved → live: create title record + stamp license term.
   if (previousStatus === "approved" && status === "live") {
     const { error: titleError } = await supabase
       .from("titles")
@@ -416,7 +580,6 @@ export async function PATCH(req: NextRequest) {
         created_at:           now,
       });
 
-    // STEP 6 — Title insert failure: don't rollback, return 207
     if (titleError) {
       console.error("Title creation failed after activation", { id, error: titleError.message });
       return NextResponse.json(
@@ -430,10 +593,6 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // STEP 5 — Stamp the executed license with term_start / term_end.
-    // term_start is set only if currently null (do not overwrite existing).
-    // term_end = term_start + term_years, calculated in JS to keep the
-    // migration free of date arithmetic dependencies.
     const { data: licenseRow, error: licenseFetchErr } = await supabase
       .from("creator_licenses")
       .select("id, term_years, term_start")

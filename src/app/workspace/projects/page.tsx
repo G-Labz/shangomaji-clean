@@ -14,6 +14,8 @@ type Project = {
   description: string | null;
   updated_at: string;
   removal_requested?: boolean;
+  removal_request_reason?: string | null;
+  removal_requested_at?: string | null;
   license_status?: "executed" | "none";
   license_id?: string | null;
 };
@@ -38,14 +40,15 @@ function matchesFilter(status: string, filter: string): boolean {
 // the next move.
 function stateMeaning(status: string): string {
   switch (status) {
-    case "draft":     return "Private draft. Fully editable.";
-    case "pending":   return "Submitted for review. Editing locked.";
-    case "in_review": return "Under editorial evaluation. No changes allowed.";
-    case "approved":  return "Selected for distribution consideration. License required.";
-    case "live":      return "Under active distribution license. Managed by ShangoMaji.";
-    case "archived":  return "Removed from active catalog.";
-    case "rejected":  return "Not selected. Revise to create a new draft.";
-    default:          return "";
+    case "draft":             return "Private draft. Fully editable.";
+    case "pending":           return "Submitted for review. Editing locked.";
+    case "in_review":         return "Under editorial evaluation. No changes allowed.";
+    case "approved":          return "Selected for distribution consideration. License required.";
+    case "live":              return "Under active distribution license. Managed by ShangoMaji.";
+    case "archived":          return "Removed from active catalog.";
+    case "rejected":          return "Not selected. Revise to create a new draft.";
+    case "removal_requested": return "Removal request under review.";
+    default:                  return "";
   }
 }
 
@@ -183,7 +186,15 @@ export default function WorkspaceProjects() {
       if (!res.ok) throw new Error(data?.error || "Request failed");
       setProjects((prev) =>
         prev.map((p) =>
-          p.id === removalProject.id ? { ...p, removal_requested: true } : p
+          p.id === removalProject.id
+            ? {
+                ...p,
+                status: "removal_requested",
+                removal_requested: true,
+                removal_request_reason: removalReason.trim(),
+                removal_requested_at: new Date().toISOString(),
+              }
+            : p
         )
       );
       showFeedback(`Removal request submitted for "${removalProject.title}".`);
@@ -364,6 +375,7 @@ export default function WorkspaceProjects() {
         {filtered.map((project) => {
           const canDelete = project.status === "draft" || project.status === "rejected";
           const isLive    = project.status === "live";
+          const isRemovalRequested = project.status === "removal_requested";
           const blocked   = !canDelete && !isLive;
 
           const isDraft           = project.status === "draft";
@@ -381,8 +393,8 @@ export default function WorkspaceProjects() {
                     <StatusBadge status={project.status} />
                     {project.project_type && <Pill>{project.project_type}</Pill>}
                     {project.genres?.map((g) => <Pill key={g}>{g}</Pill>)}
-                    {isLive && project.removal_requested && (
-                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
+                    {isRemovalRequested && (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
                         Removal Requested
                       </span>
                     )}
@@ -409,6 +421,11 @@ export default function WorkspaceProjects() {
                   {isLive && (
                     <p className="text-[11px] text-ink-muted leading-relaxed">
                       Subject to review. Removal may be denied during an active license term.
+                    </p>
+                  )}
+                  {isRemovalRequested && (
+                    <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                      Removal request under review.
                     </p>
                   )}
                 </div>
@@ -438,9 +455,7 @@ export default function WorkspaceProjects() {
                     onDeleteBlocked={blocked ? (reason) => showError(reason) : undefined}
                     deleteBlockedReason={blocked ? deleteBlockReason(project.status) : undefined}
                     onRequestRemoval={
-                      isLive && !project.removal_requested
-                        ? () => setRemovalProject(project)
-                        : undefined
+                      isLive ? () => setRemovalProject(project) : undefined
                     }
                   />
                 </div>

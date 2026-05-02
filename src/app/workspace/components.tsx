@@ -34,12 +34,14 @@ export function SectionHeading({
 }
 
 const STATUS_DISPLAY: Record<string, string> = {
-  draft:     "Draft",
-  pending:   "Pending",
-  in_review: "In Review",
-  approved:  "Approved",
-  rejected:  "Rejected",
-  live:      "Live",
+  draft:             "Draft",
+  pending:           "Pending",
+  in_review:         "In Review",
+  approved:          "Approved",
+  rejected:          "Rejected",
+  live:              "Live",
+  archived:          "Archived",
+  removal_requested: "Removal Requested",
 };
 
 export function statusLabel(status: string): string {
@@ -50,12 +52,14 @@ export function StatusBadge({ status }: { status: string }) {
   const display = statusLabel(status);
 
   const styles: Record<string, string> = {
-    Draft:     "bg-white/5 text-ink-faint border-white/10",
-    Pending:   "bg-yellow-500/10 text-yellow-300 border-yellow-500/30",
-    "In Review": "bg-blue-500/10 text-blue-300 border-blue-500/30",
-    Approved:  "bg-teal-500/10 text-teal-300 border-teal-500/30",
-    Rejected:  "bg-red-500/15 text-red-300 border-red-500/40",
-    Live:      "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
+    Draft:                "bg-white/5 text-ink-faint border-white/10",
+    Pending:              "bg-yellow-500/10 text-yellow-300 border-yellow-500/30",
+    "In Review":          "bg-blue-500/10 text-blue-300 border-blue-500/30",
+    Approved:             "bg-teal-500/10 text-teal-300 border-teal-500/30",
+    Rejected:             "bg-red-500/15 text-red-300 border-red-500/40",
+    Live:                 "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
+    Archived:             "bg-white/5 text-ink-faint border-white/15",
+    "Removal Requested":  "bg-amber-500/15 text-amber-300 border-amber-500/40",
   };
 
   const cls = styles[display] || styles.Draft;

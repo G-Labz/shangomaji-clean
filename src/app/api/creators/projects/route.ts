@@ -6,6 +6,11 @@ import {
   validateCreatorIntegrity,
   type CreatorIntegrityInput,
 } from "@/lib/submission-integrity";
+import {
+  planTransition,
+  appendHistory,
+  type LifecycleRow,
+} from "@/lib/lifecycle";
 
 function svc() {
   return createServiceClient(
@@ -13,27 +18,6 @@ function svc() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 }
-
-// Phase 4.9 lifecycle — allowed creator transitions (target → [allowed sources])
-// Creators may only submit: draft → pending
-//
-// NOTE: this route writes `status_changed_at`, `submitted_at`, `submission_count`,
-// and reads `removal_requested`. Those columns are added by
-// `src/migrations/006_phase_4_9_lifecycle.sql`. If a deployed Supabase
-// instance has not run that migration, you will see errors like
-//   "Could not find the 'status_changed_at' column of 'creator_projects'
-//    in the schema cache"
-// Fix: run migration 006 in the Supabase SQL editor and reload the
-// PostgREST schema cache (Supabase Dashboard → API → "Reload schema cache",
-// or wait ~60s after the migration runs). Do not paper this over with code.
-const CREATOR_TRANSITIONS: Record<string, string[]> = {
-  pending: ["draft"],
-};
-
-// Hard-blocked source states — 422 on any attempt
-const HARD_BLOCKED_SOURCES = new Set([
-  "live", "archived", "approved", "rejected", "pending", "in_review",
-]);
 
 export async function GET() {
   const supabase = await createClient();
@@ -177,6 +161,13 @@ export async function POST(req: NextRequest) {
         submission_count: 1,
         submission_integrity_completed_at: submitAt,
         updated_at: submitAt,
+        state_history: appendHistory([], {
+          from:   "draft",
+          to:     "pending",
+          by:     "creator",
+          at:     submitAt,
+          reason: null,
+        }),
       })
       .eq("id", projectId)
       .eq("creator_email", email);
@@ -242,17 +233,15 @@ export async function PATCH(req: NextRequest) {
   }
 
   // ── Removal request (live projects only) ──────────────────────────────────
+  // Lifecycle Control v1: live → removal_requested. Logged in state_history.
+  // Backwards compatibility: also stamp the legacy `removal_requested` boolean
+  // and `removal_reason` columns so any code/UI still reading them sees the
+  // request immediately.
   if (body.action === "requestRemoval") {
     if (project.status !== "live") {
       return NextResponse.json(
-        { error: "Removal requests are only allowed for live projects." },
+        { error: "Removal requests are only allowed for live works." },
         { status: 422 }
-      );
-    }
-    if (project.removal_requested) {
-      return NextResponse.json(
-        { error: "A removal request has already been submitted for this project." },
-        { status: 409 }
       );
     }
     if (!body.reason?.trim()) {
@@ -262,15 +251,32 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const now = new Date().toISOString();
+    const reason = body.reason.trim();
+    const planned = planTransition({
+      row: project as LifecycleRow,
+      to: "removal_requested",
+      by: "creator",
+      reason,
+    });
+    if (!planned.ok) {
+      return NextResponse.json({ error: planned.error }, { status: planned.status });
+    }
+
+    const now = (planned.updates.updated_at as string) ?? new Date().toISOString();
+    const removalUpdates: Record<string, any> = {
+      ...planned.updates,
+      removal_requested:        true,            // legacy boolean
+      removal_requested_at:     now,
+      removal_reason:           reason,           // legacy column
+      removal_request_reason:   reason,           // canonical column
+      removal_resolved_at:      null,
+      removal_resolution:       null,
+      removal_resolution_reason: null,
+    };
+
     const { error: removalError } = await supabase
       .from("creator_projects")
-      .update({
-        removal_requested: true,
-        removal_requested_at: now,
-        removal_reason: body.reason.trim(),
-        updated_at: now,
-      })
+      .update(removalUpdates)
       .eq("id", body.id)
       .eq("creator_email", email);
 
@@ -287,67 +293,50 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Status is required" }, { status: 400 });
   }
 
-  // Only one creator transition is allowed: draft → pending
-  if (!CREATOR_TRANSITIONS[targetStatus]) {
+  // Only draft → pending is permitted for creators (live → removal_requested
+  // is via action=requestRemoval, never status=).
+  if (targetStatus !== "pending") {
     return NextResponse.json(
       {
-        error: `Transition to "${targetStatus}" is not permitted for creators. Only draft → pending is allowed.`,
-      },
-      { status: 422 }
-    );
-  }
-
-  if (HARD_BLOCKED_SOURCES.has(project.status)) {
-    return NextResponse.json(
-      {
-        error: `Projects in "${project.status}" state cannot be changed by creators.`,
-      },
-      { status: 422 }
-    );
-  }
-
-  if (!CREATOR_TRANSITIONS[targetStatus].includes(project.status)) {
-    return NextResponse.json(
-      {
-        error: `Cannot transition from "${project.status}" to "${targetStatus}".`,
+        error: `Transition to "${targetStatus}" is not permitted for creators.`,
       },
       { status: 422 }
     );
   }
 
   // Submission Integrity v1: draft → pending requires a fully-completed
-  // creator integrity record on the persisted row. The body may also
-  // include integrity field updates — they are merged in before validation
-  // (one-shot save+submit from the edit form).
-  if (targetStatus === "pending") {
-    const merged: CreatorIntegrityInput = {
-      ...(project as Record<string, unknown>),
-      ...pickCreatorIntegrityColumns(body as CreatorIntegrityInput),
-    };
-    const integrityErr = validateCreatorIntegrity(merged);
-    if (integrityErr) {
-      return NextResponse.json(
-        { error: integrityErr.message, field: integrityErr.field },
-        { status: 422 }
-      );
-    }
-  }
-
-  const now = new Date().toISOString();
-  const updates: Record<string, any> = {
-    status: targetStatus,
-    status_changed_at: now,
-    updated_at: now,
-    // Persist any integrity field updates supplied with the submit call.
+  // creator integrity record on the persisted row. Body may also include
+  // integrity field updates — merged in before validation (one-shot save+submit).
+  const merged: CreatorIntegrityInput = {
+    ...(project as Record<string, unknown>),
     ...pickCreatorIntegrityColumns(body as CreatorIntegrityInput),
   };
-
-  // Track submission metadata when entering pending
-  if (targetStatus === "pending") {
-    updates.submitted_at = now;
-    updates.submission_count = (project.submission_count ?? 0) + 1;
-    updates.submission_integrity_completed_at = now;
+  const integrityErr = validateCreatorIntegrity(merged);
+  if (integrityErr) {
+    return NextResponse.json(
+      { error: integrityErr.message, field: integrityErr.field },
+      { status: 422 }
+    );
   }
+
+  const planned = planTransition({
+    row: project as LifecycleRow,
+    to: "pending",
+    by: "creator",
+    reason: null,
+  });
+  if (!planned.ok) {
+    return NextResponse.json({ error: planned.error }, { status: planned.status });
+  }
+
+  const now = (planned.updates.updated_at as string) ?? new Date().toISOString();
+  const updates: Record<string, any> = {
+    ...planned.updates,
+    submitted_at:                       now,
+    submission_count:                   (project.submission_count ?? 0) + 1,
+    submission_integrity_completed_at:  now,
+    ...pickCreatorIntegrityColumns(body as CreatorIntegrityInput),
+  };
 
   const { error: updateError } = await supabase
     .from("creator_projects")
@@ -413,6 +402,8 @@ export async function PUT(req: NextRequest) {
         ? "This work is under active distribution. Editing is closed."
         : existing.status === "archived"
         ? "This work has been archived. Editing is closed."
+        : existing.status === "removal_requested"
+        ? "Removal request under review. Editing is closed."
         : "This work cannot be edited in its current state.";
     return NextResponse.json({ error: message }, { status: 422 });
   }
@@ -496,14 +487,16 @@ export async function DELETE(req: NextRequest) {
   if (project.status !== "draft" && project.status !== "rejected") {
     const reason =
       project.status === "live"
-        ? "Live projects cannot be deleted. Submit a removal request instead."
+        ? "Live works cannot be deleted. Submit a removal request instead."
         : project.status === "pending" || project.status === "in_review"
-        ? "Projects under review cannot be deleted."
+        ? "Works under review cannot be deleted."
         : project.status === "approved"
-        ? "Approved projects cannot be deleted."
+        ? "Approved works cannot be deleted."
         : project.status === "archived"
-        ? "Archived projects cannot be deleted."
-        : "Only draft or rejected projects can be deleted.";
+        ? "Archived works cannot be deleted."
+        : project.status === "removal_requested"
+        ? "Removal request is under review. Deletion is not available."
+        : "Only draft or rejected works can be deleted.";
 
     return NextResponse.json({ error: reason }, { status: 422 });
   }
