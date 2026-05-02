@@ -15,18 +15,18 @@ function resolveRoute(pathname: string): RouteConfig {
   // /workspace/projects/[id]/edit
   if (/^\/workspace\/projects\/[^/]+\/edit$/.test(pathname)) {
     return {
-      label: "Edit Project",
+      label: "Edit Work",
       parent: "/workspace/projects",
-      parentLabel: "Projects",
+      parentLabel: "Works",
       primaryAction: null,
     };
   }
   // /workspace/projects/new
   if (pathname === "/workspace/projects/new") {
     return {
-      label: "New Project",
+      label: "New Work",
       parent: "/workspace/projects",
-      parentLabel: "Projects",
+      parentLabel: "Works",
       primaryAction: null,
     };
   }
@@ -45,16 +45,16 @@ function resolveRoute(pathname: string): RouteConfig {
       primaryAction: null,
     },
     "/workspace/projects": {
-      label: "Projects",
+      label: "Works",
       parent: "/workspace",
       parentLabel: "Studio",
-      primaryAction: { label: "+ New Project", href: "/workspace/projects/new" },
+      primaryAction: { label: "+ New Work", href: "/workspace/projects/new" },
     },
     "/workspace/media": {
       label: "Media",
       parent: "/workspace",
       parentLabel: "Studio",
-      primaryAction: { label: "Add Media via Project", href: "/workspace/projects/new" },
+      primaryAction: { label: "Add Media via Work", href: "/workspace/projects/new" },
     },
     "/workspace/settings": {
       label: "Settings",

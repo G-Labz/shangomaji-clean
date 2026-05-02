@@ -503,18 +503,42 @@ export default function EditProjectPage({ params }: PageProps) {
 
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <h1
-            className="font-bold text-2xl text-white tracking-tight"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Edit Project
-          </h1>
-          <StatusBadge status={projectStatus} />
-          {isLive && removalRequested && (
-            <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
-              Removal Requested
-            </span>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1
+              className="font-bold text-2xl text-white tracking-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Edit Work
+            </h1>
+            <StatusBadge status={projectStatus} />
+            {isLive && removalRequested && (
+              <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
+                Removal Requested
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-ink-faint italic">
+            {projectStatus === "draft"
+              ? "Private draft. Fully editable."
+              : projectStatus === "pending"
+              ? "Submitted for review. Editing locked."
+              : projectStatus === "in_review"
+              ? "Under editorial evaluation. No changes allowed."
+              : projectStatus === "approved"
+              ? "Selected for distribution consideration. License required."
+              : projectStatus === "live"
+              ? "Under active distribution license. Managed by ShangoMaji."
+              : projectStatus === "archived"
+              ? "Removed from active catalog."
+              : projectStatus === "rejected"
+              ? "Not selected. Revise to create a new draft."
+              : ""}
+          </p>
+          {isLive && (
+            <p className="text-[11px] text-ink-muted">
+              Subject to review. Removal may be denied during an active license term.
+            </p>
           )}
         </div>
         <ItemActions
@@ -580,7 +604,20 @@ export default function EditProjectPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Edit form */}
+      {/* Edit form — semantically disabled for any non-draft state. The
+          field-level disabling is enforced by <fieldset disabled>; the
+          server-side gate in PUT /api/creators/projects rejects saves
+          from non-draft states regardless. */}
+      <fieldset
+        disabled={projectStatus !== "draft"}
+        style={{
+          border: "none",
+          padding: 0,
+          margin: 0,
+          opacity: projectStatus === "draft" ? 1 : 0.55,
+          pointerEvents: projectStatus === "draft" ? "auto" : "none",
+        }}
+      >
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2 space-y-6">
           <SectionHeading title="Project Details" />
@@ -732,19 +769,22 @@ export default function EditProjectPage({ params }: PageProps) {
           </div>
         </Card>
       </div>
+      </fieldset>
 
-      {/* Action bar */}
-      <div className="flex justify-end gap-3">
-        <GradientButton
-          onClick={saveProject}
-          disabled={saving || submitting}
-          className="min-w-[140px]"
-        >
-          {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
-        </GradientButton>
+      {/* Action bar — Save Changes and Submit are scoped strictly to drafts.
+          Other states are read-only at the UI level; the API also rejects
+          non-draft saves (see PUT /api/creators/projects). */}
+      {projectStatus === "draft" ? (
+        <div className="flex justify-end gap-3">
+          <GradientButton
+            onClick={saveProject}
+            disabled={saving || submitting}
+            className="min-w-[140px]"
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
+          </GradientButton>
 
-        {projectStatus === "draft" && (
           <button
             onClick={handleSubmit}
             disabled={submitting || saving}
@@ -757,8 +797,23 @@ export default function EditProjectPage({ params }: PageProps) {
             {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             {submitting ? "Submitting..." : "Submit for Review"}
           </button>
-        )}
-      </div>
+        </div>
+      ) : projectStatus === "approved" ? (
+        <div className="flex justify-end">
+          <Link
+            href={`/license/${id}`}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black transition-all active:scale-95"
+            style={{
+              background:
+                licenseStatus === "executed"
+                  ? "rgba(255,255,255,0.85)"
+                  : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+            }}
+          >
+            {licenseStatus === "executed" ? "View License" : "Sign License"}
+          </Link>
+        </div>
+      ) : null}
 
       {errors.save && <p className="text-brand-red text-sm">{errors.save}</p>}
 

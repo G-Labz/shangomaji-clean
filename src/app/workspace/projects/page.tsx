@@ -33,6 +33,22 @@ function matchesFilter(status: string, filter: string): boolean {
   return status === filter;
 }
 
+// Authority-of-state plain English. Visible directly under the badge so the
+// creator never has to guess what their work's state means or who controls
+// the next move.
+function stateMeaning(status: string): string {
+  switch (status) {
+    case "draft":     return "Private draft. Fully editable.";
+    case "pending":   return "Submitted for review. Editing locked.";
+    case "in_review": return "Under editorial evaluation. No changes allowed.";
+    case "approved":  return "Selected for distribution consideration. License required.";
+    case "live":      return "Under active distribution license. Managed by ShangoMaji.";
+    case "archived":  return "Removed from active catalog.";
+    case "rejected":  return "Not selected. Revise to create a new draft.";
+    default:          return "";
+  }
+}
+
 // Human-readable block reasons per status
 function deleteBlockReason(status: string): string {
   if (status === "live")      return "Live projects cannot be deleted. Submit a removal request instead.";
@@ -277,7 +293,7 @@ export default function WorkspaceProjects() {
           className="font-bold text-2xl text-white tracking-tight"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          My Projects
+          My Works
         </h1>
         <p className="text-ink-faint text-sm mt-1">
           Track drafts and review status.
@@ -384,9 +400,17 @@ export default function WorkspaceProjects() {
                   {project.logline && (
                     <p className="text-ink-faint text-sm">{project.logline}</p>
                   )}
+                  <p className="text-xs text-ink-faint italic">
+                    {stateMeaning(project.status)}
+                  </p>
                   <p className="text-[11px] text-ink-muted">
                     Last updated {formatDate(project.updated_at)}
                   </p>
+                  {isLive && (
+                    <p className="text-[11px] text-ink-muted leading-relaxed">
+                      Subject to review. Removal may be denied during an active license term.
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
@@ -401,7 +425,15 @@ export default function WorkspaceProjects() {
                     </button>
                   )}
                   <ItemActions
-                    editHref={`/workspace/projects/${project.id}/edit`}
+                    /* Edit is allowed only for draft (free editing) and
+                       rejected (the edit page is already read-only there
+                       and exposes Revise). All other states are read-only
+                       to the creator. */
+                    editHref={
+                      project.status === "draft" || project.status === "rejected"
+                        ? `/workspace/projects/${project.id}/edit`
+                        : undefined
+                    }
                     onDelete={canDelete ? () => handleDelete(project) : undefined}
                     onDeleteBlocked={blocked ? (reason) => showError(reason) : undefined}
                     deleteBlockedReason={blocked ? deleteBlockReason(project.status) : undefined}

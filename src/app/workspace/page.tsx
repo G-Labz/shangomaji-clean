@@ -9,13 +9,13 @@ const sections = [
     href: "/workspace/profile",
   },
   {
-    title: "Projects",
+    title: "Works",
     text: "Create, edit, and submit your work.",
     href: "/workspace/projects",
   },
   {
     title: "Media",
-    text: "View all assets across your projects.",
+    text: "View all assets across your works.",
     href: "/workspace/media",
   },
   {

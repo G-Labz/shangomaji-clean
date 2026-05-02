@@ -350,15 +350,23 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  // Rejected projects are locked — no editing
-  if (existing.status === "rejected") {
-    return NextResponse.json(
-      {
-        error:
-          "Rejected projects are locked and cannot be edited. Use Revise Project to create a new draft.",
-      },
-      { status: 422 }
-    );
+  // Authority-of-state: only drafts are editable by the creator. All other
+  // states are owned by ShangoMaji's review/distribution lifecycle and the
+  // creator must not be able to mutate field values once submitted.
+  if (existing.status !== "draft") {
+    const message =
+      existing.status === "rejected"
+        ? "Rejected works are locked and cannot be edited. Use Revise to create a new draft."
+        : existing.status === "pending" || existing.status === "in_review"
+        ? "This work has been submitted for review. Editing is locked."
+        : existing.status === "approved"
+        ? "This work has been approved. Editing is closed; the next step is license execution."
+        : existing.status === "live"
+        ? "This work is under active distribution. Editing is closed."
+        : existing.status === "archived"
+        ? "This work has been archived. Editing is closed."
+        : "This work cannot be edited in its current state.";
+    return NextResponse.json({ error: message }, { status: 422 });
   }
 
   const updates: Record<string, any> = { updated_at: new Date().toISOString() };

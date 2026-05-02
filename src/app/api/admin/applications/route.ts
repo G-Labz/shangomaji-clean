@@ -47,13 +47,24 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ applications: data });
 }
 
+// Application lifecycle authority. A decision is final: accepted/rejected
+// are terminal admin states. Archive is a non-destructive close. No
+// transition out of archived. Re-opening a decision is intentionally not
+// supported.
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  pending:  ["accepted", "rejected"],
+  accepted: ["archived"],
+  rejected: ["archived"],
+  archived: [],
+};
+
 // PATCH — update status + trigger REAL onboarding when accepting
 export async function PATCH(req: NextRequest) {
   if (!checkAuth(req)) return unauthorized();
 
   const { id: submissionId, status } = await req.json();
 
-  if (!submissionId || !["pending", "accepted", "rejected"].includes(status)) {
+  if (!submissionId || !["pending", "accepted", "rejected", "archived"].includes(status)) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
@@ -66,6 +77,17 @@ export async function PATCH(req: NextRequest) {
 
   if (fetchError || !application) {
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  }
+
+  // Strict transition gate. Decisions cannot be reversed; archived is
+  // terminal. Re-PATCHing the same state is treated as invalid because
+  // the only legitimate same-state operation is the accepted re-send
+  // path (handled below) — but that always carries a status change check
+  // against the *previous* row.
+  const allowed = ALLOWED_TRANSITIONS[application.status] ?? [];
+  const isSameStateNoop = status === application.status;
+  if (!isSameStateNoop && !allowed.includes(status)) {
+    return NextResponse.json({ error: "Invalid status transition" }, { status: 400 });
   }
 
   // Update application status in DB

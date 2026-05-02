@@ -32,7 +32,9 @@ export default function AdminPage() {
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState("");
   const [expanded, setExpanded]     = useState<string | null>(null);
-  const [filter, setFilter]         = useState<"all" | "pending" | "accepted" | "rejected">("all");
+  const [filter, setFilter]         = useState<"all" | "pending" | "accepted" | "rejected" | "archived">("all");
+  const [showRejected, setShowRejected] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [view, setView]             = useState<"applications" | "projects">("applications");
   const [projectList, setProjectList]   = useState<any[]>([]);
   const [projectFilter, setProjectFilter] = useState<"all" | "pending" | "in_review" | "approved" | "rejected" | "live" | "archived">("all");
@@ -342,19 +344,31 @@ export default function AdminPage() {
     archived:  "bg-white/10 text-neutral-400 border-white/10",
   };
 
-  const filtered = filter === "all" ? applications : applications.filter((a) => a.status === filter);
+  // Default visible = pending + accepted. Rejected and Archived require an
+  // explicit toggle so the working list stays focused on actionable rows.
+  const visibleByToggle = applications.filter((a) => {
+    if (a.status === "rejected" && !showRejected) return false;
+    if (a.status === "archived" && !showArchived) return false;
+    return true;
+  });
+  const filtered =
+    filter === "all"
+      ? visibleByToggle
+      : visibleByToggle.filter((a) => a.status === filter);
 
   const counts = {
-    all:      applications.length,
+    all:      visibleByToggle.length,
     pending:  applications.filter((a) => a.status === "pending").length,
     accepted: applications.filter((a) => a.status === "accepted").length,
     rejected: applications.filter((a) => a.status === "rejected").length,
+    archived: applications.filter((a) => a.status === "archived").length,
   };
 
   const statusColor: Record<string, string> = {
     pending:  "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
     accepted: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     rejected: "bg-red-500/20 text-red-400 border-red-500/30",
+    archived: "bg-white/5 text-neutral-400 border-white/10",
   };
 
   // ── Password gate ──
@@ -530,15 +544,15 @@ export default function AdminPage() {
             view === "projects" ? "bg-white/10 text-white" : "text-neutral-500 hover:text-white"
           }`}
         >
-          Projects
+          Works
         </button>
       </div>
 
       {/* ── Applications tab ── */}
       {view === "applications" && (
         <>
-          <div className="flex gap-2 mb-6">
-            {(["all", "pending", "accepted", "rejected"] as const).map((f) => (
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {(["all", "pending", "accepted"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -551,6 +565,56 @@ export default function AdminPage() {
                 {f.charAt(0).toUpperCase() + f.slice(1)} ({counts[f]})
               </button>
             ))}
+            {showRejected && (
+              <button
+                onClick={() => setFilter("rejected")}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                  filter === "rejected"
+                    ? "bg-white/10 text-white"
+                    : "text-neutral-500 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                Rejected ({counts.rejected})
+              </button>
+            )}
+            {showArchived && (
+              <button
+                onClick={() => setFilter("archived")}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                  filter === "archived"
+                    ? "bg-white/10 text-white"
+                    : "text-neutral-500 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                Archived ({counts.archived})
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3 mb-6 text-xs text-neutral-500">
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showRejected}
+                onChange={(e) => {
+                  setShowRejected(e.target.checked);
+                  if (!e.target.checked && filter === "rejected") setFilter("all");
+                }}
+                className="accent-orange-500"
+              />
+              Show rejected
+            </label>
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(e) => {
+                  setShowArchived(e.target.checked);
+                  if (!e.target.checked && filter === "archived") setFilter("all");
+                }}
+                className="accent-orange-500"
+              />
+              Show archived
+            </label>
           </div>
 
           {filtered.length === 0 ? (
@@ -636,28 +700,66 @@ export default function AdminPage() {
                         <Field label="Website" value={app.website} link />
                       </div>
 
-                      <div className="mt-5 pt-4 border-t border-white/5 flex items-center gap-2">
-                        <span className="text-xs text-neutral-500 mr-2">Set status:</span>
-                        {["pending", "accepted", "rejected"].map((s) => (
+                      <div className="mt-5 pt-4 border-t border-white/5 space-y-3">
+                        {/* Authority-of-state messaging. Decisions are final. */}
+                        {app.status === "accepted" && (
+                          <p className="text-xs text-emerald-300/90">
+                            Decision finalized — creator onboarded.
+                          </p>
+                        )}
+                        {app.status === "rejected" && (
+                          <p className="text-xs text-red-300/80">
+                            Application closed.
+                          </p>
+                        )}
+                        {app.status === "archived" && (
+                          <p className="text-xs text-neutral-400">
+                            Archived. Terminal state.
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-neutral-500 mr-2">Set status:</span>
+                          {(["pending", "accepted", "rejected"] as const).map((s) => {
+                            const allowed =
+                              app.status === "pending" &&
+                              (s === "accepted" || s === "rejected");
+                            const isCurrent = app.status === s;
+                            const disabled = !allowed && !isCurrent;
+                            return (
+                              <button
+                                key={s}
+                                onClick={() => !disabled && updateStatus(app.id, s)}
+                                disabled={disabled}
+                                className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
+                                  isCurrent
+                                    ? statusColor[s]
+                                    : disabled
+                                    ? "border-white/5 text-neutral-700 cursor-not-allowed"
+                                    : "border-white/10 text-neutral-500 hover:text-white hover:border-white/20"
+                                }`}
+                              >
+                                {s.charAt(0).toUpperCase() + s.slice(1)}
+                              </button>
+                            );
+                          })}
+                          {/* Archive: non-destructive close from accepted/rejected. */}
+                          {(app.status === "accepted" || app.status === "rejected") && (
+                            <button
+                              onClick={() => updateStatus(app.id, "archived")}
+                              className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition"
+                            >
+                              Archive
+                            </button>
+                          )}
+                          <div className="flex-1" />
                           <button
-                            key={s}
-                            onClick={() => updateStatus(app.id, s)}
-                            className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
-                              app.status === s
-                                ? statusColor[s]
-                                : "border-white/10 text-neutral-500 hover:text-white hover:border-white/20"
-                            }`}
+                            onClick={() => deleteApplication(app.id)}
+                            className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/20 text-red-400/60 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition"
                           >
-                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                            Delete
                           </button>
-                        ))}
-                        <div className="flex-1" />
-                        <button
-                          onClick={() => deleteApplication(app.id)}
-                          className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/20 text-red-400/60 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition"
-                        >
-                          Delete
-                        </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -908,7 +1010,7 @@ export default function AdminPage() {
                                   : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
                               }`}
                             >
-                              {project.media_ready ? "Media ready" : "Not playable yet"}
+                              {project.media_ready ? "Submitted for processing" : "Not submitted"}
                             </span>
                           </div>
 
@@ -960,19 +1062,19 @@ export default function AdminPage() {
                                         : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
                                     }`}
                                   >
-                                    {project.media_ready ? "Mark not ready" : "Mark media ready"}
+                                    {project.media_ready ? "Withdraw from processing" : "Submit for processing"}
                                   </button>
                                 </div>
 
                                 {markReadyBlocked ? (
                                   <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                    Paste the Bunny Stream Video ID, save it, then mark media ready.
-                                    A title only appears in the public catalog when both are in place.
+                                    Paste the Bunny Stream Video ID, save it, then submit for processing.
+                                    Final activation is controlled by ShangoMaji.
                                   </p>
                                 ) : (
                                   <p className="text-[11px] text-neutral-500 leading-relaxed">
                                     A title only appears in the public catalog when it has a Bunny video ID
-                                    and is marked media ready.
+                                    and has been submitted for processing. Final activation is controlled by ShangoMaji.
                                   </p>
                                 )}
                               </>

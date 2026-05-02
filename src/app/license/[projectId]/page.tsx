@@ -56,6 +56,7 @@ export default function LicensePage() {
     Object.fromEntries(SDL_ACKS.map((a) => [a.key, false])) as Record<AckKey, boolean>
   );
   const [legalNameCertAck, setLegalNameCertAck] = useState(false);
+  const [bindingAck, setBindingAck]   = useState(false);
   const [submitBusy, setSubmitBusy]   = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -109,7 +110,8 @@ export default function LicensePage() {
     legalNameValid &&
     signatureMatches &&
     allAcksTrue &&
-    legalNameCertAck;
+    legalNameCertAck &&
+    bindingAck;
 
   async function submitLicense() {
     if (!canSubmit || termYears === null) return;
@@ -329,6 +331,55 @@ export default function LicensePage() {
         </label>
       </div>
 
+      {/* Binding confirmation gate — explicit gravity before execution. */}
+      <div
+        style={{
+          marginBottom: 20,
+          padding: 16,
+          border: "1px solid rgba(229,62,42,0.45)",
+          background: "rgba(229,62,42,0.07)",
+          borderRadius: 10,
+        }}
+      >
+        <p style={{ color: "white", fontWeight: 700, fontSize: 14, margin: "0 0 10px" }}>
+          You are entering a binding distribution agreement.
+        </p>
+        <ul
+          style={{
+            ...bodyText,
+            fontSize: 13,
+            lineHeight: 1.65,
+            margin: "0 0 12px",
+            paddingLeft: 18,
+          }}
+        >
+          <li>You grant ShangoMaji distribution rights for the selected term</li>
+          <li>This work cannot be removed during the active term</li>
+          <li>ShangoMaji controls distribution, placement, and visibility</li>
+        </ul>
+        <p
+          style={{
+            color: "rgba(255,255,255,0.85)",
+            fontWeight: 600,
+            fontSize: 13,
+            margin: "0 0 12px",
+          }}
+        >
+          This action is legally binding.
+        </p>
+        <label style={{ ...ackRow, alignItems: "flex-start" }}>
+          <input
+            type="checkbox"
+            checked={bindingAck}
+            onChange={(e) => setBindingAck(e.target.checked)}
+            style={{ marginTop: 3, accentColor: "#e53e2a" }}
+          />
+          <span style={{ ...bodyText, fontSize: 13, lineHeight: 1.5 }}>
+            I have read the above and understand this is a legally binding distribution agreement.
+          </span>
+        </label>
+      </div>
+
       {submitError && (
         <p style={{ color: "#fca5a5", fontSize: 13, marginBottom: 14 }}>{submitError}</p>
       )}
@@ -339,7 +390,7 @@ export default function LicensePage() {
           disabled={!canSubmit}
           style={canSubmit ? primaryBtn : primaryBtnDisabled}
         >
-          {submitBusy ? "Executing…" : "Execute License"}
+          {submitBusy ? "Executing…" : "Confirm and Execute License"}
         </button>
         <BackLink />
       </div>
