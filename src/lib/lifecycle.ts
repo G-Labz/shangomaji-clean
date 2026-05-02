@@ -16,7 +16,8 @@ export type ProjectStatus =
   | "rejected"
   | "live"
   | "archived"
-  | "removal_requested";
+  | "removal_requested"
+  | "removed";
 
 export const PROJECT_STATUSES: readonly ProjectStatus[] = [
   "draft",
@@ -27,7 +28,14 @@ export const PROJECT_STATUSES: readonly ProjectStatus[] = [
   "live",
   "archived",
   "removal_requested",
+  "removed",
 ] as const;
+
+// Terminal states. No transitions are permitted out of these. "removed"
+// is the institutional removal outcome and is permanently locked; "archived"
+// is reversible only via planRestore (which targets the previous state, not
+// via the actor map).
+export const TERMINAL_STATUSES: readonly ProjectStatus[] = ["removed"] as const;
 
 // Authority of each transition. "system" is reserved for internal moves
 // triggered by side-effects (none today); creator and admin are the two
@@ -46,9 +54,13 @@ const ADMIN_ALLOWED: Record<string, ReadonlySet<ProjectStatus>> = {
   approved:          new Set<ProjectStatus>(["live", "archived"]),
   rejected:          new Set<ProjectStatus>(["in_review", "archived"]),
   live:              new Set<ProjectStatus>(["archived"]),
-  removal_requested: new Set<ProjectStatus>(["archived", "live"]),
-  // archived → previous_status_before_archive is handled by buildRestoreTransition
+  // Removal outcome is "removed" (terminal), not "archived". Denial returns
+  // the work to "live". This is the load-bearing change of migration 018:
+  // archive is no longer a removal outcome.
+  removal_requested: new Set<ProjectStatus>(["removed", "live"]),
+  // archived → previous_status_before_archive is handled by planRestore
   // because the target depends on the row, not a static map.
+  // removed: intentionally absent — terminal.
 };
 
 export type StateHistoryEntry = {
@@ -126,6 +138,14 @@ export function planTransition(input: TransitionInput): TransitionResult {
     return { ok: false, error: `Already in state "${from}".`, status: 422 };
   }
 
+  if ((TERMINAL_STATUSES as readonly string[]).includes(from)) {
+    return {
+      ok: false,
+      error: `"${from}" is a terminal state. No transitions are permitted.`,
+      status: 422,
+    };
+  }
+
   const allowed = allowedFor(by, from);
   if (!allowed.has(to)) {
     return {
@@ -182,9 +202,14 @@ export function planRestore(input: { row: LifecycleRow; by: Actor; reason?: stri
       status: 422,
     };
   }
-  // Restore can only land on a non-archived, non-removal-requested state and
-  // must be a recognized status.
-  if (!isValidStatus(target) || target === "archived" || target === "removal_requested") {
+  // Restore can only land on a non-archived, non-removal-requested,
+  // non-removed state and must be a recognized status.
+  if (
+    !isValidStatus(target) ||
+    target === "archived" ||
+    target === "removal_requested" ||
+    target === "removed"
+  ) {
     return {
       ok: false,
       error: `Cannot restore: previous state "${target}" is not a valid restore target.`,

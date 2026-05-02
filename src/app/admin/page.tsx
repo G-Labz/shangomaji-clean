@@ -44,7 +44,7 @@ export default function AdminPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [view, setView]             = useState<"applications" | "projects">("applications");
   const [projectList, setProjectList]   = useState<any[]>([]);
-  const [projectFilter, setProjectFilter] = useState<"all" | "pending" | "in_review" | "approved" | "rejected" | "live" | "archived" | "removal_requested">("all");
+  const [projectFilter, setProjectFilter] = useState<"all" | "pending" | "in_review" | "approved" | "rejected" | "live" | "archived" | "removal_requested" | "removed">("all");
   const [projectLoading, setProjectLoading] = useState(false);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
@@ -533,6 +533,7 @@ export default function AdminPage() {
     live:              projectList.filter((p) => p.status === "live").length,
     archived:          projectList.filter((p) => p.status === "archived").length,
     removal_requested: projectList.filter((p) => p.status === "removal_requested").length,
+    removed:           projectList.filter((p) => p.status === "removed").length,
   };
 
   const removalQueue = projectList.filter((p) => p.status === "removal_requested");
@@ -545,6 +546,7 @@ export default function AdminPage() {
     live:              "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     archived:          "bg-white/10 text-neutral-400 border-white/10",
     removal_requested: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    removed:           "bg-red-900/30 text-red-300 border-red-500/30",
   };
 
   function statusDisplay(s: string): string {
@@ -993,6 +995,7 @@ export default function AdminPage() {
                 { key: "live",               label: "Live"               },
                 { key: "removal_requested",  label: "Removal Requested"  },
                 { key: "archived",           label: "Archived"           },
+                { key: "removed",            label: "Removed"            },
               ] as const
             ).map((f) => (
               <button
@@ -1045,7 +1048,7 @@ export default function AdminPage() {
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
                       <button
                         onClick={() => {
-                          if (confirm("Approve removal? The work will be archived.")) {
+                          if (confirm("Approve removal? Distribution will be permanently terminated.")) {
                             resolveRemoval(p.id, "approve");
                           }
                         }}
@@ -1640,13 +1643,20 @@ export default function AdminPage() {
                           })()
                         )}
 
+                        {/* removed: terminal — no actions */}
+                        {project.status === "removed" && (
+                          <span className="text-xs text-red-300/80">
+                            Removed — terminal state. Distribution permanently ended.
+                          </span>
+                        )}
+
                         {/* removal_requested: Approve / Deny */}
                         {project.status === "removal_requested" && (
                           <div className="basis-full flex flex-col gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
                               <button
                                 onClick={() => {
-                                  if (confirm("Approve removal? The work will be archived.")) {
+                                  if (confirm("Approve removal? Distribution will be permanently terminated.")) {
                                     resolveRemoval(project.id, "approve");
                                   }
                                 }}

@@ -42,6 +42,7 @@ const STATUS_DISPLAY: Record<string, string> = {
   live:              "Live",
   archived:          "Archived",
   removal_requested: "Removal Requested",
+  removed:           "Removed",
 };
 
 export function statusLabel(status: string): string {
@@ -60,6 +61,7 @@ export function StatusBadge({ status }: { status: string }) {
     Live:                 "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
     Archived:             "bg-white/5 text-ink-faint border-white/15",
     "Removal Requested":  "bg-amber-500/15 text-amber-300 border-amber-500/40",
+    Removed:              "bg-red-900/30 text-red-300 border-red-500/40",
   };
 
   const cls = styles[display] || styles.Draft;

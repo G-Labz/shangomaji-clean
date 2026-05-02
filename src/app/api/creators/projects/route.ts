@@ -403,7 +403,9 @@ export async function PUT(req: NextRequest) {
         : existing.status === "archived"
         ? "This work has been archived. Editing is closed."
         : existing.status === "removal_requested"
-        ? "Removal request under review. Editing is closed."
+        ? "Removal request under review. Your work remains live until a decision is made."
+        : existing.status === "removed"
+        ? "This work has been removed from distribution."
         : "This work cannot be edited in its current state.";
     return NextResponse.json({ error: message }, { status: 422 });
   }
@@ -496,6 +498,8 @@ export async function DELETE(req: NextRequest) {
         ? "Archived works cannot be deleted."
         : project.status === "removal_requested"
         ? "Removal request is under review. Deletion is not available."
+        : project.status === "removed"
+        ? "This work has been removed from distribution."
         : "Only draft or rejected works can be deleted.";
 
     return NextResponse.json({ error: reason }, { status: 422 });

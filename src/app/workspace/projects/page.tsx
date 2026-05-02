@@ -47,7 +47,8 @@ function stateMeaning(status: string): string {
     case "live":              return "Under active distribution license. Managed by ShangoMaji.";
     case "archived":          return "Removed from active catalog.";
     case "rejected":          return "Not selected. Revise to create a new draft.";
-    case "removal_requested": return "Removal request under review.";
+    case "removal_requested": return "Removal request under review. Your work remains live until a decision is made.";
+    case "removed":           return "This work has been removed from distribution.";
     default:                  return "";
   }
 }
@@ -79,6 +80,8 @@ export default function WorkspaceProjects() {
         const res  = await fetch("/api/creators/projects");
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Could not load projects");
+        // Hide archived (admin-only state) but keep "removed" visible so the
+        // creator sees the terminal outcome of an approved removal request.
         const raw: Project[] = (data.projects ?? []).filter(
           (p: Project) => p.status !== "archived"
         );
@@ -425,7 +428,12 @@ export default function WorkspaceProjects() {
                   )}
                   {isRemovalRequested && (
                     <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                      Removal request under review.
+                      Removal request under review. Your work remains live until a decision is made.
+                    </p>
+                  )}
+                  {project.status === "removed" && (
+                    <p className="text-[11px] text-red-300/80 leading-relaxed">
+                      This work has been removed from distribution.
                     </p>
                   )}
                 </div>

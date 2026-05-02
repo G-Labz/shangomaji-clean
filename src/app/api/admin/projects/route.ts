@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       "live",
       "archived",
       "removal_requested",
+      "removed",
     ])
     .order("updated_at", { ascending: false });
 
@@ -173,7 +174,7 @@ export async function PATCH(req: NextRequest) {
     if (curErr || !cur) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
-    const blocked = new Set(["live", "archived", "rejected", "removal_requested"]);
+    const blocked = new Set(["live", "archived", "rejected", "removal_requested", "removed"]);
     if (blocked.has(cur.status)) {
       return NextResponse.json(
         { error: `Review notes cannot be edited in "${cur.status}" state.` },
@@ -356,7 +357,10 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
-    const target: ProjectStatus = decision === "approve" ? "archived" : "live";
+    // Removal outcome is the terminal "removed" state, not "archived".
+    // Archive is a separate, reversible admin action and is not a removal
+    // resolution under Lifecycle Control v2 (migration 018).
+    const target: ProjectStatus = decision === "approve" ? "removed" : "live";
     const reason = typeof body.reason === "string" && body.reason.trim()
       ? body.reason.trim()
       : null;
@@ -389,8 +393,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: updErr.message }, { status: 500 });
     }
 
-    // Side-effects: approved removal → archive title; denied removal →
-    // reactivate any "removed" title row that may have been pre-flipped.
+    // Side-effects: approved removal → terminate distribution by flipping the
+    // title row to "removed"; denied removal → return to active.
     if (decision === "approve") {
       const cascadeErr = await cascadeTitleRemoval(id);
       if (cascadeErr) {
@@ -398,7 +402,7 @@ export async function PATCH(req: NextRequest) {
           {
             success: true,
             distributionWarning:
-              `Removal approved (archived), but the catalog title row could not be flipped out of "active". ` +
+              `Removal approved (work removed), but the catalog title row could not be flipped out of "active". ` +
               `Error: ${cascadeErr.message}.`,
           },
           { status: 207 }
