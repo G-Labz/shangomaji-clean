@@ -12,6 +12,13 @@ import {
   ItemActions,
   useConfirm,
 } from "../../../components";
+import SubmissionIntegrityForm, {
+  emptyIntegrity,
+  integrityFromProject,
+  integrityToPayload,
+  checkIntegrity,
+  type IntegrityState,
+} from "../../SubmissionIntegrityForm";
 
 interface ProjectDraft {
   title: string;
@@ -40,6 +47,8 @@ export default function EditProjectPage({ params }: PageProps) {
   const router   = useRouter();
 
   const [draft, setDraft]                   = useState<ProjectDraft | null>(null);
+  const [integrity, setIntegrity]           = useState<IntegrityState>(emptyIntegrity);
+  const [integrityError, setIntegrityError] = useState<string | null>(null);
   const [projectStatus, setProjectStatus]   = useState<string>("draft");
   const [rejectionReason, setRejectionReason] = useState<string>("");
   const [removalRequested, setRemovalRequested] = useState(false);
@@ -82,6 +91,7 @@ export default function EditProjectPage({ params }: PageProps) {
         setRejectionReason(project.rejection_reason || "");
         setRemovalRequested(project.removal_requested ?? false);
         setLicenseStatus(project.license_status === "executed" ? "executed" : "none");
+        setIntegrity(integrityFromProject(project));
         setDraft({
           title:      project.title || "",
           type:       project.project_type || "",
@@ -152,6 +162,7 @@ export default function EditProjectPage({ params }: PageProps) {
           sample_url:     draft.sampleUrl.trim() || null,
           stills_urls:    draft.stillsUrls,
           deliverables:   draft.deliverables,
+          ...integrityToPayload(integrity),
         }),
       });
       const data = await res.json();
@@ -189,9 +200,19 @@ export default function EditProjectPage({ params }: PageProps) {
 
   async function handleSubmit() {
     if (!draft || !validate()) return;
+
+    // Submission Integrity gate (client). Server is still authoritative.
+    const integrityErr = checkIntegrity(integrity);
+    if (integrityErr) {
+      setIntegrityError(integrityErr.message);
+      showError(integrityErr.message);
+      return;
+    }
+    setIntegrityError(null);
+
     setSubmitting(true);
     try {
-      // Step 1: Save current edits
+      // Step 1: Save current edits + integrity record
       const saveRes  = await fetch("/api/creators/projects", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -208,22 +229,36 @@ export default function EditProjectPage({ params }: PageProps) {
           sample_url:     draft.sampleUrl.trim() || null,
           stills_urls:    draft.stillsUrls,
           deliverables:   draft.deliverables,
+          ...integrityToPayload(integrity),
         }),
       });
       const saveData = await saveRes.json();
       if (!saveRes.ok) throw new Error(saveData?.error || "Save failed");
 
-      // Step 2: Submit (draft → pending)
+      // Step 2: Submit (draft → pending). Integrity payload also passed so
+      // the server gate sees the latest values without depending on the
+      // PUT happening first.
       const submitRes  = await fetch("/api/creators/projects", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "pending" }),
+        body: JSON.stringify({
+          id,
+          status: "pending",
+          ...integrityToPayload(integrity),
+        }),
       });
       const submitData = await submitRes.json();
+
+      if (submitRes.status === 422) {
+        const msg = submitData?.error || "Submission integrity record is incomplete.";
+        setIntegrityError(msg);
+        showError(msg);
+        return;
+      }
       if (!submitRes.ok) throw new Error(submitData?.error || "Submit failed");
 
       setProjectStatus("pending");
-      showFeedback("Project submitted for review.");
+      showFeedback("Work submitted for editorial review.");
     } catch (err: any) {
       showError(err.message || "Submit failed");
     } finally {
@@ -770,6 +805,16 @@ export default function EditProjectPage({ params }: PageProps) {
         </Card>
       </div>
       </fieldset>
+
+      {/* Submission Integrity panel — read-only after submission. Shown for
+          drafts (so the creator can complete it) and for any submitted/live
+          state (so the creator can see what they attested to). */}
+      <SubmissionIntegrityForm
+        value={integrity}
+        onChange={setIntegrity}
+        disabled={projectStatus !== "draft"}
+        fieldError={integrityError}
+      />
 
       {/* Action bar — Save Changes and Submit are scoped strictly to drafts.
           Other states are read-only at the UI level; the API also rejects

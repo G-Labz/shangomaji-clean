@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import {
+  pickCreatorIntegrityColumns,
+  validateCreatorIntegrity,
+  type CreatorIntegrityInput,
+} from "@/lib/submission-integrity";
 
 function svc() {
   return createServiceClient(
@@ -110,9 +115,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
 
+  // Submission Integrity v1: when the creator chooses submitImmediately,
+  // the draft → pending gate runs *before* anything is written to the DB.
+  // No row is inserted with status pending unless integrity passes.
+  if (body.submitImmediately) {
+    const integrityErr = validateCreatorIntegrity(body as CreatorIntegrityInput);
+    if (integrityErr) {
+      return NextResponse.json(
+        { error: integrityErr.message, field: integrityErr.field },
+        { status: 422 }
+      );
+    }
+  }
+
   const now = new Date().toISOString();
 
-  const project = {
+  const project: Record<string, unknown> = {
     creator_email: email,
     title: body.title.trim(),
     description: body.description ?? null,
@@ -129,6 +147,10 @@ export async function POST(req: NextRequest) {
     updated_at: now,
     status_changed_at: now,
     submission_count: 0,
+    // Persist any integrity fields that were submitted alongside the draft.
+    // Drafts are allowed to carry partial integrity fields; the validator
+    // only runs on the submission gate.
+    ...pickCreatorIntegrityColumns(body as CreatorIntegrityInput),
   };
 
   const { data, error } = await supabase
@@ -153,6 +175,7 @@ export async function POST(req: NextRequest) {
         submitted_at: submitAt,
         status_changed_at: submitAt,
         submission_count: 1,
+        submission_integrity_completed_at: submitAt,
         updated_at: submitAt,
       })
       .eq("id", projectId)
@@ -202,10 +225,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
   }
 
-  // Fetch project — ownership enforced
+  // Fetch project — ownership enforced. We read the full row (rather than a
+  // dynamic projection string) because the Supabase typed-select parser
+  // does not accept runtime-built column lists; reading the full row keeps
+  // the integrity validator in sync with the schema without a second
+  // round-trip.
   const { data: project, error: fetchError } = await supabase
     .from("creator_projects")
-    .select("id, status, creator_email, submission_count, removal_requested")
+    .select("*")
     .eq("id", body.id)
     .eq("creator_email", email)
     .single();
@@ -288,17 +315,38 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
+  // Submission Integrity v1: draft → pending requires a fully-completed
+  // creator integrity record on the persisted row. The body may also
+  // include integrity field updates — they are merged in before validation
+  // (one-shot save+submit from the edit form).
+  if (targetStatus === "pending") {
+    const merged: CreatorIntegrityInput = {
+      ...(project as Record<string, unknown>),
+      ...pickCreatorIntegrityColumns(body as CreatorIntegrityInput),
+    };
+    const integrityErr = validateCreatorIntegrity(merged);
+    if (integrityErr) {
+      return NextResponse.json(
+        { error: integrityErr.message, field: integrityErr.field },
+        { status: 422 }
+      );
+    }
+  }
+
   const now = new Date().toISOString();
   const updates: Record<string, any> = {
     status: targetStatus,
     status_changed_at: now,
     updated_at: now,
+    // Persist any integrity field updates supplied with the submit call.
+    ...pickCreatorIntegrityColumns(body as CreatorIntegrityInput),
   };
 
   // Track submission metadata when entering pending
   if (targetStatus === "pending") {
     updates.submitted_at = now;
     updates.submission_count = (project.submission_count ?? 0) + 1;
+    updates.submission_integrity_completed_at = now;
   }
 
   const { error: updateError } = await supabase
@@ -389,6 +437,11 @@ export async function PUT(req: NextRequest) {
       updates[field] = body[field];
     }
   }
+
+  // Drafts may carry partial submission-integrity fields (creator works
+  // through the form across sessions). Validation runs on the submit gate,
+  // not the save gate.
+  Object.assign(updates, pickCreatorIntegrityColumns(body as CreatorIntegrityInput));
 
   const { error: updateError } = await supabase
     .from("creator_projects")

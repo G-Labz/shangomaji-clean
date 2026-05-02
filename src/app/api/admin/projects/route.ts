@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendLicenseRequestEmail } from "@/lib/email";
+import {
+  validateCreatorIntegrity,
+  isReviewPassing,
+  pickAdminReviewColumns,
+  type CreatorIntegrityInput,
+  type AdminReviewInput,
+} from "@/lib/submission-integrity";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,7 +73,7 @@ export async function GET(req: NextRequest) {
   if (allIds.length) {
     const { data: licenseRows } = await supabase
       .from("creator_licenses")
-      .select("id, project_id, status, term_years, signer_legal_name, signer_email, signed_at, term_start, term_end, pdf_url")
+      .select("id, project_id, status, term_years, signer_legal_name, signer_email, signed_at, term_start, term_end, pdf_url, identity_certification_version")
       .in("project_id", allIds)
       .eq("status", "executed");
     for (const l of licenseRows ?? []) {
@@ -74,9 +81,37 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Identity Enforcement v1: attach the creator profile's identity_status by
+  // matching creator_email. Admin-only context — the column is never returned
+  // from public-facing routes. If migration 015 has not been run on this DB,
+  // the select column simply returns nothing and identity_status falls back
+  // to null in the UI (we render that as "Self-certified" by default since
+  // that is the migration's NOT NULL DEFAULT once run).
+  const emails = Array.from(
+    new Set(
+      (projects ?? [])
+        .map((p: any) => (p.creator_email ?? "").trim().toLowerCase())
+        .filter((e: string) => e.length > 0)
+    )
+  );
+
+  const identityByEmail = new Map<string, string>();
+  if (emails.length) {
+    const { data: profileRows } = await supabase
+      .from("creator_profiles")
+      .select("email, identity_status")
+      .in("email", emails);
+    for (const pr of profileRows ?? []) {
+      const e = (pr as any).email?.trim().toLowerCase();
+      if (e) identityByEmail.set(e, (pr as any).identity_status ?? null);
+    }
+  }
+
   const enriched = (projects ?? []).map((p: any) => {
     const t = titlesByProject.get(p.id);
     const l = licensesByProject.get(p.id);
+    const idStatus =
+      identityByEmail.get((p.creator_email ?? "").trim().toLowerCase()) ?? null;
     return {
       ...p,
       title_id:                t?.id              ?? null,
@@ -85,6 +120,7 @@ export async function GET(req: NextRequest) {
       media_ready:             t?.media_ready     ?? false,
       title_status:            t?.status          ?? null,
       license:                 l ?? null,
+      identity_status:         idStatus,
     };
   });
 
@@ -102,10 +138,56 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { id, status, rejectionReason, confirmTitle } = body;
+  const { id, status, rejectionReason, confirmTitle, action } = body;
 
-  if (!id || !status) {
-    return NextResponse.json({ error: "ID and status are required" }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: "ID is required" }, { status: 400 });
+  }
+
+  // ── Save review notes without transitioning status ────────────────────
+  // Allowed any time before terminal states; the goal is to let an admin
+  // record the review record incrementally during evaluation. Approval is
+  // a separate call (status: "approved") that re-validates the persisted
+  // record server-side.
+  if (action === "saveReview") {
+    const { data: cur, error: curErr } = await supabase
+      .from("creator_projects")
+      .select("status")
+      .eq("id", id)
+      .single();
+    if (curErr || !cur) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+    const blocked = new Set(["live", "archived", "rejected"]);
+    if (blocked.has(cur.status)) {
+      return NextResponse.json(
+        { error: `Review notes cannot be edited in "${cur.status}" state.` },
+        { status: 422 }
+      );
+    }
+    const nowSave = new Date().toISOString();
+    const reviewer =
+      typeof body.reviewer === "string" && body.reviewer.trim()
+        ? body.reviewer.trim()
+        : "admin";
+    const updates = {
+      ...pickAdminReviewColumns(body as AdminReviewInput),
+      reviewed_at: nowSave,
+      reviewed_by: reviewer,
+      updated_at:  nowSave,
+    };
+    const { error: saveErr } = await supabase
+      .from("creator_projects")
+      .update(updates)
+      .eq("id", id);
+    if (saveErr) {
+      return NextResponse.json({ error: saveErr.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, reviewSaved: true });
+  }
+
+  if (!status) {
+    return NextResponse.json({ error: "Status is required" }, { status: 400 });
   }
 
   // Rejection requires a reason
@@ -116,10 +198,13 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  // STEP 1 — Fetch current project before making any changes
+  // STEP 1 — Fetch current project before making any changes. Read the full
+  // row so the approval gate has access to integrity + review columns
+  // without a runtime-built column list (the Supabase typed select parser
+  // doesn't accept dynamic projections).
   const { data: existingProject, error: fetchError } = await supabase
     .from("creator_projects")
-    .select("status, creator_email, title")
+    .select("*")
     .eq("id", id)
     .single();
 
@@ -144,6 +229,49 @@ export async function PATCH(req: NextRequest) {
       { error: `Cannot transition from "${previousStatus}" to "${status}".` },
       { status: 422 }
     );
+  }
+
+  // ── Approval gate (Submission Integrity v1) ──────────────────────────
+  // pending|in_review → approved is the institutional firewall. Both the
+  // creator's submission integrity record AND a passing admin review
+  // record must be on file before approval is granted. This validates
+  // the persisted columns plus any review fields in the body (which are
+  // also persisted as part of this call so the approval and the review
+  // record commit together).
+  if (status === "approved") {
+    const integrityErr = validateCreatorIntegrity(
+      existingProject as unknown as CreatorIntegrityInput
+    );
+    if (integrityErr) {
+      return NextResponse.json(
+        {
+          error:
+            "Approval requires completed submission integrity and review record. " +
+            `Creator integrity: ${integrityErr.message}`,
+          field: integrityErr.field,
+          phase: "creator_integrity",
+        },
+        { status: 422 }
+      );
+    }
+
+    const mergedReview: AdminReviewInput = {
+      ...(existingProject as unknown as AdminReviewInput),
+      ...pickAdminReviewColumns(body as AdminReviewInput),
+    };
+    const reviewErr = isReviewPassing(mergedReview);
+    if (reviewErr) {
+      return NextResponse.json(
+        {
+          error:
+            "Approval requires completed submission integrity and review record. " +
+            reviewErr.message,
+          field: reviewErr.field,
+          phase: "admin_review",
+        },
+        { status: 422 }
+      );
+    }
   }
 
   // Distribution activation requires an executed Standard Distribution
@@ -197,6 +325,17 @@ export async function PATCH(req: NextRequest) {
 
   if (status === "rejected") {
     updates.rejection_reason = rejectionReason.trim();
+  }
+
+  // Persist any admin review fields supplied with the call. On approval we
+  // also stamp reviewed_at / reviewed_by so the review record is durable.
+  Object.assign(updates, pickAdminReviewColumns(body as AdminReviewInput));
+  if (status === "approved") {
+    updates.reviewed_at = now;
+    updates.reviewed_by =
+      typeof body.reviewer === "string" && body.reviewer.trim()
+        ? body.reviewer.trim()
+        : "admin";
   }
 
   const { error: updateError } = await supabase

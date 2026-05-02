@@ -61,6 +61,10 @@ type ProfileRow = {
   banner_url: string | null;
   application_id: string | null;
   hydrated_from_application_at: string | null;
+  // Identity Enforcement v1 (migration 015). Default 'self_certified' is
+  // applied by the DB on insert; we set it explicitly on first hydration
+  // and never overwrite an existing value.
+  identity_status: string | null;
 };
 
 // Prefer structured first+last when both are present; fall back to legacy
@@ -169,7 +173,7 @@ export async function hydrateCreatorProfile(
   const { data: existing, error: existingErr } = await admin
     .from("creator_profiles")
     .select(
-      "id, email, display_name, handle, bio_short, bio_long, city, country, website, instagram, twitter, youtube, avatar_url, banner_url, application_id, hydrated_from_application_at"
+      "id, email, display_name, handle, bio_short, bio_long, city, country, website, instagram, twitter, youtube, avatar_url, banner_url, application_id, hydrated_from_application_at, identity_status"
     )
     .eq("email", normalizedEmail)
     .maybeSingle();
@@ -208,6 +212,10 @@ export async function hydrateCreatorProfile(
       youtube:      srcYoutube,
       application_id: app.id,
       hydrated_from_application_at: now,
+      // Identity floor for any newly-created profile. Aligns with the
+      // self-certification copy on the license execution page. Higher tiers
+      // are set by ShangoMaji ops, never by hydration.
+      identity_status: "self_certified",
     };
 
     const { error: insertErr } = await admin
@@ -234,7 +242,7 @@ export async function hydrateCreatorProfile(
   const current = (existing ?? (await admin
     .from("creator_profiles")
     .select(
-      "id, email, display_name, handle, bio_short, bio_long, city, country, website, instagram, twitter, youtube, avatar_url, banner_url, application_id, hydrated_from_application_at"
+      "id, email, display_name, handle, bio_short, bio_long, city, country, website, instagram, twitter, youtube, avatar_url, banner_url, application_id, hydrated_from_application_at, identity_status"
     )
     .eq("email", normalizedEmail)
     .maybeSingle()).data) as ProfileRow | null;

@@ -4,6 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Loader2, Send } from "lucide-react";
 import { Card, SectionHeading, GradientButton } from "../../components";
+import SubmissionIntegrityForm, {
+  emptyIntegrity,
+  integrityToPayload,
+  checkIntegrity,
+  type IntegrityState,
+} from "../SubmissionIntegrityForm";
 
 interface ProjectDraft {
   title: string;
@@ -42,6 +48,8 @@ const GENRES = ["Mythic", "Sci-Fi", "Drama", "Spiritual", "Action", "Coming of A
 export default function WorkspaceNewProject() {
   const router = useRouter();
   const [draft, setDraft] = useState<ProjectDraft>(emptyDraft);
+  const [integrity, setIntegrity] = useState<IntegrityState>(emptyIntegrity);
+  const [integrityError, setIntegrityError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -102,6 +110,7 @@ export default function WorkspaceNewProject() {
       sample_url: draft.sampleUrl.trim() || null,
       deliverables: draft.deliverables,
       stills_urls: draft.stillsUrls,
+      ...integrityToPayload(integrity),
     };
   }
 
@@ -129,6 +138,16 @@ export default function WorkspaceNewProject() {
 
   async function submitForReview() {
     if (!validate()) return;
+
+    // Submission Integrity gate (client). Server still validates the same.
+    const integrityErr = checkIntegrity(integrity);
+    if (integrityErr) {
+      setIntegrityError(integrityErr.message);
+      setErrors((prev) => ({ ...prev, save: integrityErr.message }));
+      return;
+    }
+    setIntegrityError(null);
+
     setSubmitting(true);
     try {
       // POST with submitImmediately: API creates draft then attempts draft → pending.
@@ -139,6 +158,14 @@ export default function WorkspaceNewProject() {
         body: JSON.stringify({ ...buildPayload(), submitImmediately: true }),
       });
       const createData = await createRes.json();
+
+      if (createRes.status === 422) {
+        const msg = createData?.error || "Submission integrity record is incomplete.";
+        setIntegrityError(msg);
+        setErrors((prev) => ({ ...prev, save: msg }));
+        setSubmitting(false);
+        return;
+      }
 
       if (createRes.status === 207) {
         // Draft saved, submission failed — no data loss
@@ -375,6 +402,13 @@ export default function WorkspaceNewProject() {
         </Card>
       </div>
 
+      {/* Submission Integrity panel — required before submission gate. */}
+      <SubmissionIntegrityForm
+        value={integrity}
+        onChange={setIntegrity}
+        fieldError={integrityError}
+      />
+
       {/* Action bar */}
       <div
         style={{
@@ -390,7 +424,7 @@ export default function WorkspaceNewProject() {
         }}
       >
         <p className="text-xs text-ink-faint">
-          Save as draft to continue later, or submit when ready for review.
+          Save as draft to continue later, or submit when the integrity record is complete.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button

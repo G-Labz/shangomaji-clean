@@ -325,8 +325,10 @@ export default function LicensePage() {
             style={{ marginTop: 3, accentColor: "#f5c518" }}
           />
           <span style={{ ...bodyText, fontSize: 13, lineHeight: 1.5 }}>
-            I certify that the legal name and typed signature entered above are accurate
-            and belong to me.
+            I certify that the legal name entered is my true legal identity and matches
+            my government-issued identification. I understand that providing false
+            information may result in account termination, license invalidation, and
+            removal from the ShangoMaji catalog.
           </span>
         </label>
       </div>

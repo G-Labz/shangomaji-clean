@@ -140,16 +140,32 @@ export async function GET(
         ? "Certified by signer at execution"
         : "Not on record (pre-certification execution)"
     }</dd>
+    <dt>Certification Copy Version</dt><dd>${escapeHtml(
+      license.identity_certification_version ?? "v1"
+    )}</dd>
   </dl>
 
   <h2 style="font-size:16px;margin:28px 0 12px;">Acknowledgments at Signing</h2>
   <ul class="acks">
     ${acksHtml}
-    <li><strong>Legal-name truth attestation:</strong> ${
-      license.legal_name_certification_ack === true
-        ? "I certify that the legal name and typed signature entered are accurate and belong to me."
-        : "Not captured for this execution."
-    }</li>
+    <li><strong>Legal-name truth attestation:</strong> ${(() => {
+      // Render the historically accurate certification copy. We do not
+      // retroactively rewrite what past signers actually agreed to.
+      if (license.legal_name_certification_ack !== true) {
+        return "Not captured for this execution.";
+      }
+      const v = license.identity_certification_version;
+      if (v === "v2") {
+        return (
+          "I certify that the legal name entered is my true legal identity " +
+          "and matches my government-issued identification. I understand that " +
+          "providing false information may result in account termination, " +
+          "license invalidation, and removal from the ShangoMaji catalog."
+        );
+      }
+      // Old/unversioned certifications carry the previous, weaker copy.
+      return "I certify that the legal name and typed signature entered are accurate and belong to me.";
+    })()}</li>
   </ul>
 
   <h2 style="font-size:16px;margin:28px 0 12px;">${escapeHtml(SDL_TITLE)} — Full Terms</h2>

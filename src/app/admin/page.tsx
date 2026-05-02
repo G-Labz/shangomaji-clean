@@ -1,6 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import SubmissionReviewPanel, {
+  emptyReview,
+  reviewFromProject,
+  reviewToPayload,
+  gateState,
+  type AdminReviewState,
+} from "./SubmissionReviewPanel";
 
 interface Application {
   id: string;
@@ -49,6 +56,65 @@ export default function AdminPage() {
   // Bunny media binding (Phase 1) — keyed by project id
   const [mediaInputs, setMediaInputs] = useState<Record<string, string>>({});
   const [mediaBusy, setMediaBusy]     = useState<string | null>(null);
+
+  // Submission Integrity v1 — admin review state per project (keyed by id).
+  // Lazily seeded from the project record when an admin expands it.
+  const [reviewByProject, setReviewByProject] = useState<Record<string, AdminReviewState>>({});
+  const [reviewBusy, setReviewBusy]           = useState<string | null>(null);
+  const [reviewSavedFor, setReviewSavedFor]   = useState<string | null>(null);
+
+  // Seed review state on first expand of each project. Once seeded, the
+  // local state is the source of truth until the admin saves or approves
+  // (which round-trips to the API and then we re-seed from the response).
+  useEffect(() => {
+    if (!expandedProject) return;
+    if (reviewByProject[expandedProject]) return;
+    const proj = projectList.find((p: any) => p.id === expandedProject);
+    if (!proj) return;
+    setReviewByProject((prev) => ({
+      ...prev,
+      [expandedProject]: reviewFromProject(proj),
+    }));
+  }, [expandedProject, projectList, reviewByProject]);
+
+  function setReviewFor(projectId: string, next: AdminReviewState) {
+    setReviewByProject((prev) => ({ ...prev, [projectId]: next }));
+    if (reviewSavedFor === projectId) setReviewSavedFor(null);
+  }
+
+  async function saveReviewNotes(projectId: string) {
+    const review = reviewByProject[projectId];
+    if (!review) return;
+    setReviewBusy(projectId);
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method:  "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body:    JSON.stringify({ id: projectId, action: "saveReview", ...reviewToPayload(review) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Save failed");
+      // Reflect persisted reviewed_at/by on the local row so the panel updates.
+      setProjectList((prev) =>
+        prev.map((p) =>
+          p.id === projectId
+            ? {
+                ...p,
+                ...reviewToPayload(review),
+                reviewed_at: new Date().toISOString(),
+                reviewed_by: p.reviewed_by ?? "admin",
+              }
+            : p
+        )
+      );
+      setReviewSavedFor(projectId);
+      setTimeout(() => setReviewSavedFor((cur) => (cur === projectId ? null : cur)), 2000);
+    } catch (e: any) {
+      alert(e.message || "Save failed");
+    } finally {
+      setReviewBusy(null);
+    }
+  }
 
   // Archive confirmation gate — typed-title required before archive proceeds.
   // Archive removes a live work from the public catalog. It is intentionally
@@ -156,10 +222,17 @@ export default function AdminPage() {
   // Standard status update (non-rejection)
   async function updateProjectStatus(projectId: string, status: string) {
     try {
+      // When approving, include the local review record so the server gate
+      // can validate against the latest state without requiring a separate
+      // Save Review press first.
+      const reviewPayload =
+        status === "approved" && reviewByProject[projectId]
+          ? reviewToPayload(reviewByProject[projectId])
+          : {};
       const res = await fetch("/api/admin/projects", {
         method: "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ id: projectId, status }),
+        body: JSON.stringify({ id: projectId, status, ...reviewPayload }),
       });
       const data = await res.json();
 
@@ -883,6 +956,23 @@ export default function AdminPage() {
                         )}
                       </div>
 
+                      {/* ── Submission Integrity + Review (pending/in_review/approved) ── */}
+                      {(project.status === "pending" ||
+                        project.status === "in_review" ||
+                        project.status === "approved" ||
+                        project.status === "live" ||
+                        project.status === "rejected") && (
+                        <SubmissionReviewPanel
+                          project={project}
+                          review={reviewByProject[project.id] ?? reviewFromProject(project)}
+                          onChange={(next) => setReviewFor(project.id, next)}
+                          onSaveReview={() => saveReviewNotes(project.id)}
+                          saving={reviewBusy === project.id}
+                          saved={reviewSavedFor === project.id}
+                          hideForLegacyStates
+                        />
+                      )}
+
                       {/* ── License panel (approved & live) ── */}
                       {(project.status === "approved" || project.status === "live") && (
                         <div className="mt-5 pt-4 border-t border-white/5 space-y-3">
@@ -908,9 +998,26 @@ export default function AdminPage() {
                           </div>
 
                           {project.license && project.status === "approved" && (
-                            <p className="text-[11px] text-emerald-300/90 leading-relaxed">
-                              License is on file. Distribution can be activated now.
-                              Media binding (Bunny video ID) becomes available after activation.
+                            <>
+                              <p className="text-[11px] text-emerald-300/90 leading-relaxed">
+                                License is on file. Distribution can be activated now.
+                                Media binding (Bunny video ID) becomes available after activation.
+                              </p>
+                              {/* Identity Enforcement v1: subtle activation-awareness note.
+                                  Does NOT block activation. */}
+                              <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                                Identity is self-certified and not independently verified.
+                              </p>
+                            </>
+                          )}
+
+                          <IdentityRow status={project.identity_status ?? null} />
+                          {project.license?.identity_certification_version && (
+                            <p className="text-[11px] text-neutral-500 leading-relaxed">
+                              Certification copy at signing:{" "}
+                              <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
+                                {project.license.identity_certification_version}
+                              </code>
                             </p>
                           )}
 
@@ -1113,6 +1220,13 @@ export default function AdminPage() {
                       )}
 
                       {/* Action buttons */}
+                      {(() => {
+                        const reviewState =
+                          reviewByProject[project.id] ?? reviewFromProject(project);
+                        const gate = gateState(project, reviewState);
+                        const showApproveGate =
+                          project.status === "pending" || project.status === "in_review";
+                        return (
                       <div className="mt-5 pt-4 border-t border-white/5 flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-neutral-500 mr-2">Actions:</span>
 
@@ -1125,12 +1239,21 @@ export default function AdminPage() {
                             >
                               Start Review
                             </button>
-                            <button
-                              onClick={() => updateProjectStatus(project.id, "approved")}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition"
-                            >
-                              Approve
-                            </button>
+                            {gate.approvalAllowed ? (
+                              <button
+                                onClick={() => updateProjectStatus(project.id, "approved")}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition"
+                              >
+                                Approve
+                              </button>
+                            ) : (
+                              <span
+                                title={gate.approvalBlockedMessage ?? undefined}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
+                              >
+                                Approval locked — review record required.
+                              </span>
+                            )}
                             <button
                               onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
                               className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
@@ -1143,12 +1266,21 @@ export default function AdminPage() {
                         {/* in_review: Approve, Reject */}
                         {project.status === "in_review" && rejectingId !== project.id && (
                           <>
-                            <button
-                              onClick={() => updateProjectStatus(project.id, "approved")}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition"
-                            >
-                              Approve
-                            </button>
+                            {gate.approvalAllowed ? (
+                              <button
+                                onClick={() => updateProjectStatus(project.id, "approved")}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition"
+                              >
+                                Approve
+                              </button>
+                            ) : (
+                              <span
+                                title={gate.approvalBlockedMessage ?? undefined}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
+                              >
+                                Approval locked — review record required.
+                              </span>
+                            )}
                             <button
                               onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
                               className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
@@ -1156,6 +1288,12 @@ export default function AdminPage() {
                               Reject
                             </button>
                           </>
+                        )}
+
+                        {showApproveGate && gate.approvalBlockedMessage && (
+                          <span className="text-[11px] text-neutral-500 ml-2">
+                            {gate.approvalBlockedMessage}
+                          </span>
                         )}
 
                         {/* approved: Activate Distribution (requires executed license) */}
@@ -1199,6 +1337,8 @@ export default function AdminPage() {
                             </span>
                           )}
                       </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -1208,6 +1348,40 @@ export default function AdminPage() {
         </>
       )}
     </div>
+  );
+}
+
+// Identity Enforcement v1: small admin-only badge surfacing the creator's
+// current identity tier. Falls back to "Self-certified" when the column has
+// not been populated yet (covers the brief window before migration 015 has
+// been applied to the DB and PostgREST schema cache reload).
+function IdentityRow({ status }: { status: string | null }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    self_certified: {
+      label: "Self-certified",
+      cls:   "bg-white/5 text-neutral-300 border-white/15",
+    },
+    verification_requested: {
+      label: "Verification requested",
+      cls:   "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+    },
+    verified: {
+      label: "Verified",
+      cls:   "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    },
+    flagged: {
+      label: "Flagged",
+      cls:   "bg-red-500/20 text-red-300 border-red-500/30",
+    },
+  };
+  const tier = map[status ?? "self_certified"] ?? map.self_certified;
+  return (
+    <p className="text-[11px] text-neutral-500 leading-relaxed">
+      Identity:{" "}
+      <span className={`text-[11px] px-1.5 py-0.5 rounded border ${tier.cls}`}>
+        {tier.label}
+      </span>
+    </p>
   );
 }
 

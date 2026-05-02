@@ -260,6 +260,12 @@ export async function POST(req: NextRequest) {
     downstream_ack:               true,
     authority_ack:                true,
     legal_name_certification_ack: true,
+    // Identity Enforcement v1: tag this row with the version of the
+    // legal-name certification copy that was on screen at signing time.
+    // The receipt renderer uses this to render the historically accurate
+    // wording for each license (old rows render the previous, weaker copy;
+    // 'v2' rows render the stronger government-ID-true wording).
+    identity_certification_version: "v2",
     status: "executed" as const,
   };
 
