@@ -444,6 +444,7 @@ export default function EditProjectPage({ params }: PageProps) {
   const canDelete   = projectStatus === "draft" || projectStatus === "rejected";
   const isLive      = projectStatus === "live";
   const isBlocked   = !canDelete && !isLive;
+  const showBlockedDelete = isBlocked && projectStatus !== "removed";
 
   return (
     <div className="space-y-6 pb-12">
@@ -605,16 +606,16 @@ export default function EditProjectPage({ params }: PageProps) {
         </div>
         <ItemActions
           onDelete={canDelete ? handleDelete : undefined}
-          onDeleteBlocked={isBlocked ? (reason) => showError(reason) : undefined}
+          onDeleteBlocked={showBlockedDelete ? (reason) => showError(reason) : undefined}
           deleteBlockedReason={
-            isBlocked
+            showBlockedDelete
               ? projectStatus === "live"
                 ? "Live projects cannot be deleted. Submit a removal request instead."
                 : projectStatus === "pending" || projectStatus === "in_review"
                 ? "Projects under review cannot be deleted."
                 : projectStatus === "approved"
                 ? "Approved projects cannot be deleted."
-                : "This project cannot be deleted."
+                : "This work cannot be deleted."
               : undefined
           }
           onRequestRemoval={

@@ -53,15 +53,6 @@ function stateMeaning(status: string): string {
   }
 }
 
-// Human-readable block reasons per status
-function deleteBlockReason(status: string): string {
-  if (status === "live")      return "Live projects cannot be deleted. Submit a removal request instead.";
-  if (status === "pending")   return "Projects under review cannot be deleted.";
-  if (status === "in_review") return "Projects under review cannot be deleted.";
-  if (status === "approved")  return "Approved projects cannot be deleted.";
-  return "This project cannot be deleted.";
-}
-
 export default function WorkspaceProjects() {
   const [filter, setFilter]     = useState<string>("all");
   const [projects, setProjects] = useState<Project[]>([]);
@@ -379,7 +370,6 @@ export default function WorkspaceProjects() {
           const canDelete = project.status === "draft" || project.status === "rejected";
           const isLive    = project.status === "live";
           const isRemovalRequested = project.status === "removal_requested";
-          const blocked   = !canDelete && !isLive;
 
           const isDraft           = project.status === "draft";
           const isApproved        = project.status === "approved";
@@ -460,8 +450,6 @@ export default function WorkspaceProjects() {
                         : undefined
                     }
                     onDelete={canDelete ? () => handleDelete(project) : undefined}
-                    onDeleteBlocked={blocked ? (reason) => showError(reason) : undefined}
-                    deleteBlockedReason={blocked ? deleteBlockReason(project.status) : undefined}
                     onRequestRemoval={
                       isLive ? () => setRemovalProject(project) : undefined
                     }
