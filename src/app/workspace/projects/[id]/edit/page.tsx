@@ -575,9 +575,9 @@ export default function EditProjectPage({ params }: PageProps) {
               : projectStatus === "rejected"
               ? "Not selected. Revise to create a new draft."
               : projectStatus === "removal_requested"
-              ? "Removal request under review. Your work remains live until a decision is made."
+              ? "Removal request under review."
               : projectStatus === "removed"
-              ? "This work has been removed from distribution."
+              ? "Distribution ended."
               : ""}
           </p>
           {isLive && (
@@ -586,13 +586,20 @@ export default function EditProjectPage({ params }: PageProps) {
             </p>
           )}
           {projectStatus === "removal_requested" && (
-            <p className="text-[11px] text-amber-300/80">
-              Editing is closed while the removal request is under review.
-            </p>
+            <>
+              <p className="text-[11px] text-amber-300/80 leading-relaxed max-w-xl">
+                Your work remains live while ShangoMaji reviews this request. Removal is not
+                automatic and may be denied under the active license terms.
+              </p>
+              <p className="text-[11px] text-ink-muted">
+                Editing is closed while the removal request is under review.
+              </p>
+            </>
           )}
           {projectStatus === "removed" && (
-            <p className="text-[11px] text-red-300/80">
-              Distribution has ended. This state is permanent.
+            <p className="text-[11px] text-red-300/80 leading-relaxed max-w-xl">
+              This work has been removed from distribution. It is no longer eligible for
+              restoration through the creator workspace.
             </p>
           )}
         </div>

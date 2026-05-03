@@ -47,8 +47,8 @@ function stateMeaning(status: string): string {
     case "live":              return "Under active distribution license. Managed by ShangoMaji.";
     case "archived":          return "Removed from active catalog.";
     case "rejected":          return "Not selected. Revise to create a new draft.";
-    case "removal_requested": return "Removal request under review. Your work remains live until a decision is made.";
-    case "removed":           return "This work has been removed from distribution.";
+    case "removal_requested": return "Removal request under review. Your work remains live while ShangoMaji reviews this request. Removal is not automatic and may be denied under the active license terms.";
+    case "removed":           return "Distribution ended. This work has been removed from distribution. It is no longer eligible for restoration through the creator workspace.";
     default:                  return "";
   }
 }

@@ -53,9 +53,25 @@ export default function AdminPage() {
   const [reopenBusy,  setReopenBusy]  = useState<string | null>(null);
   const [removalBusy, setRemovalBusy] = useState<string | null>(null);
 
-  // Optional reason input for resolveRemoval (keyed by project id + decision)
-  const [removalDenyReasonFor, setRemovalDenyReasonFor] = useState<string | null>(null);
-  const [removalDenyInput, setRemovalDenyInput]         = useState("");
+  // System Authority Layer v1 — styled decision modals replacing native
+  // window.prompt / confirm() flows. Each modal carries its own busy +
+  // error state so background table refreshes don't blank user input.
+  type RemovalTarget = { id: string; title: string };
+  const [approveRemovalTarget, setApproveRemovalTarget] = useState<RemovalTarget | null>(null);
+  const [approveRemovalReason, setApproveRemovalReason] = useState("");
+  const [approveRemovalBusy,   setApproveRemovalBusy]   = useState(false);
+  const [approveRemovalError,  setApproveRemovalError]  = useState("");
+
+  const [denyRemovalTarget, setDenyRemovalTarget] = useState<RemovalTarget | null>(null);
+  const [denyRemovalReason, setDenyRemovalReason] = useState("");
+  const [denyRemovalBusy,   setDenyRemovalBusy]   = useState(false);
+  const [denyRemovalError,  setDenyRemovalError]  = useState("");
+
+  // Non-live archive (pending/in_review/approved/rejected) uses a styled
+  // confirmation rather than the typed-title gate live archive uses.
+  const [archiveHoldTarget, setArchiveHoldTarget] = useState<RemovalTarget | null>(null);
+  const [archiveHoldBusy,   setArchiveHoldBusy]   = useState(false);
+  const [archiveHoldError,  setArchiveHoldError]  = useState("");
 
   // Rejection reason state — tracks which project is being rejected
   const [rejectingId, setRejectingId]         = useState<string | null>(null);
@@ -421,26 +437,20 @@ export default function AdminPage() {
   // ── Lifecycle Control v1: archive (non-live), restore, reopen, resolveRemoval ──
   // Lightweight admin actions. Each round-trips the API and reloads the row
   // from the server so the UI never lies about the post-action state.
-  async function archiveNonLive(projectId: string) {
-    if (!confirm("Archive this work? It will be removed from the catalog.")) return;
-    try {
-      const res = await fetch("/api/admin/projects", {
-        method: "PATCH",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ id: projectId, action: "archive" }),
-      });
-      const data = await res.json();
-      if (res.status === 207) {
-        await loadProjects();
-        alert(`⚠️ ${data?.distributionWarning || "Archive completed with a warning."}`);
-        return;
-      }
-      if (!res.ok) throw new Error(data?.error || "Archive failed");
+  async function archiveToInternalHold(projectId: string): Promise<void> {
+    // Server-only call. The styled confirmation modal owns the gate.
+    const res = await fetch("/api/admin/projects", {
+      method: "PATCH",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: projectId, action: "archive" }),
+    });
+    const data = await res.json();
+    if (res.status === 207) {
       await loadProjects();
-    } catch (e: any) {
-      alert(e.message);
-      loadProjects();
+      throw new Error(data?.distributionWarning || "Archive completed with a warning.");
     }
+    if (!res.ok) throw new Error(data?.error || "Archive failed");
+    await loadProjects();
   }
 
   async function restoreFromArchive(projectId: string) {
@@ -509,10 +519,11 @@ export default function AdminPage() {
       }
       if (!res.ok) throw new Error(data?.error || "Resolution failed");
       await loadProjects();
-      setRemovalDenyReasonFor(null);
-      setRemovalDenyInput("");
     } catch (e: any) {
-      alert(e.message);
+      // Re-throw so the calling modal can surface the error in its own
+      // styled error state. We do NOT alert() here — every caller is a
+      // styled modal that owns the failure surface.
+      throw e;
     } finally {
       setRemovalBusy(null);
     }
@@ -726,7 +737,7 @@ export default function AdminPage() {
           >
             <div>
               <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-400/80 font-semibold mb-2">
-                Catalog Action
+                Internal Hold
               </p>
               <h3 className="text-white text-lg font-semibold">
                 Archive this work?
@@ -735,14 +746,13 @@ export default function AdminPage() {
 
             <div className="space-y-2 text-sm text-neutral-400 leading-relaxed">
               <p>
-                This removes <span className="text-white">{archiveTarget.title || "this title"}</span> from
-                public catalog visibility.
+                This places <span className="text-white">{archiveTarget.title || "this title"}</span> into
+                an internal hold state and removes it from public catalog visibility. The work is not
+                deleted and may be restored if a previous state is recorded.
               </p>
-              <ul className="list-disc pl-5 space-y-1 text-neutral-400">
-                <li>The work is not deleted.</li>
-                <li>This is an admin catalog action, not a creator action.</li>
-                <li>Use only when removal from public distribution is intentional.</li>
-              </ul>
+              <p className="text-[11px] text-neutral-500">
+                Archive is an internal reversible hold. It is not a removal outcome.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -791,7 +801,273 @@ export default function AdminPage() {
                 }
                 className="px-4 py-2 rounded-md text-xs font-semibold border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               >
-                {archiveBusy ? "Archiving…" : "Archive from Catalog"}
+                {archiveBusy ? "Archiving…" : "Archive to Internal Hold"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Removal modal */}
+      {approveRemovalTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => {
+            if (approveRemovalBusy) return;
+            setApproveRemovalTarget(null);
+            setApproveRemovalReason("");
+            setApproveRemovalError("");
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-xl border border-white/10 bg-[#141010] p-6 space-y-5"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-red-400/80 font-semibold mb-2">
+                Removal Decision
+              </p>
+              <h3 className="text-white text-lg font-semibold">
+                Approve removal request?
+              </h3>
+            </div>
+
+            <div className="space-y-2 text-sm text-neutral-400 leading-relaxed">
+              <p>
+                This permanently ends distribution for
+                <span className="text-white"> {approveRemovalTarget.title || "this work"}</span>.
+              </p>
+              <p>
+                The work will move to <span className="text-white">Removed</span>, will not be
+                restorable, and will no longer be eligible for public distribution.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs text-neutral-500">
+                Resolution reason (required):
+              </label>
+              <textarea
+                value={approveRemovalReason}
+                onChange={(e) => {
+                  setApproveRemovalReason(e.target.value);
+                  if (approveRemovalError) setApproveRemovalError("");
+                }}
+                disabled={approveRemovalBusy}
+                rows={3}
+                placeholder="Why is this removal being approved?"
+                className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-red-500/40 transition resize-none"
+              />
+              {approveRemovalError && (
+                <p className="text-red-400 text-xs">{approveRemovalError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (approveRemovalBusy) return;
+                  setApproveRemovalTarget(null);
+                  setApproveRemovalReason("");
+                  setApproveRemovalError("");
+                }}
+                disabled={approveRemovalBusy}
+                className="px-4 py-2 rounded-md text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const reason = approveRemovalReason.trim();
+                  if (!reason) {
+                    setApproveRemovalError("A resolution reason is required.");
+                    return;
+                  }
+                  setApproveRemovalBusy(true);
+                  setApproveRemovalError("");
+                  try {
+                    await resolveRemoval(approveRemovalTarget.id, "approve", reason);
+                    setApproveRemovalTarget(null);
+                    setApproveRemovalReason("");
+                  } catch (e: any) {
+                    setApproveRemovalError(e?.message || "Removal failed");
+                  } finally {
+                    setApproveRemovalBusy(false);
+                  }
+                }}
+                disabled={approveRemovalBusy || !approveRemovalReason.trim()}
+                className="px-4 py-2 rounded-md text-xs font-semibold border border-red-500/40 text-red-300 hover:bg-red-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                {approveRemovalBusy ? "Removing…" : "Permanently Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deny Removal modal */}
+      {denyRemovalTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => {
+            if (denyRemovalBusy) return;
+            setDenyRemovalTarget(null);
+            setDenyRemovalReason("");
+            setDenyRemovalError("");
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-xl border border-white/10 bg-[#141010] p-6 space-y-5"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-400/80 font-semibold mb-2">
+                Removal Decision
+              </p>
+              <h3 className="text-white text-lg font-semibold">
+                Deny removal request?
+              </h3>
+            </div>
+
+            <div className="space-y-2 text-sm text-neutral-400 leading-relaxed">
+              <p>
+                This returns <span className="text-white">{denyRemovalTarget.title || "this work"}</span> to
+                active distribution. The creator request will be marked denied, and the work remains
+                governed by the active license and catalog controls.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs text-neutral-500">
+                Denial reason (required):
+              </label>
+              <textarea
+                value={denyRemovalReason}
+                onChange={(e) => {
+                  setDenyRemovalReason(e.target.value);
+                  if (denyRemovalError) setDenyRemovalError("");
+                }}
+                disabled={denyRemovalBusy}
+                rows={3}
+                placeholder="Why is this removal being denied?"
+                className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-emerald-500/40 transition resize-none"
+              />
+              {denyRemovalError && (
+                <p className="text-red-400 text-xs">{denyRemovalError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (denyRemovalBusy) return;
+                  setDenyRemovalTarget(null);
+                  setDenyRemovalReason("");
+                  setDenyRemovalError("");
+                }}
+                disabled={denyRemovalBusy}
+                className="px-4 py-2 rounded-md text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const reason = denyRemovalReason.trim();
+                  if (!reason) {
+                    setDenyRemovalError("A denial reason is required.");
+                    return;
+                  }
+                  setDenyRemovalBusy(true);
+                  setDenyRemovalError("");
+                  try {
+                    await resolveRemoval(denyRemovalTarget.id, "deny", reason);
+                    setDenyRemovalTarget(null);
+                    setDenyRemovalReason("");
+                  } catch (e: any) {
+                    setDenyRemovalError(e?.message || "Denial failed");
+                  } finally {
+                    setDenyRemovalBusy(false);
+                  }
+                }}
+                disabled={denyRemovalBusy || !denyRemovalReason.trim()}
+                className="px-4 py-2 rounded-md text-xs font-semibold border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                {denyRemovalBusy ? "Denying…" : "Confirm Denial"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Non-live Archive (Internal Hold) confirmation modal */}
+      {archiveHoldTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => {
+            if (archiveHoldBusy) return;
+            setArchiveHoldTarget(null);
+            setArchiveHoldError("");
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-xl border border-white/10 bg-[#141010] p-6 space-y-5"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-400/80 font-semibold mb-2">
+                Internal Hold
+              </p>
+              <h3 className="text-white text-lg font-semibold">
+                Archive this work?
+              </h3>
+            </div>
+
+            <div className="space-y-2 text-sm text-neutral-400 leading-relaxed">
+              <p>
+                This places <span className="text-white">{archiveHoldTarget.title || "this work"}</span> into
+                an internal hold state and removes it from public catalog visibility. The work is not
+                deleted and may be restored if a previous state is recorded.
+              </p>
+              <p className="text-[11px] text-neutral-500">
+                Archive is an internal reversible hold. It is not a removal outcome.
+              </p>
+              {archiveHoldError && (
+                <p className="text-red-400 text-xs">{archiveHoldError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (archiveHoldBusy) return;
+                  setArchiveHoldTarget(null);
+                  setArchiveHoldError("");
+                }}
+                disabled={archiveHoldBusy}
+                className="px-4 py-2 rounded-md text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setArchiveHoldBusy(true);
+                  setArchiveHoldError("");
+                  try {
+                    await archiveToInternalHold(archiveHoldTarget.id);
+                    setArchiveHoldTarget(null);
+                  } catch (e: any) {
+                    setArchiveHoldError(e?.message || "Archive failed");
+                  } finally {
+                    setArchiveHoldBusy(false);
+                  }
+                }}
+                disabled={archiveHoldBusy}
+                className="px-4 py-2 rounded-md text-xs font-semibold border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                {archiveHoldBusy ? "Archiving…" : "Archive to Internal Hold"}
               </button>
             </div>
           </div>
@@ -908,13 +1184,19 @@ export default function AdminPage() {
           <p className="text-sm text-neutral-500 mt-1">{applications.length} total submissions</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={refreshAll}
-            disabled={refreshing}
-            className="text-xs px-3 py-1.5 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 transition disabled:opacity-50"
-          >
-            {refreshing ? "Refreshing…" : "Refresh Data"}
-          </button>
+          <div className="flex flex-col items-end gap-0.5">
+            <button
+              onClick={refreshAll}
+              disabled={refreshing}
+              title="Refresh applications and works without reloading the browser."
+              className="text-xs px-3 py-1.5 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+            >
+              {refreshing ? "Refreshing…" : "Refresh Data"}
+            </button>
+            <span className="text-[10px] text-neutral-600 leading-none">
+              Refresh applications and works without reloading the browser.
+            </span>
+          </div>
           <button
             onClick={() => { setAuthed(false); setPassword(""); }}
             className="text-xs text-neutral-500 hover:text-white transition"
@@ -1205,12 +1487,12 @@ export default function AdminPage() {
               requests at the top of the Works tab. */}
           {!projectLoading && removalQueue.length > 0 && (
             <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-start justify-between mb-3 gap-4 flex-wrap">
                 <p className="text-xs uppercase tracking-widest text-amber-300/90 font-semibold">
                   Removal Requests ({removalQueue.length})
                 </p>
-                <p className="text-[11px] text-neutral-500">
-                  Resolve to archive the work or restore it to the catalog.
+                <p className="text-[11px] text-neutral-500 max-w-md">
+                  Resolve this request by permanently removing the work from distribution or returning it to active status.
                 </p>
               </div>
               <div className="space-y-2">
@@ -1234,30 +1516,41 @@ export default function AdminPage() {
                       </p>
                     )}
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => {
-                          if (confirm("Approve removal? Distribution will be permanently terminated.")) {
-                            resolveRemoval(p.id, "approve");
-                          }
-                        }}
-                        disabled={removalBusy === p.id}
-                        className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
-                      >
-                        Approve Removal
-                      </button>
-                      <button
-                        onClick={() => {
-                          const reason = window.prompt("Optional reason for denial:") || "";
-                          resolveRemoval(p.id, "deny", reason);
-                        }}
-                        disabled={removalBusy === p.id}
-                        className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
-                      >
-                        Deny Removal
-                      </button>
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          onClick={() => {
+                            setApproveRemovalTarget({ id: p.id, title: p.title || "" });
+                            setApproveRemovalReason("");
+                            setApproveRemovalError("");
+                          }}
+                          disabled={removalBusy === p.id}
+                          className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
+                        >
+                          Approve Removal
+                        </button>
+                        <span className="text-[10px] text-neutral-500 px-1">
+                          Permanently remove from distribution.
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          onClick={() => {
+                            setDenyRemovalTarget({ id: p.id, title: p.title || "" });
+                            setDenyRemovalReason("");
+                            setDenyRemovalError("");
+                          }}
+                          disabled={removalBusy === p.id}
+                          className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
+                        >
+                          Deny Removal
+                        </button>
+                        <span className="text-[10px] text-neutral-500 px-1">
+                          Return to active distribution.
+                        </span>
+                      </div>
                       <button
                         onClick={() => setExpandedProject(p.id)}
-                        className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-500 hover:text-white transition"
+                        className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-500 hover:text-white transition self-start"
                       >
                         View Details
                       </button>
@@ -1375,6 +1668,43 @@ export default function AdminPage() {
                           />
                         )}
                       </div>
+
+                      {/* ── DISTRIBUTION STATUS — Permanently Removed ──
+                          Terminal state authority block. No restore, no reopen,
+                          no archive. The decision is final. */}
+                      {project.status === "removed" && (
+                        <div className="mt-5 rounded-lg border border-red-500/40 bg-red-900/10 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-red-300/90 font-semibold mb-2">
+                            Distribution Status
+                          </p>
+                          <h3 className="text-white text-base font-semibold mb-2">
+                            Permanently Removed
+                          </h3>
+                          <p className="text-xs text-neutral-300 leading-relaxed">
+                            This work is no longer eligible for restoration or public distribution.
+                            The removal decision is final.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* ── REMOVAL REVIEW — request under review ──
+                            Authority block above the action strip; the action
+                            buttons themselves live in the action row below. */}
+                      {project.status === "removal_requested" && (
+                        <div className="mt-5 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300/90 font-semibold mb-2">
+                            Removal Review
+                          </p>
+                          <h3 className="text-white text-base font-semibold mb-2">
+                            Removal request under review
+                          </h3>
+                          <p className="text-xs text-neutral-300 leading-relaxed">
+                            The work remains live while ShangoMaji reviews the request.
+                            Approval permanently removes it from distribution. Denial returns it
+                            to active distribution.
+                          </p>
+                        </div>
+                      )}
 
                       <StateHistory entries={project.state_history} />
 
@@ -1615,18 +1945,18 @@ export default function AdminPage() {
 
                                 {project.media_ready ? (
                                   <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                    Processing has been submitted and is locked. Reset only if the media
-                                    binding was entered incorrectly or processing must be restarted.
+                                    Processing is locked. Reset only if the media binding was entered
+                                    incorrectly or processing must restart.
                                   </p>
                                 ) : !hasVideoId ? (
                                   <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                    Paste the Bunny Stream Video ID, save it, then submit for processing.
-                                    Final activation is controlled by ShangoMaji.
+                                    Paste the Bunny Stream Video ID, save it, then submit for internal
+                                    processing. Final catalog readiness is controlled by ShangoMaji.
                                   </p>
                                 ) : (
                                   <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                    A title only appears in the public catalog when it has a Bunny video ID
-                                    and has been submitted for processing. Final activation is controlled by ShangoMaji.
+                                    Save the Bunny Stream Video ID, then submit for internal processing.
+                                    Final catalog readiness is controlled by ShangoMaji.
                                   </p>
                                 )}
 
@@ -1693,7 +2023,7 @@ export default function AdminPage() {
                                 onClick={() => updateProjectStatus(project.id, "approved")}
                                 className="px-3 py-1.5 rounded text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition"
                               >
-                                Approve
+                                Approve for Licensing
                               </button>
                             ) : (
                               <span
@@ -1707,7 +2037,7 @@ export default function AdminPage() {
                               onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
                               className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
                             >
-                              Reject
+                              Reject Submission
                             </button>
                           </>
                         )}
@@ -1720,7 +2050,7 @@ export default function AdminPage() {
                                 onClick={() => updateProjectStatus(project.id, "approved")}
                                 className="px-3 py-1.5 rounded text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition"
                               >
-                                Approve
+                                Approve for Licensing
                               </button>
                             ) : (
                               <span
@@ -1734,7 +2064,7 @@ export default function AdminPage() {
                               onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
                               className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
                             >
-                              Reject
+                              Reject Submission
                             </button>
                           </>
                         )}
@@ -1786,7 +2116,7 @@ export default function AdminPage() {
                           )
                         )}
 
-                        {/* live: Archive (opens typed-confirmation gate) */}
+                        {/* live: Archive to Internal Hold (typed-confirmation gate) */}
                         {project.status === "live" && (
                           <button
                             onClick={() => {
@@ -1794,25 +2124,30 @@ export default function AdminPage() {
                               setArchiveConfirm("");
                               setArchiveError("");
                             }}
+                            title="Archive is an internal reversible hold. It is not a removal outcome."
                             className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
                           >
-                            Archive
+                            Archive to Internal Hold
                           </button>
                         )}
 
-                        {/* pending / in_review / approved: Archive (no typed-title gate) */}
+                        {/* pending / in_review / approved: Archive to Internal Hold */}
                         {(project.status === "pending" ||
                           project.status === "in_review" ||
                           project.status === "approved") && (
                           <button
-                            onClick={() => archiveNonLive(project.id)}
+                            onClick={() => {
+                              setArchiveHoldTarget({ id: project.id, title: project.title || "" });
+                              setArchiveHoldError("");
+                            }}
+                            title="Archive is an internal reversible hold. It is not a removal outcome."
                             className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
                           >
-                            Archive
+                            Archive to Internal Hold
                           </button>
                         )}
 
-                        {/* rejected: Reopen for Review + Archive */}
+                        {/* rejected: Reopen for Review + Archive to Internal Hold */}
                         {project.status === "rejected" && rejectingId !== project.id && (
                           <>
                             <button
@@ -1823,10 +2158,14 @@ export default function AdminPage() {
                               {reopenBusy === project.id ? "Reopening…" : "Reopen for Review"}
                             </button>
                             <button
-                              onClick={() => archiveNonLive(project.id)}
+                              onClick={() => {
+                                setArchiveHoldTarget({ id: project.id, title: project.title || "" });
+                                setArchiveHoldError("");
+                              }}
+                              title="Archive is an internal reversible hold. It is not a removal outcome."
                               className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
                             >
-                              Archive
+                              Archive to Internal Hold
                             </button>
                           </>
                         )}
@@ -1840,11 +2179,12 @@ export default function AdminPage() {
                               <button
                                 onClick={() => restoreFromArchive(project.id)}
                                 disabled={restoreBusy === project.id}
+                                title={`Restores to ${statusDisplay(target)} state.`}
                                 className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-50"
                               >
                                 {restoreBusy === project.id
                                   ? "Restoring…"
-                                  : `Restore to ${statusDisplay(target)}`}
+                                  : "Restore from Internal Hold"}
                               </button>
                             ) : (
                               <span
@@ -1857,73 +2197,55 @@ export default function AdminPage() {
                           })()
                         )}
 
-                        {/* removed: terminal — no actions */}
+                        {/* removed: terminal — no actions allowed. The block at
+                            the top of the expanded panel carries the full
+                            DISTRIBUTION STATUS authority copy; this row is the
+                            inline action-strip stub. */}
                         {project.status === "removed" && (
                           <span className="text-xs text-red-300/80">
-                            Removed — terminal state. Distribution permanently ended.
+                            Removed — terminal state.
                           </span>
                         )}
 
-                        {/* removal_requested: Approve / Deny */}
+                        {/* removal_requested: Approve Removal / Deny Removal — both
+                            open styled modals with required reason. No native
+                            prompt(), no inline forms. */}
                         {project.status === "removal_requested" && (
                           <div className="basis-full flex flex-col gap-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <button
-                                onClick={() => {
-                                  if (confirm("Approve removal? Distribution will be permanently terminated.")) {
-                                    resolveRemoval(project.id, "approve");
-                                  }
-                                }}
-                                disabled={removalBusy === project.id}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
-                              >
-                                {removalBusy === project.id ? "Working…" : "Approve Removal"}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setRemovalDenyReasonFor(project.id);
-                                  setRemovalDenyInput("");
-                                }}
-                                disabled={removalBusy === project.id}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
-                              >
-                                Deny Removal
-                              </button>
-                            </div>
-                            {removalDenyReasonFor === project.id && (
-                              <div className="space-y-2">
-                                <p className="text-xs text-neutral-400">
-                                  Optional reason (shown in the audit log):
-                                </p>
-                                <textarea
-                                  value={removalDenyInput}
-                                  onChange={(e) => setRemovalDenyInput(e.target.value)}
-                                  placeholder="Reason for denial…"
-                                  rows={2}
-                                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-amber-500/40 resize-none"
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() =>
-                                      resolveRemoval(project.id, "deny", removalDenyInput)
-                                    }
-                                    disabled={removalBusy === project.id}
-                                    className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-50"
-                                  >
-                                    {removalBusy === project.id ? "Denying…" : "Confirm Deny"}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setRemovalDenyReasonFor(null);
-                                      setRemovalDenyInput("");
-                                    }}
-                                    className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-500 hover:text-white transition"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
+                            <div className="flex items-start gap-3 flex-wrap">
+                              <div className="flex flex-col gap-0.5">
+                                <button
+                                  onClick={() => {
+                                    setApproveRemovalTarget({ id: project.id, title: project.title || "" });
+                                    setApproveRemovalReason("");
+                                    setApproveRemovalError("");
+                                  }}
+                                  disabled={removalBusy === project.id}
+                                  className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
+                                >
+                                  {removalBusy === project.id ? "Working…" : "Approve Removal"}
+                                </button>
+                                <span className="text-[10px] text-neutral-500 px-1">
+                                  Permanently remove from distribution.
+                                </span>
                               </div>
-                            )}
+                              <div className="flex flex-col gap-0.5">
+                                <button
+                                  onClick={() => {
+                                    setDenyRemovalTarget({ id: project.id, title: project.title || "" });
+                                    setDenyRemovalReason("");
+                                    setDenyRemovalError("");
+                                  }}
+                                  disabled={removalBusy === project.id}
+                                  className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
+                                >
+                                  Deny Removal
+                                </button>
+                                <span className="text-[10px] text-neutral-500 px-1">
+                                  Return to active distribution.
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
