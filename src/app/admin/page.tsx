@@ -1189,7 +1189,8 @@ export default function AdminPage() {
               onClick={refreshAll}
               disabled={refreshing}
               title="Refresh applications and works without reloading the browser."
-              className="text-xs px-3 py-1.5 rounded-md border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+              type="button"
+              className="text-xs px-3 py-1.5 rounded-md border border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/30 transition disabled:opacity-50"
             >
               {refreshing ? "Refreshing…" : "Refresh Data"}
             </button>
@@ -2088,9 +2089,14 @@ export default function AdminPage() {
                                   </p>
                                 )}
                                 {gate.reviewMessage && (
-                                  <p className="text-[11px] text-neutral-400 leading-relaxed">
-                                    Review record: {gate.reviewMessage}
-                                  </p>
+                                  <>
+                                    <p className="text-[11px] text-neutral-300 leading-relaxed">
+                                      Approval is locked because the review record is not passing. Rejection remains available.
+                                    </p>
+                                    <p className="text-[11px] text-neutral-400 leading-relaxed">
+                                      Review record: {gate.reviewMessage}
+                                    </p>
+                                  </>
                                 )}
                               </>
                             )}
@@ -2124,7 +2130,7 @@ export default function AdminPage() {
                               setArchiveConfirm("");
                               setArchiveError("");
                             }}
-                            title="Archive is an internal reversible hold. It is not a removal outcome."
+                            title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
                             className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
                           >
                             Archive to Internal Hold
@@ -2140,7 +2146,7 @@ export default function AdminPage() {
                               setArchiveHoldTarget({ id: project.id, title: project.title || "" });
                               setArchiveHoldError("");
                             }}
-                            title="Archive is an internal reversible hold. It is not a removal outcome."
+                            title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
                             className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
                           >
                             Archive to Internal Hold
@@ -2162,7 +2168,7 @@ export default function AdminPage() {
                                 setArchiveHoldTarget({ id: project.id, title: project.title || "" });
                                 setArchiveHoldError("");
                               }}
-                              title="Archive is an internal reversible hold. It is not a removal outcome."
+                              title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
                               className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
                             >
                               Archive to Internal Hold
