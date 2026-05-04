@@ -718,7 +718,7 @@ export default function AdminPage() {
 
   // ── Dashboard ──
   return (
-    <div className="min-h-screen px-4 py-8 max-w-6xl mx-auto">
+    <div className="min-h-screen px-4 pt-24 pb-12 max-w-6xl mx-auto">
       {/* Archive confirmation gate */}
       {archiveTarget && (
         <div
