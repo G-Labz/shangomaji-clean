@@ -1184,13 +1184,13 @@ export default function AdminPage() {
           <p className="text-sm text-neutral-500 mt-1">{applications.length} total submissions</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end gap-0.5">
+          <div className="flex flex-col items-end gap-1">
             <button
               onClick={refreshAll}
               disabled={refreshing}
               title="Refresh applications and works without reloading the browser."
               type="button"
-              className="text-xs px-3 py-1.5 rounded-md border border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/30 transition disabled:opacity-50"
+              className="text-xs font-medium px-3.5 py-2 rounded-md border border-white/30 bg-white/10 text-white hover:bg-white/15 hover:border-white/45 transition disabled:opacity-50"
             >
               {refreshing ? "Refreshing…" : "Refresh Data"}
             </button>
