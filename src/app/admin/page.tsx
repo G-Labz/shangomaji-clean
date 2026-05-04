@@ -1483,82 +1483,26 @@ export default function AdminPage() {
             ))}
           </div>
 
-          {/* Removal Requests queue — surfaces all removal_requested rows
-              regardless of the current filter so admin always sees pending
-              requests at the top of the Works tab. */}
+          {/* Removal Requests banner — compact alert pointing admin at the
+              filter where pending removal decisions live. Per-row Approve/
+              Deny actions remain inside each row's expanded Actions panel
+              (no duplication). */}
           {!projectLoading && removalQueue.length > 0 && (
-            <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-              <div className="flex items-start justify-between mb-3 gap-4 flex-wrap">
+            <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-[220px]">
                 <p className="text-xs uppercase tracking-widest text-amber-300/90 font-semibold">
                   Removal Requests ({removalQueue.length})
                 </p>
-                <p className="text-[11px] text-neutral-500 max-w-md">
-                  Resolve this request by permanently removing the work from distribution or returning it to active status.
+                <p className="text-[11px] text-neutral-400 mt-1 leading-relaxed">
+                  Pending requests are awaiting an approve or deny decision.
                 </p>
               </div>
-              <div className="space-y-2">
-                {removalQueue.map((p: any) => (
-                  <div
-                    key={`removal-${p.id}`}
-                    className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm"
-                  >
-                    <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
-                      <p className="text-white font-medium">{p.title || "Untitled"}</p>
-                      <p className="text-xs text-neutral-400">{p.creator_email}</p>
-                      {p.removal_requested_at && (
-                        <p className="text-[11px] text-neutral-500">
-                          Requested {new Date(p.removal_requested_at).toUTCString()}
-                        </p>
-                      )}
-                    </div>
-                    {(p.removal_request_reason || p.removal_reason) && (
-                      <p className="text-xs text-neutral-400 mt-1.5 leading-relaxed">
-                        Reason: {p.removal_request_reason || p.removal_reason}
-                      </p>
-                    )}
-                    <div className="mt-2 flex items-center gap-2 flex-wrap">
-                      <div className="flex flex-col gap-0.5">
-                        <button
-                          onClick={() => {
-                            setApproveRemovalTarget({ id: p.id, title: p.title || "" });
-                            setApproveRemovalReason("");
-                            setApproveRemovalError("");
-                          }}
-                          disabled={removalBusy === p.id}
-                          className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
-                        >
-                          Approve Removal
-                        </button>
-                        <span className="text-[10px] text-neutral-500 px-1">
-                          Permanently remove from distribution.
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <button
-                          onClick={() => {
-                            setDenyRemovalTarget({ id: p.id, title: p.title || "" });
-                            setDenyRemovalReason("");
-                            setDenyRemovalError("");
-                          }}
-                          disabled={removalBusy === p.id}
-                          className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
-                        >
-                          Deny Removal
-                        </button>
-                        <span className="text-[10px] text-neutral-500 px-1">
-                          Return to active distribution.
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => setExpandedProject(p.id)}
-                        className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-500 hover:text-white transition self-start"
-                      >
-                        View Details
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <button
+                onClick={() => setProjectFilter("removal_requested")}
+                className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition shrink-0"
+              >
+                View Removal Requested
+              </button>
             </div>
           )}
 
@@ -1622,59 +1566,10 @@ export default function AdminPage() {
                   </div>
 
                   {expandedProject === project.id && (
-                    <div className="px-5 pb-5 border-t border-white/5 pt-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <Field label="Creator Email" value={project.creator_email} />
-                        <Field label="Type" value={project.project_type} />
-                        <Field label="Genres" value={project.genres?.join(", ")} />
-                        <Field label="Logline" value={project.logline} full />
-                        <Field label="Description" value={project.description} full />
-                        <Field label="Cover Image" value={project.cover_image_url} link />
-                        <Field label="Sample URL" value={project.sample_url} link />
-                        {project.rejection_reason && (
-                          <Field label="Rejection Reason" value={project.rejection_reason} full />
-                        )}
-                        {(project.removal_request_reason || project.removal_reason) && (
-                          <Field
-                            label="Removal Request Reason"
-                            value={project.removal_request_reason || project.removal_reason}
-                            full
-                          />
-                        )}
-                        {project.removal_requested_at && (
-                          <Field
-                            label="Removal Requested"
-                            value={new Date(project.removal_requested_at).toUTCString()}
-                          />
-                        )}
-                        {project.removal_resolution && (
-                          <Field
-                            label="Removal Resolution"
-                            value={`${project.removal_resolution}${
-                              project.removal_resolved_at
-                                ? ` · ${new Date(project.removal_resolved_at).toUTCString()}`
-                                : ""
-                            }${
-                              project.removal_resolution_reason
-                                ? ` — ${project.removal_resolution_reason}`
-                                : ""
-                            }`}
-                            full
-                          />
-                        )}
-                        {project.previous_status_before_archive && (
-                          <Field
-                            label="Pre-archive State"
-                            value={statusDisplay(project.previous_status_before_archive)}
-                          />
-                        )}
-                      </div>
-
-                      {/* ── DISTRIBUTION STATUS — Permanently Removed ──
-                          Terminal state authority block. No restore, no reopen,
-                          no archive. The decision is final. */}
+                    <div className="px-5 pb-5 border-t border-white/5 pt-4 space-y-3">
+                      {/* ── 1. AUTHORITY BLOCK (always open) ── */}
                       {project.status === "removed" && (
-                        <div className="mt-5 rounded-lg border border-red-500/40 bg-red-900/10 p-4">
+                        <div className="rounded-lg border border-red-500/40 bg-red-900/10 p-4">
                           <p className="text-[11px] uppercase tracking-[0.2em] text-red-300/90 font-semibold mb-2">
                             Distribution Status
                           </p>
@@ -1688,11 +1583,8 @@ export default function AdminPage() {
                         </div>
                       )}
 
-                      {/* ── REMOVAL REVIEW — request under review ──
-                            Authority block above the action strip; the action
-                            buttons themselves live in the action row below. */}
                       {project.status === "removal_requested" && (
-                        <div className="mt-5 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
+                        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
                           <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300/90 font-semibold mb-2">
                             Removal Review
                           </p>
@@ -1707,267 +1599,359 @@ export default function AdminPage() {
                         </div>
                       )}
 
-                      <StateHistory entries={project.state_history} />
+                      {(project.rejection_reason ||
+                        project.removal_request_reason ||
+                        project.removal_reason ||
+                        project.removal_requested_at ||
+                        project.removal_resolution ||
+                        project.previous_status_before_archive) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm rounded-lg border border-white/8 bg-white/[0.02] p-4">
+                          {project.rejection_reason && (
+                            <Field label="Rejection Reason" value={project.rejection_reason} full />
+                          )}
+                          {(project.removal_request_reason || project.removal_reason) && (
+                            <Field
+                              label="Removal Request Reason"
+                              value={project.removal_request_reason || project.removal_reason}
+                              full
+                            />
+                          )}
+                          {project.removal_requested_at && (
+                            <Field
+                              label="Removal Requested"
+                              value={new Date(project.removal_requested_at).toUTCString()}
+                            />
+                          )}
+                          {project.removal_resolution && (
+                            <Field
+                              label="Removal Resolution"
+                              value={`${project.removal_resolution}${
+                                project.removal_resolved_at
+                                  ? ` · ${new Date(project.removal_resolved_at).toUTCString()}`
+                                  : ""
+                              }${
+                                project.removal_resolution_reason
+                                  ? ` — ${project.removal_resolution_reason}`
+                                  : ""
+                              }`}
+                              full
+                            />
+                          )}
+                          {project.previous_status_before_archive && (
+                            <Field
+                              label="Pre-archive State"
+                              value={statusDisplay(project.previous_status_before_archive)}
+                            />
+                          )}
+                        </div>
+                      )}
 
-
-                      {/* ── Submission Integrity + Review (pending/in_review/approved) ── */}
+                      {/* ── 2. LICENSE & INTEGRITY (collapsible, default closed) ── */}
                       {(project.status === "pending" ||
                         project.status === "in_review" ||
                         project.status === "approved" ||
                         project.status === "live" ||
                         project.status === "rejected") && (
-                        <SubmissionReviewPanel
-                          project={project}
-                          review={reviewByProject[project.id] ?? reviewFromProject(project)}
-                          onChange={(next) => setReviewFor(project.id, next)}
-                          onSaveReview={() => saveReviewNotes(project.id)}
-                          saving={reviewBusy === project.id}
-                          saved={reviewSavedFor === project.id}
-                          hideForLegacyStates
-                        />
-                      )}
+                        <ExpandableSection
+                          title="License & Integrity"
+                          summary={licenseSummary(project)}
+                          defaultOpen={false}
+                        >
+                          <SubmissionReviewPanel
+                            project={project}
+                            review={reviewByProject[project.id] ?? reviewFromProject(project)}
+                            onChange={(next) => setReviewFor(project.id, next)}
+                            onSaveReview={() => saveReviewNotes(project.id)}
+                            saving={reviewBusy === project.id}
+                            saved={reviewSavedFor === project.id}
+                            hideForLegacyStates
+                          />
 
-                      {/* ── License panel (approved & live) ── */}
-                      {(project.status === "approved" || project.status === "live") && (
-                        <div className="mt-5 pt-4 border-t border-white/5 space-y-3">
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <p className="text-xs uppercase tracking-widest text-neutral-500">
-                              Standard Distribution License v1
-                            </p>
-                            {project.license ? (
-                              <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                                {project.status === "approved"
-                                  ? "Executed — ready for activation"
-                                  : "Executed"}
-                              </span>
-                            ) : project.status === "live" ? (
-                              <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
-                                License missing (legacy)
-                              </span>
-                            ) : (
-                              <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                                Not signed — activation blocked
-                              </span>
-                            )}
-                          </div>
-
-                          {project.license && project.status === "approved" && (
-                            <>
-                              <p className="text-[11px] text-emerald-300/90 leading-relaxed">
-                                License is on file. Distribution can be activated now.
-                                Media binding (Bunny video ID) becomes available after activation.
-                              </p>
-                              {/* Identity Enforcement v1: subtle activation-awareness note.
-                                  Does NOT block activation. */}
-                              <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                Identity is self-certified and not independently verified.
-                              </p>
-                            </>
-                          )}
-
-                          <IdentityRow status={project.identity_status ?? null} />
-                          {project.license?.identity_certification_version && (
-                            <p className="text-[11px] text-neutral-500 leading-relaxed">
-                              Certification copy at signing:{" "}
-                              <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
-                                {project.license.identity_certification_version}
-                              </code>
-                            </p>
-                          )}
-
-                          {project.license ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                              <Field label="Signer" value={project.license.signer_legal_name} />
-                              <Field label="Signer Email" value={project.license.signer_email} />
-                              <Field label="Term" value={`${project.license.term_years} year(s)`} />
-                              <Field
-                                label="Signed"
-                                value={
-                                  project.license.signed_at
-                                    ? new Date(project.license.signed_at).toUTCString()
-                                    : ""
-                                }
-                              />
-                              <Field
-                                label="Term Start"
-                                value={
-                                  project.license.term_start
-                                    ? new Date(project.license.term_start).toUTCString()
-                                    : "Pending activation"
-                                }
-                              />
-                              <Field
-                                label="Term End"
-                                value={
-                                  project.license.term_end
-                                    ? new Date(project.license.term_end).toUTCString()
-                                    : "Pending activation"
-                                }
-                              />
-                              <div className="md:col-span-2">
-                                <a
-                                  href={
-                                    project.license.pdf_url ??
-                                    `/api/licenses/${project.license.id}/receipt`
-                                  }
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
-                                >
-                                  View receipt
-                                </a>
-                                {!project.license.pdf_url && (
-                                  <span className="text-neutral-500 text-[11px] ml-2">
-                                    (HTML — PDF generation is future work)
+                          {(project.status === "approved" || project.status === "live") && (
+                            <div className="mt-4 space-y-3">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <p className="text-xs uppercase tracking-widest text-neutral-500">
+                                  Standard Distribution License v1
+                                </p>
+                                {project.license ? (
+                                  <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                    {project.status === "approved"
+                                      ? "Executed — ready for activation"
+                                      : "Executed"}
+                                  </span>
+                                ) : project.status === "live" ? (
+                                  <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
+                                    License missing (legacy)
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                                    Not signed — activation blocked
                                   </span>
                                 )}
                               </div>
-                            </div>
-                          ) : project.status === "live" ? (
-                            <p className="text-[11px] text-neutral-500 leading-relaxed">
-                              This title was activated before the license layer existed. New activations
-                              now require an executed license. No automatic backfill is performed.
-                            </p>
-                          ) : (
-                            <div className="space-y-2">
-                              <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                The creator must execute the license before distribution can be activated.
-                                A license-required email is sent at approval and the workspace surfaces
-                                the same link. If the email failed, hand the URL below to the creator.
-                              </p>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">
-                                  /license/{project.id}
-                                </code>
-                                <button
-                                  onClick={() => {
-                                    const url =
-                                      typeof window !== "undefined"
-                                        ? `${window.location.origin}/license/${project.id}`
-                                        : `/license/${project.id}`;
-                                    navigator.clipboard?.writeText(url);
-                                  }}
-                                  className="px-2 py-1 rounded text-[11px] font-medium border border-white/15 text-white hover:bg-white/10 transition"
-                                >
-                                  Copy creator URL
-                                </button>
-                              </div>
+
+                              {project.license && project.status === "approved" && (
+                                <>
+                                  <p className="text-[11px] text-emerald-300/90 leading-relaxed">
+                                    License is on file. Distribution can be activated now.
+                                    Media binding (Bunny video ID) becomes available after activation.
+                                  </p>
+                                  {/* Identity Enforcement v1: subtle activation-awareness note.
+                                      Does NOT block activation. */}
+                                  <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                                    Identity is self-certified and not independently verified.
+                                  </p>
+                                </>
+                              )}
+
+                              <IdentityRow status={project.identity_status ?? null} />
+                              {project.license?.identity_certification_version && (
+                                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                                  Certification copy at signing:{" "}
+                                  <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
+                                    {project.license.identity_certification_version}
+                                  </code>
+                                </p>
+                              )}
+
+                              {project.license ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                  <Field label="Signer" value={project.license.signer_legal_name} />
+                                  <Field label="Signer Email" value={project.license.signer_email} />
+                                  <Field label="Term" value={`${project.license.term_years} year(s)`} />
+                                  <Field
+                                    label="Signed"
+                                    value={
+                                      project.license.signed_at
+                                        ? new Date(project.license.signed_at).toUTCString()
+                                        : ""
+                                    }
+                                  />
+                                  <Field
+                                    label="Term Start"
+                                    value={
+                                      project.license.term_start
+                                        ? new Date(project.license.term_start).toUTCString()
+                                        : "Pending activation"
+                                    }
+                                  />
+                                  <Field
+                                    label="Term End"
+                                    value={
+                                      project.license.term_end
+                                        ? new Date(project.license.term_end).toUTCString()
+                                        : "Pending activation"
+                                    }
+                                  />
+                                  <div className="md:col-span-2">
+                                    <a
+                                      href={
+                                        project.license.pdf_url ??
+                                        `/api/licenses/${project.license.id}/receipt`
+                                      }
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
+                                    >
+                                      View receipt
+                                    </a>
+                                    {!project.license.pdf_url && (
+                                      <span className="text-neutral-500 text-[11px] ml-2">
+                                        (HTML — PDF generation is future work)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : project.status === "live" ? (
+                                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                                  This title was activated before the license layer existed. New activations
+                                  now require an executed license. No automatic backfill is performed.
+                                </p>
+                              ) : (
+                                <div className="space-y-2">
+                                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                                    The creator must execute the license before distribution can be activated.
+                                    A license-required email is sent at approval and the workspace surfaces
+                                    the same link. If the email failed, hand the URL below to the creator.
+                                  </p>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">
+                                      /license/{project.id}
+                                    </code>
+                                    <button
+                                      onClick={() => {
+                                        const url =
+                                          typeof window !== "undefined"
+                                            ? `${window.location.origin}/license/${project.id}`
+                                            : `/license/${project.id}`;
+                                        navigator.clipboard?.writeText(url);
+                                      }}
+                                      className="px-2 py-1 rounded text-[11px] font-medium border border-white/15 text-white hover:bg-white/10 transition"
+                                    >
+                                      Copy creator URL
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
+                        </ExpandableSection>
                       )}
 
-                      {/* ── Bunny media binding (live projects only) ── */}
+                      {/* ── 3. MEDIA (state-conditional; not rendered for removed/archived) ── */}
                       {project.status === "live" && (
-                        <div className="mt-5 pt-4 border-t border-white/5 space-y-3">
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <p className="text-xs uppercase tracking-widest text-neutral-500">
-                              Bunny Stream
-                            </p>
-                            <span
-                              className={`text-[11px] px-2 py-0.5 rounded border ${
-                                project.media_ready
-                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                                  : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                              }`}
-                            >
-                              {project.media_ready ? "Submitted for processing" : "Not submitted"}
-                            </span>
-                          </div>
+                        <ExpandableSection
+                          title="Media"
+                          summary={
+                            project.media_ready ? "Submitted for processing" : "Not submitted"
+                          }
+                          defaultOpen={!project.media_ready}
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <p className="text-xs uppercase tracking-widest text-neutral-500">
+                                Bunny Stream
+                              </p>
+                              <span
+                                className={`text-[11px] px-2 py-0.5 rounded border ${
+                                  project.media_ready
+                                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                    : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                                }`}
+                              >
+                                {project.media_ready ? "Submitted for processing" : "Not submitted"}
+                              </span>
+                            </div>
 
-                          {(() => {
-                            const effectiveVideoId = (
-                              mediaInputs[project.id] !== undefined
-                                ? mediaInputs[project.id]
-                                : project.bunny_video_id || ""
-                            ).trim();
-                            const hasVideoId       = effectiveVideoId.length > 0;
-                            const submitDisabled   = !hasVideoId || project.media_ready;
+                            {(() => {
+                              const effectiveVideoId = (
+                                mediaInputs[project.id] !== undefined
+                                  ? mediaInputs[project.id]
+                                  : project.bunny_video_id || ""
+                              ).trim();
+                              const hasVideoId       = effectiveVideoId.length > 0;
+                              const submitDisabled   = !hasVideoId || project.media_ready;
 
-                            return (
-                              <>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <input
-                                    type="text"
-                                    placeholder="Bunny video ID"
-                                    defaultValue={project.bunny_video_id || ""}
-                                    disabled={project.media_ready}
-                                    onChange={(e) =>
-                                      setMediaInputs((s) => ({ ...s, [project.id]: e.target.value }))
-                                    }
-                                    className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40 disabled:opacity-50"
-                                  />
-                                  <button
-                                    onClick={() => saveBunnyId(project.id, effectiveVideoId)}
-                                    disabled={mediaBusy === project.id || project.media_ready}
-                                    className="px-3 py-2 rounded text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
-                                    title={
-                                      project.media_ready
-                                        ? "Processing is locked. Reset processing status before changing the binding."
-                                        : undefined
-                                    }
-                                  >
-                                    {mediaBusy === project.id ? "Saving…" : "Save ID"}
-                                  </button>
-                                  {!project.media_ready && (
+                              return (
+                                <>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <input
+                                      type="text"
+                                      placeholder="Bunny video ID"
+                                      defaultValue={project.bunny_video_id || ""}
+                                      disabled={project.media_ready}
+                                      onChange={(e) =>
+                                        setMediaInputs((s) => ({ ...s, [project.id]: e.target.value }))
+                                      }
+                                      className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40 disabled:opacity-50"
+                                    />
                                     <button
-                                      onClick={() => {
-                                        if (submitDisabled) return;
-                                        submitMediaForProcessing(project.id, effectiveVideoId);
-                                      }}
-                                      disabled={mediaBusy === project.id || submitDisabled}
+                                      onClick={() => saveBunnyId(project.id, effectiveVideoId)}
+                                      disabled={mediaBusy === project.id || project.media_ready}
+                                      className="px-3 py-2 rounded text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
                                       title={
-                                        !hasVideoId
-                                          ? "Save a Bunny Stream Video ID before submitting for processing."
+                                        project.media_ready
+                                          ? "Processing is locked. Reset processing status before changing the binding."
                                           : undefined
                                       }
-                                      className="px-3 py-2 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
-                                      Submit for processing
+                                      {mediaBusy === project.id ? "Saving…" : "Save ID"}
                                     </button>
-                                  )}
-                                  {project.media_ready && (
-                                    <button
-                                      onClick={() => {
-                                        setResetTarget({
-                                          id:    project.id,
-                                          title: project.title || "",
-                                        });
-                                        setResetReason("");
-                                        setResetError("");
-                                      }}
-                                      disabled={mediaBusy === project.id}
-                                      className="px-3 py-2 rounded text-xs font-medium border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-50"
-                                    >
-                                      Reset processing status
-                                    </button>
-                                  )}
-                                </div>
+                                    {!project.media_ready && (
+                                      <button
+                                        onClick={() => {
+                                          if (submitDisabled) return;
+                                          submitMediaForProcessing(project.id, effectiveVideoId);
+                                        }}
+                                        disabled={mediaBusy === project.id || submitDisabled}
+                                        title={
+                                          !hasVideoId
+                                            ? "Save a Bunny Stream Video ID before submitting for processing."
+                                            : undefined
+                                        }
+                                        className="px-3 py-2 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        Submit for processing
+                                      </button>
+                                    )}
+                                    {project.media_ready && (
+                                      <button
+                                        onClick={() => {
+                                          setResetTarget({
+                                            id:    project.id,
+                                            title: project.title || "",
+                                          });
+                                          setResetReason("");
+                                          setResetError("");
+                                        }}
+                                        disabled={mediaBusy === project.id}
+                                        className="px-3 py-2 rounded text-xs font-medium border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-50"
+                                      >
+                                        Reset processing status
+                                      </button>
+                                    )}
+                                  </div>
 
-                                {project.media_ready ? (
-                                  <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                    Processing is locked. Reset only if the media binding was entered
-                                    incorrectly or processing must restart.
-                                  </p>
-                                ) : !hasVideoId ? (
-                                  <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                    Paste the Bunny Stream Video ID, save it, then submit for internal
-                                    processing. Final catalog readiness is controlled by ShangoMaji.
-                                  </p>
-                                ) : (
-                                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                    Save the Bunny Stream Video ID, then submit for internal processing.
-                                    Final catalog readiness is controlled by ShangoMaji.
-                                  </p>
-                                )}
+                                  {project.media_ready ? (
+                                    <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                                      Processing is locked. Reset only if the media binding was entered
+                                      incorrectly or processing must restart.
+                                    </p>
+                                  ) : !hasVideoId ? (
+                                    <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                                      Paste the Bunny Stream Video ID, save it, then submit for internal
+                                      processing. Final catalog readiness is controlled by ShangoMaji.
+                                    </p>
+                                  ) : (
+                                    <p className="text-[11px] text-neutral-500 leading-relaxed">
+                                      Save the Bunny Stream Video ID, then submit for internal processing.
+                                      Final catalog readiness is controlled by ShangoMaji.
+                                    </p>
+                                  )}
 
-                                <MediaProcessingHistory
-                                  history={project.media_processing_history}
-                                />
-                              </>
-                            );
-                          })()}
+                                  <MediaProcessingHistory
+                                    history={project.media_processing_history}
+                                  />
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </ExpandableSection>
+                      )}
+
+                      {/* ── 4. SUPPORTING DETAILS (collapsible, default closed) ── */}
+                      <ExpandableSection
+                        title="Supporting Details"
+                        summary={
+                          [project.project_type, ...(project.genres ?? [])]
+                            .filter(Boolean)
+                            .slice(0, 3)
+                            .join(" · ") || undefined
+                        }
+                        defaultOpen={false}
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <Field label="Creator Email" value={project.creator_email} />
+                          <Field label="Type" value={project.project_type} />
+                          <Field label="Genres" value={project.genres?.join(", ")} />
+                          <Field label="Logline" value={project.logline} full />
+                          <Field label="Description" value={project.description} full />
+                          <Field label="Cover Image" value={project.cover_image_url} link />
+                          <Field label="Sample URL" value={project.sample_url} link />
                         </div>
+                      </ExpandableSection>
+
+                      {/* ── 5. STATE HISTORY (collapsible, default closed) ── */}
+                      {Array.isArray(project.state_history) && project.state_history.length > 0 && (
+                        <ExpandableSection
+                          title="State History"
+                          summary={`${project.state_history.length} event${
+                            project.state_history.length === 1 ? "" : "s"
+                          }`}
+                          defaultOpen={false}
+                        >
+                          <StateHistory entries={project.state_history} bare />
+                        </ExpandableSection>
                       )}
 
                       {/* Rejection input */}
@@ -1999,7 +1983,7 @@ export default function AdminPage() {
                         </div>
                       )}
 
-                      {/* Action buttons */}
+                      {/* ── 6. ACTIONS ROW (always last, always open) ── */}
                       {(() => {
                         const reviewState =
                           reviewByProject[project.id] ?? reviewFromProject(project);
@@ -2273,6 +2257,94 @@ export default function AdminPage() {
 // current identity tier. Falls back to "Self-certified" when the column has
 // not been populated yet (covers the brief window before migration 015 has
 // been applied to the DB and PostgREST schema cache reload).
+
+// Local progressive-disclosure primitive used inside the admin expanded
+// work panel. Pure presentational + local state; no global state, no URL.
+function ExpandableSection({
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+  emphasis,
+}: {
+  title: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  emphasis?: "authority" | "default";
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const isAuth = emphasis === "authority";
+  return (
+    <section
+      className={`rounded-lg border ${
+        isAuth
+          ? "border-amber-500/30 bg-amber-500/[0.04]"
+          : "border-white/8 bg-white/[0.015]"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition"
+      >
+        <div className="flex items-baseline gap-3 min-w-0 flex-1 text-left">
+          <span
+            className={`text-[11px] uppercase tracking-widest ${
+              isAuth
+                ? "text-amber-300/90 font-semibold"
+                : "text-neutral-400 font-medium"
+            }`}
+          >
+            {title}
+          </span>
+          {summary && (
+            <span className="text-[11px] text-neutral-500 truncate">
+              {summary}
+            </span>
+          )}
+        </div>
+        <svg
+          className={`w-3.5 h-3.5 text-neutral-500 transition-transform shrink-0 ${
+            open ? "rotate-180" : ""
+          }`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-3 border-t border-white/5">{children}</div>
+      )}
+    </section>
+  );
+}
+
+// Pure derivation. One-line description of the License & Integrity section
+// when collapsed.
+function licenseSummary(p: any): string {
+  if (p.status === "approved" || p.status === "live") {
+    if (p.license) {
+      const term = p.license.term_years;
+      return `SDL v1 · Executed${term ? ` · ${term} yr term` : ""}`;
+    }
+    if (p.status === "live") return "License missing (legacy)";
+    return "License required";
+  }
+  if (p.status === "pending" || p.status === "in_review") {
+    return "Awaiting approval";
+  }
+  if (p.status === "rejected") return "Rejected — no license";
+  return "—";
+}
+
 function IdentityRow({ status }: { status: string | null }) {
   const map: Record<string, { label: string; cls: string }> = {
     self_certified: {
@@ -2346,11 +2418,48 @@ function MediaProcessingHistory({ history }: { history: unknown }) {
   );
 }
 
-function StateHistory({ entries }: { entries: unknown }) {
+function StateHistory({
+  entries,
+  bare,
+}: {
+  entries: unknown;
+  bare?: boolean;
+}) {
   const list = Array.isArray(entries) ? entries : [];
   if (list.length === 0) return null;
   // Show most recent 5 transitions, newest first.
   const recent = list.slice(-5).reverse();
+  if (bare) {
+    return (
+      <ul className="space-y-1.5">
+        {recent.map((e: any, idx: number) => (
+          <li
+            key={idx}
+            className="text-[11px] text-neutral-400 leading-relaxed flex items-start gap-2"
+          >
+            <span className="text-neutral-600 font-mono shrink-0">
+              {e?.at ? new Date(e.at).toUTCString() : "—"}
+            </span>
+            <span className="text-neutral-300">
+              {String(e?.from ?? "—")} →{" "}
+              <span className="text-white">{String(e?.to ?? "—")}</span>
+            </span>
+            <span className="text-neutral-500">by {String(e?.by ?? "—")}</span>
+            {e?.reason && (
+              <span className="text-neutral-500 italic break-words">
+                — {String(e.reason)}
+              </span>
+            )}
+          </li>
+        ))}
+        {list.length > 5 && (
+          <li className="text-[10px] text-neutral-600">
+            (showing most recent 5 of {list.length} transitions)
+          </li>
+        )}
+      </ul>
+    );
+  }
   return (
     <div className="mt-5 pt-4 border-t border-white/5">
       <p className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
