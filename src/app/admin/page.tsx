@@ -44,7 +44,12 @@ export default function AdminPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [view, setView]             = useState<"applications" | "projects">("applications");
   const [projectList, setProjectList]   = useState<any[]>([]);
-  const [projectFilter, setProjectFilter] = useState<"all" | "pending" | "in_review" | "approved" | "rejected" | "live" | "archived" | "removal_requested" | "removed">("all");
+  // Works tab navigation by operational intent (not raw DB status):
+  //   active  = live + approved          (the engaged set)
+  //   review  = pending + in_review + removal_requested  (decisions pending)
+  //   library = rejected + archived + removed            (archive/history)
+  //   all     = secondary debug view, available via a quieter control
+  const [projectFilter, setProjectFilter] = useState<"active" | "review" | "library" | "all">("active");
   const [projectLoading, setProjectLoading] = useState(false);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
@@ -611,10 +616,18 @@ export default function AdminPage() {
     }
   }
 
+  // Mode → set of raw statuses. The chip row navigates by mode; row badges
+  // continue to display raw status via projectStatusColor / statusDisplay.
+  const MODE_STATUSES: Record<"active" | "review" | "library", string[]> = {
+    active:  ["live", "approved"],
+    review:  ["pending", "in_review", "removal_requested"],
+    library: ["rejected", "archived", "removed"],
+  };
+
   const filteredProjects =
     projectFilter === "all"
       ? projectList
-      : projectList.filter((p) => p.status === projectFilter);
+      : projectList.filter((p) => MODE_STATUSES[projectFilter].includes(p.status));
 
   const projectCounts = {
     all:               projectList.length,
@@ -626,6 +639,14 @@ export default function AdminPage() {
     archived:          projectList.filter((p) => p.status === "archived").length,
     removal_requested: projectList.filter((p) => p.status === "removal_requested").length,
     removed:           projectList.filter((p) => p.status === "removed").length,
+  };
+
+  // Group totals derived from per-status counts so chip badges stay accurate.
+  const modeCounts = {
+    active:  projectCounts.live + projectCounts.approved,
+    review:  projectCounts.pending + projectCounts.in_review + projectCounts.removal_requested,
+    library: projectCounts.rejected + projectCounts.archived + projectCounts.removed,
+    all:     projectCounts.all,
   };
 
   const removalQueue = projectList.filter((p) => p.status === "removal_requested");
@@ -1455,32 +1476,40 @@ export default function AdminPage() {
       {/* ── Projects tab ── */}
       {view === "projects" && (
         <>
-          <div className="flex gap-2 mb-6 flex-wrap">
+          {/* Primary navigation by operational intent. "All" is a quieter,
+              secondary control (right-aligned text link) so admins navigate
+              by mode, not raw DB status. */}
+          <div className="flex items-center gap-2 mb-6 flex-wrap">
             {(
               [
-                { key: "all",                label: "All"                },
-                { key: "pending",            label: "Pending"            },
-                { key: "in_review",          label: "In Review"          },
-                { key: "approved",           label: "Approved"           },
-                { key: "rejected",           label: "Rejected"           },
-                { key: "live",               label: "Live"               },
-                { key: "removal_requested",  label: "Removal Requested"  },
-                { key: "archived",           label: "Archived"           },
-                { key: "removed",            label: "Removed"            },
+                { key: "active",  label: "Active"  },
+                { key: "review",  label: "Review"  },
+                { key: "library", label: "Library" },
               ] as const
-            ).map((f) => (
+            ).map((m) => (
               <button
-                key={f.key}
-                onClick={() => setProjectFilter(f.key)}
+                key={m.key}
+                onClick={() => setProjectFilter(m.key)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                  projectFilter === f.key
+                  projectFilter === m.key
                     ? "bg-white/10 text-white"
                     : "text-neutral-500 hover:text-white hover:bg-white/5"
                 }`}
               >
-                {f.label} ({projectCounts[f.key]})
+                {m.label} ({modeCounts[m.key]})
               </button>
             ))}
+            <div className="flex-1" />
+            <button
+              onClick={() => setProjectFilter("all")}
+              className={`text-[11px] transition underline-offset-4 hover:underline ${
+                projectFilter === "all"
+                  ? "text-white"
+                  : "text-neutral-500 hover:text-white"
+              }`}
+            >
+              {projectFilter === "all" ? "Showing all" : "View all"} ({modeCounts.all})
+            </button>
           </div>
 
           {/* Removal Requests banner — compact alert pointing admin at the
@@ -1498,7 +1527,7 @@ export default function AdminPage() {
                 </p>
               </div>
               <button
-                onClick={() => setProjectFilter("removal_requested")}
+                onClick={() => setProjectFilter("review")}
                 className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition shrink-0"
               >
                 View Removal Requested
