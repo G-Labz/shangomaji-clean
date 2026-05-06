@@ -7,6 +7,7 @@ import {
   SDL_TITLE,
   SDL_VERSION,
 } from "@/lib/standard-distribution-license";
+import { checkAdminPassword } from "@/lib/admin-auth";
 
 // HTML receipt for an executed license. This is the durable record in the
 // absence of a generated PDF — it can be printed to PDF by the browser.
@@ -35,8 +36,10 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
 
-  const adminPw  = req.headers.get("x-admin-password");
-  const isAdmin  = !!adminPw && adminPw === process.env.ADMIN_PASSWORD;
+  // Timing-safe comparison via shared helper. See src/lib/admin-auth.ts.
+  // Receipt admin access keeps its existing semantics (admin can fetch any
+  // signer's receipt); only the comparison primitive changes.
+  const isAdmin  = checkAdminPassword(req.headers.get("x-admin-password"));
 
   const supabase = await createClient();
   const {

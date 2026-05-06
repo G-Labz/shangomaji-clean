@@ -41,7 +41,12 @@ const IMG = {
   duskRunners:       { b: local("dusk-runners"),         p: local("dusk-runners") },
 };
 
-export const titles: Title[] = [
+// Production must NEVER consume fabricated catalog inventory. The mock
+// array is retained for development workflows only (UI smoke-testing of
+// row layouts, hero behavior, etc.). In production builds (NODE_ENV ===
+// "production") the exported `titles` array is empty and every helper
+// below returns empty results. See `titles` export at the bottom.
+const MOCK_TITLES: Title[] = [
   { id:"t001", slug:"iron-horizon", title:"Iron Horizon", tagline:"The future was always theirs to take.", description:"In a world fragmented by corporate wars, a disillusioned soldier discovers a conspiracy that reaches the highest echelons of power. Loyalty or survival. He can't have both.", year:2024, rating:"TV-MA", score:94, seasons:2, genres:["Futures & Sci-Fi","Martial Worlds"], type:"series", backdropUrl:IMG.ironHorizon.b, posterUrl:IMG.ironHorizon.p, cast:["Idris Elba","Zendaya","Oscar Isaac"], director:"Nia DaCosta", studio:"ShangoMaji Originals", creatorHandle:"kofi-asante", creatorName:"Kofi Asante", isTrending:true },
   { id:"t002", slug:"the-salt-sea", title:"The Salt Sea", tagline:"Nothing stays buried forever.", description:"A tenacious detective returns to her coastal hometown to investigate a drowning, only to uncover secrets that have poisoned the community for decades.", year:2024, rating:"TV-MA", score:91, seasons:1, genres:["Spirits & the Unseen"], type:"series", backdropUrl:IMG.saltSea.b, posterUrl:IMG.saltSea.p, cast:["Cate Blanchett","Mahershala Ali"], director:"Park Chan-wook", studio:"ShangoMaji Originals", creatorHandle:"amara-diallo", creatorName:"Amara Diallo", isTrending:true, isNew:true },
   { id:"t003", slug:"luminara", title:"Luminara", tagline:"Every star has a story.", description:"An astronaut on a solo deep-space mission starts receiving transmissions from a version of herself that shouldn't exist.", year:2023, rating:"PG-13", score:88, runtime:"2h 7m", genres:["Futures & Sci-Fi"], type:"movie", backdropUrl:IMG.luminara.b, posterUrl:IMG.luminara.p, cast:["Florence Pugh","André Holland"], director:"Denis Villeneuve", studio:"ShangoMaji Films", creatorHandle:"nadia-osei", creatorName:"Nadia Osei", isTrending:true },
@@ -58,6 +63,11 @@ export const titles: Title[] = [
   { id:"t014", slug:"dusk-runners", title:"Dusk Runners", tagline:"Race like your life depends on it.", description:"An underdog crew enters the galaxy's most dangerous underground race across three planets, using a salvaged ship that shouldn't still be flying.", year:2023, rating:"PG", score:79, runtime:"1h 48m", genres:["Futures & Sci-Fi","Martial Worlds"], type:"movie", backdropUrl:IMG.duskRunners.b, posterUrl:IMG.duskRunners.p, cast:["John Boyega","Awkwafina","Stephan James"], director:"Boots Riley", studio:"ShangoMaji Films", creatorHandle:"zion-campbell", creatorName:"Zion Campbell" },
   { id:"t015", slug:"the-patient-ones", title:"The Patient Ones", tagline:"Justice waits for no one. Revenge waits forever.", description:"Five families, wronged by the same powerful man 20 years ago, silently reunite to finally make him pay. With devastating precision.", year:2024, rating:"TV-MA", score:93, seasons:1, genres:["Martial Worlds"], type:"series", backdropUrl:IMG.patientOnes.b, posterUrl:IMG.patientOnes.p, cast:["Angela Bassett","Aldis Hodge","Gugu Mbatha-Raw"], director:"Antoine Fuqua", studio:"ShangoMaji Originals", creatorHandle:"amara-diallo", creatorName:"Amara Diallo", isTrending:true },
 ];
+
+// Production gate: only the real catalog (creator titles via the
+// public-titles API) renders in production. Mock data is dev-only.
+export const titles: Title[] =
+  process.env.NODE_ENV === "production" ? [] : MOCK_TITLES;
 
 export const getTitleBySlug = (slug: string) => titles.find((t) => t.slug === slug);
 export const getTrending = () => titles.filter((t) => t.isTrending);

@@ -63,7 +63,7 @@ export default function SearchPage() {
         <div className="mt-8">
           {query.length > 1 ? (
             <ResultsGrid titles={results} query={query} />
-          ) : (
+          ) : trending.length > 0 ? (
             <div className="-mx-6 md:-mx-10">
               <ContentRow
                 label="Trending Searches"
@@ -71,7 +71,7 @@ export default function SearchPage() {
                 variant="landscape"
               />
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

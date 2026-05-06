@@ -68,6 +68,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "A valid email is required.", field: "email" }, { status: 422 });
     }
 
+    // Duplicate-application guard. Email is already lowercased + trimmed
+    // above, so we compare against the same normalized form. Raw Supabase
+    // errors are NOT surfaced for this path — admin sees a clean 409.
+    const { data: existing, error: existingError } = await supabase
+      .from("creator_applications")
+      .select("id")
+      .eq("email", email)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("Duplicate-check Supabase error:", existingError);
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "You’ve already applied with this email." },
+        { status: 409 }
+      );
+    }
+
     const { error } = await supabase.from("creator_applications").insert([
       {
         // Structured identity (new)

@@ -1782,11 +1782,11 @@ export default function AdminPage() {
                                       rel="noopener noreferrer"
                                       className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
                                     >
-                                      View receipt
+                                      {project.license.pdf_url ? "View Receipt" : "View HTML Receipt"}
                                     </a>
                                     {!project.license.pdf_url && (
                                       <span className="text-neutral-500 text-[11px] ml-2">
-                                        (HTML — PDF generation is future work)
+                                        (HTML receipt)
                                       </span>
                                     )}
                                   </div>

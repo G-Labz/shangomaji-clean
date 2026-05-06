@@ -200,15 +200,15 @@ export default function LicensePage() {
             rel="noopener noreferrer"
             style={primaryBtn}
           >
-            View receipt
+            {lic.pdf_url ? "View Receipt" : "View HTML Receipt"}
           </a>
           <BackLink />
         </div>
 
         {!lic.pdf_url && (
           <p style={{ ...faintText, fontSize: 12, marginTop: 16 }}>
-            PDF generation is not yet available. The HTML receipt above is the durable record —
-            print to PDF from your browser for an offline copy.
+            The HTML receipt above is the durable record. Use your browser to
+            print or save the page for an offline copy.
           </p>
         )}
       </Shell>

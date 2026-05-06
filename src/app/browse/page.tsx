@@ -130,24 +130,52 @@ export default function BrowsePage() {
       {/* Grid */}
       <div className="max-w-[1600px] mx-auto px-6 md:px-10 py-10">
         {filtered.length === 0 ? (
-          <motion.div
-            className="text-center py-24"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <p className="text-ink-muted text-lg">
-              No titles match your filters.
-            </p>
-            <button
-              onClick={() => {
-                setActiveGenre("All");
-                setActiveType("all");
-              }}
-              className="mt-4 text-sm brand-text underline"
+          // When zero titles exist at all (mock disabled in production AND
+          // no creator titles yet), show the prepared-catalog empty state
+          // instead of the "no filter match" message.
+          titles.length + creatorTitles.length === 0 ? (
+            <motion.div
+              className="text-center py-24"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
             >
-              Reset filters
-            </button>
-          </motion.div>
+              <p
+                className="text-xs uppercase tracking-[0.25em] mb-4"
+                style={{ color: "rgba(240,112,48,0.7)" }}
+              >
+                Catalog
+              </p>
+              <h2 className="text-display font-bold text-2xl md:text-3xl text-white tracking-tight mb-3">
+                The catalog is being prepared.
+              </h2>
+              <p
+                className="text-base leading-relaxed mx-auto max-w-xl"
+                style={{ color: "rgba(255,255,255,0.55)" }}
+              >
+                Approved works will appear here once they are licensed and ready
+                for distribution.
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              className="text-center py-24"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <p className="text-ink-muted text-lg">
+                No titles match your filters.
+              </p>
+              <button
+                onClick={() => {
+                  setActiveGenre("All");
+                  setActiveType("all");
+                }}
+                className="mt-4 text-sm brand-text underline"
+              >
+                Reset filters
+              </button>
+            </motion.div>
+          )
         ) : (
           <motion.div
             key={`${activeGenre}-${activeType}-${sortBy}`}

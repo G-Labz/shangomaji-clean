@@ -12,6 +12,9 @@ import {
 import type { Title } from "@/data/mockData";
 
 export default function HomePage() {
+  // Mock helpers return empty arrays in production (mockData.ts is gated by
+  // NODE_ENV). Only real catalog (creator titles via /api/public/titles)
+  // surfaces here when the platform launches with no fabricated inventory.
   const trending    = getTrending();
   const newReleases = getNewReleases();
   const originals   = getOriginals();
@@ -22,6 +25,7 @@ export default function HomePage() {
 
   const [creatorTitles, setCreatorTitles]     = useState<Title[]>([]);
   const [creatorTitlesError, setCreatorTitlesError] = useState<string | null>(null);
+  const [creatorTitlesLoaded, setCreatorTitlesLoaded] = useState(false);
 
   useEffect(() => {
     async function loadCreatorTitles() {
@@ -47,31 +51,88 @@ export default function HomePage() {
       } catch (err: any) {
         console.error("[Home] Creator titles failed to load:", err.message);
         setCreatorTitlesError(err.message);
+      } finally {
+        setCreatorTitlesLoaded(true);
       }
     }
 
     loadCreatorTitles();
   }, []);
 
+  // Aggregate all renderable content. When everything is empty (no real
+  // catalog yet, no mock inventory in production), show a clean
+  // "catalog being prepared" empty state instead of empty rows.
+  const hasMockContent =
+    trending.length > 0 ||
+    newReleases.length > 0 ||
+    originals.length > 0 ||
+    mythology.length > 0 ||
+    spirits.length > 0 ||
+    futures.length > 0 ||
+    martial.length > 0;
+  const hasCreatorContent = creatorTitles.length > 0;
+  const hasAnyContent     = hasMockContent || hasCreatorContent;
+
+  // Hero source: prefer mock trending in dev (richer assets), fall back to
+  // creator titles in production. The HeroBanner is only rendered when at
+  // least one item exists — it crashes on empty arrays (titles[0]).
+  const heroTitles = trending.length > 0 ? trending : creatorTitles;
+
   return (
     <>
-      <HeroBanner titles={trending} />
+      {heroTitles.length > 0 && <HeroBanner titles={heroTitles} />}
 
       <div className="pt-10">
-        <ContentRow label="Trending Now"           titles={trending}    variant="landscape" />
-        <ContentRow label="New Releases"           titles={newReleases} />
+        {trending.length > 0 && (
+          <ContentRow label="Trending Now" titles={trending} variant="landscape" />
+        )}
+        {newReleases.length > 0 && (
+          <ContentRow label="New Releases" titles={newReleases} />
+        )}
         {creatorTitlesError ? (
           <div style={{ padding: "1rem 2.5rem", fontSize: "0.8rem", color: "rgba(255,255,255,0.25)" }}>
             Creator titles could not be loaded.
           </div>
-        ) : creatorTitles.length > 0 ? (
+        ) : hasCreatorContent ? (
           <ContentRow label="The Stage" titles={creatorTitles} />
         ) : null}
-        <ContentRow label="ShangoMaji Originals"   titles={originals}   variant="landscape" />
-        <ContentRow label="Mythology & Gods"       titles={mythology} />
-        <ContentRow label="Spirits & the Unseen"   titles={spirits}     variant="landscape" />
-        <ContentRow label="Futures & Sci-Fi"       titles={futures} />
-        <ContentRow label="Martial Worlds"         titles={martial} />
+        {originals.length > 0 && (
+          <ContentRow label="ShangoMaji Originals" titles={originals} variant="landscape" />
+        )}
+        {mythology.length > 0 && (
+          <ContentRow label="Mythology & Gods" titles={mythology} />
+        )}
+        {spirits.length > 0 && (
+          <ContentRow label="Spirits & the Unseen" titles={spirits} variant="landscape" />
+        )}
+        {futures.length > 0 && (
+          <ContentRow label="Futures & Sci-Fi" titles={futures} />
+        )}
+        {martial.length > 0 && (
+          <ContentRow label="Martial Worlds" titles={martial} />
+        )}
+
+        {/* Empty-catalog state: only render after the creator-titles fetch
+            has completed (avoids flashing the message before data arrives). */}
+        {creatorTitlesLoaded && !hasAnyContent && !creatorTitlesError && (
+          <div className="min-h-[60vh] flex items-center justify-center px-6 md:px-10">
+            <div className="max-w-xl text-center">
+              <p
+                className="text-xs uppercase tracking-[0.25em] mb-4"
+                style={{ color: "rgba(240,112,48,0.7)" }}
+              >
+                Catalog
+              </p>
+              <h1 className="text-display font-bold text-3xl md:text-4xl text-white tracking-tight mb-4">
+                The catalog is being prepared.
+              </h1>
+              <p className="text-base leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                Approved works will appear here once they are licensed and ready
+                for distribution.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

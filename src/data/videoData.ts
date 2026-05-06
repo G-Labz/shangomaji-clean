@@ -45,7 +45,12 @@ const still = (seed: number) =>
   `https://picsum.photos/seed/${seed}/1920/1080`;
 
 // ─── Watchable catalogue ──────────────────────
-export const watchables: Watchable[] = [
+// Production must NEVER serve sample CDN videos as real catalog inventory.
+// The mock array is retained for development only; in production builds
+// `watchables` is empty and `getWatchable` returns undefined for every
+// slug, which causes the watch route to fall through to its real
+// CreatorWatchFallback path (Bunny iframe gated by the public-titles API).
+const MOCK_WATCHABLES: Watchable[] = [
   // ── Series ──
   {
     titleSlug: "iron-horizon",
@@ -182,6 +187,11 @@ export const watchables: Watchable[] = [
     ],
   },
 ];
+
+// Production gate: real watch playback comes from the Bunny iframe path
+// (public-titles API + CreatorWatchFallback). Mock data is dev-only.
+export const watchables: Watchable[] =
+  process.env.NODE_ENV === "production" ? [] : MOCK_WATCHABLES;
 
 // ─── Helpers ──────────────────────────────────
 

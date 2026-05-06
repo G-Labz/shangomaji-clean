@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { checkAdminPassword } from "@/lib/admin-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,8 +12,8 @@ function unauthorized() {
 }
 
 function checkAuth(req: NextRequest) {
-  const pw = req.headers.get("x-admin-password");
-  return pw === process.env.ADMIN_PASSWORD;
+  // Timing-safe comparison via shared helper. See src/lib/admin-auth.ts.
+  return checkAdminPassword(req.headers.get("x-admin-password"));
 }
 
 type ProcessingAction =

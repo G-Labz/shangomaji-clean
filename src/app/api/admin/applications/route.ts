@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "crypto";
 import { sendOnboardingEmail } from "@/lib/email";
+import { checkAdminPassword } from "@/lib/admin-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,8 +14,8 @@ function unauthorized() {
 }
 
 function checkAuth(req: NextRequest) {
-  const pw = req.headers.get("x-admin-password");
-  return pw === process.env.ADMIN_PASSWORD;
+  // Timing-safe comparison via shared helper. See src/lib/admin-auth.ts.
+  return checkAdminPassword(req.headers.get("x-admin-password"));
 }
 
 // Onboarding token TTL — creators have 14 days to accept terms
