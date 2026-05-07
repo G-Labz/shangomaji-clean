@@ -51,45 +51,67 @@ export async function GET() {
 
   // Step 3 — Resolve creator names + handles.
   //
-  // Display name comes from the accepted application (which is the legal
-  // identity record). The handle used to LINK to a public profile must come
-  // from a creator_profiles row that is reachable — published, not quarantined,
-  // not force-unpublished. If the profile is not reachable we still display
-  // the creator's name as plain text but emit `creatorHandle = null` so the
-  // title page does not render a broken link.
-  const emails = Array.from(
-    new Set(titleRows.map((t: any) => t.creator_email).filter(Boolean))
+  // Attribution priority for the public title page:
+  //   1. accepted creator_applications.name      (always safe — institutional)
+  //   2. creator_profiles.display_name            (only if NOT quarantined)
+  //   3. null  → title page falls back to "Published by ShangoMaji"
+  //
+  // Lookups are normalized to lowercase on both sides because emails in
+  // creator_applications and creator_profiles are not guaranteed to share the
+  // same casing as titles.creator_email. We do not use `.in()` here because
+  // PostgREST's `in` is case-sensitive at the SQL level; instead we fetch the
+  // accepted/all candidate rows and match on lowercased keys in JS.
+  //
+  // The handle used to LINK to a public profile must come from a profile row
+  // that is reachable (published + not quarantined + not force-unpublished).
+  // When the profile is not reachable, `creatorHandle` is null so the title
+  // page renders the name as plain text instead of a broken link.
+  const emailsLower = Array.from(
+    new Set(
+      titleRows
+        .map((t: any) => (t.creator_email ?? "").trim().toLowerCase())
+        .filter((e: string) => e.length > 0)
+    )
   );
 
-  const { data: appRows } = emails.length
-    ? await supabase
-        .from("creator_applications")
-        .select("email, name")
-        .in("email", emails)
-        .eq("status", "accepted")
-    : { data: [] };
-  const appMap = new Map(
-    (appRows ?? []).map((c: any) => [c.email.trim().toLowerCase(), c])
-  );
+  const appNameByEmail = new Map<string, string>();
+  if (emailsLower.length) {
+    const { data: appRows } = await supabase
+      .from("creator_applications")
+      .select("email, name, status");
+    for (const a of (appRows ?? []) as any[]) {
+      if (a.status !== "accepted") continue;
+      const e = (a.email ?? "").trim().toLowerCase();
+      if (!e || !emailsLower.includes(e)) continue;
+      const name = typeof a.name === "string" ? a.name.trim() : "";
+      if (name && !appNameByEmail.has(e)) appNameByEmail.set(e, name);
+    }
+  }
 
-  const { data: profileRows } = emails.length
-    ? await supabase
-        .from("creator_profiles")
-        .select("email, handle, is_published_publicly, force_unpublished, placeholder_quarantined")
-        .in("email", emails)
-    : { data: [] };
-  const reachableHandleByEmail = new Map<string, string>();
-  for (const p of profileRows ?? []) {
-    const row = p as any;
-    const reachable =
-      row.is_published_publicly === true &&
-      row.force_unpublished     === false &&
-      row.placeholder_quarantined === false;
-    if (reachable && row.handle) {
-      reachableHandleByEmail.set(
-        (row.email ?? "").trim().toLowerCase(),
-        String(row.handle)
-      );
+  const profileFallbackNameByEmail = new Map<string, string>();
+  const reachableHandleByEmail     = new Map<string, string>();
+  if (emailsLower.length) {
+    const { data: profileRows } = await supabase
+      .from("creator_profiles")
+      .select("email, handle, display_name, is_published_publicly, force_unpublished, placeholder_quarantined");
+    for (const p of (profileRows ?? []) as any[]) {
+      const e = (p.email ?? "").trim().toLowerCase();
+      if (!e || !emailsLower.includes(e)) continue;
+      const reachable =
+        p.is_published_publicly === true &&
+        p.force_unpublished     === false &&
+        p.placeholder_quarantined === false;
+      if (reachable && p.handle) {
+        reachableHandleByEmail.set(e, String(p.handle));
+      }
+      // Quarantined profiles are presumed fake and never contribute a name.
+      // Force-unpublished or unpublished-but-non-quarantined rows still
+      // contribute a creator-chosen display name as a safe non-linked
+      // attribution fallback.
+      if (!p.placeholder_quarantined) {
+        const dn = typeof p.display_name === "string" ? p.display_name.trim() : "";
+        if (dn && !profileFallbackNameByEmail.has(e)) profileFallbackNameByEmail.set(e, dn);
+      }
     }
   }
 
@@ -101,8 +123,13 @@ export async function GET() {
     .map((t: any) => {
       const p = projectMap.get(t.project_id);
       const emailKey = (t.creator_email ?? "").trim().toLowerCase();
-      const app = appMap.get(emailKey);
       const reachableHandle = reachableHandleByEmail.get(emailKey) ?? null;
+      // Attribution: applications.name → profiles.display_name (non-quarantined)
+      // → null. Last-resort generic copy lives on the title page.
+      const creatorName =
+        appNameByEmail.get(emailKey) ||
+        profileFallbackNameByEmail.get(emailKey) ||
+        null;
 
       const playbackEmbedUrl = buildBunnyEmbedUrl(t.bunny_video_id);
       if (!playbackEmbedUrl) return null;
@@ -126,9 +153,12 @@ export async function GET() {
         backdropUrl: p?.banner_url || p?.cover_image_url || bunnyThumb || "/images/placeholder.png",
         posterUrl:   p?.cover_image_url || bunnyThumb || "/images/placeholder.png",
         cast:        [],
-        studio:      "ShangoMaji Creators",
+        // Last-resort generic attribution. The title page only uses this when
+        // creatorName is null; per the institutional copy standard we do not
+        // append "Creators" to the studio name.
+        studio:      "ShangoMaji",
         creatorEmail:          t.creator_email,
-        creatorName:           app?.name || null,
+        creatorName,
         // Only surface a handle that resolves to a reachable public profile.
         // Otherwise the title page renders the name as static text with no
         // link, instead of a broken link to a nonexistent /creators/{handle}.
