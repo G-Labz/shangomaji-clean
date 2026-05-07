@@ -142,7 +142,7 @@ export function TopNav() {
               </div>
             </div>
 
-            <Link href="/profile" className="ml-1.5 group" aria-label="Profile">
+            <Link href="/account" className="ml-1.5 group" aria-label="Your account">
               <div className="w-8 h-8 rounded-full p-[1.5px] transition-all duration-300"
                 style={{
                   background: "linear-gradient(135deg, #e53e2a, #f07030, #f5c518)",
