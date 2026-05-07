@@ -49,22 +49,49 @@ export async function GET() {
     (projectRows ?? []).map((p: any) => [p.id, p])
   );
 
-  // Step 3 — Resolve creator names + handles from creator_applications.
+  // Step 3 — Resolve creator names + handles.
+  //
+  // Display name comes from the accepted application (which is the legal
+  // identity record). The handle used to LINK to a public profile must come
+  // from a creator_profiles row that is reachable — published, not quarantined,
+  // not force-unpublished. If the profile is not reachable we still display
+  // the creator's name as plain text but emit `creatorHandle = null` so the
+  // title page does not render a broken link.
   const emails = Array.from(
     new Set(titleRows.map((t: any) => t.creator_email).filter(Boolean))
   );
 
-  const { data: creatorRows } = emails.length
+  const { data: appRows } = emails.length
     ? await supabase
         .from("creator_applications")
-        .select("email, name, handle")
+        .select("email, name")
         .in("email", emails)
         .eq("status", "accepted")
     : { data: [] };
-
-  const creatorMap = new Map(
-    (creatorRows ?? []).map((c: any) => [c.email.trim().toLowerCase(), c])
+  const appMap = new Map(
+    (appRows ?? []).map((c: any) => [c.email.trim().toLowerCase(), c])
   );
+
+  const { data: profileRows } = emails.length
+    ? await supabase
+        .from("creator_profiles")
+        .select("email, handle, is_published_publicly, force_unpublished, placeholder_quarantined")
+        .in("email", emails)
+    : { data: [] };
+  const reachableHandleByEmail = new Map<string, string>();
+  for (const p of profileRows ?? []) {
+    const row = p as any;
+    const reachable =
+      row.is_published_publicly === true &&
+      row.force_unpublished     === false &&
+      row.placeholder_quarantined === false;
+    if (reachable && row.handle) {
+      reachableHandleByEmail.set(
+        (row.email ?? "").trim().toLowerCase(),
+        String(row.handle)
+      );
+    }
+  }
 
   // Step 4 — Shape the response.
   // Server-side construction of the Bunny embed URL keeps the iframe src
@@ -73,7 +100,9 @@ export async function GET() {
   const titles = titleRows
     .map((t: any) => {
       const p = projectMap.get(t.project_id);
-      const creator = creatorMap.get((t.creator_email ?? "").trim().toLowerCase());
+      const emailKey = (t.creator_email ?? "").trim().toLowerCase();
+      const app = appMap.get(emailKey);
+      const reachableHandle = reachableHandleByEmail.get(emailKey) ?? null;
 
       const playbackEmbedUrl = buildBunnyEmbedUrl(t.bunny_video_id);
       if (!playbackEmbedUrl) return null;
@@ -99,8 +128,11 @@ export async function GET() {
         cast:        [],
         studio:      "ShangoMaji Creators",
         creatorEmail:          t.creator_email,
-        creatorName:           creator?.name || null,
-        creatorHandle:         creator?.handle || null,
+        creatorName:           app?.name || null,
+        // Only surface a handle that resolves to a reachable public profile.
+        // Otherwise the title page renders the name as static text with no
+        // link, instead of a broken link to a nonexistent /creators/{handle}.
+        creatorHandle:         reachableHandle,
         sampleUrl:             p?.sample_url || null,
         trailerUrl:            p?.trailer_url || null,
         exclusivityType:       t.exclusivity_type,

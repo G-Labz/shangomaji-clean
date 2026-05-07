@@ -96,6 +96,43 @@ export default function AdminPage() {
   // Admin refresh button busy flag
   const [refreshing, setRefreshing] = useState(false);
 
+  // Phase 1 — Creator Public Profile force-unpublish modal state.
+  type ProfileTarget = { email: string; title: string; handle: string | null };
+  const [forceUnpublishTarget, setForceUnpublishTarget] = useState<ProfileTarget | null>(null);
+  const [forceUnpublishReason, setForceUnpublishReason] = useState("");
+  const [forceUnpublishBusy,   setForceUnpublishBusy]   = useState(false);
+  const [forceUnpublishError,  setForceUnpublishError]  = useState("");
+  const [restoreProfileBusy,   setRestoreProfileBusy]   = useState<string | null>(null);
+
+  async function adminForceUnpublishProfile(email: string, reason: string) {
+    const res = await fetch("/api/admin/creator-profiles", {
+      method:  "PATCH",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body:    JSON.stringify({ email, action: "force_unpublish", reason }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Force-unpublish failed");
+    await loadProjects();
+  }
+
+  async function adminRestoreProfile(email: string) {
+    setRestoreProfileBusy(email);
+    try {
+      const res = await fetch("/api/admin/creator-profiles", {
+        method:  "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body:    JSON.stringify({ email, action: "restore" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Restore failed");
+      await loadProjects();
+    } catch (e: any) {
+      alert(e?.message || "Restore failed");
+    } finally {
+      setRestoreProfileBusy(null);
+    }
+  }
+
   // Submission Integrity v1 — admin review state per project (keyed by id).
   // Lazily seeded from the project record when an admin expands it.
   const [reviewByProject, setReviewByProject] = useState<Record<string, AdminReviewState>>({});
@@ -1095,6 +1132,108 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Force-unpublish creator profile modal */}
+      {forceUnpublishTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => {
+            if (forceUnpublishBusy) return;
+            setForceUnpublishTarget(null);
+            setForceUnpublishReason("");
+            setForceUnpublishError("");
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-xl border border-white/10 bg-[#141010] p-6 space-y-5"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-yellow-400/80 font-semibold mb-2">
+                Trust &amp; Safety
+              </p>
+              <h3 className="text-white text-lg font-semibold">
+                Force-unpublish public profile?
+              </h3>
+            </div>
+
+            <div className="space-y-2 text-sm text-neutral-400 leading-relaxed">
+              <p>
+                This hides
+                <span className="text-white">
+                  {" "}{forceUnpublishTarget.title || forceUnpublishTarget.email}{" "}
+                </span>
+                from public-facing routes immediately. The creator can still see
+                and edit their fields in the workspace, but cannot republish
+                until you restore.
+              </p>
+              <p className="text-[11px] text-neutral-500">
+                Profile data is not deleted. This is a reversible administrative override.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs text-neutral-500">
+                Reason (required):
+              </label>
+              <textarea
+                value={forceUnpublishReason}
+                onChange={(e) => {
+                  setForceUnpublishReason(e.target.value);
+                  if (forceUnpublishError) setForceUnpublishError("");
+                }}
+                disabled={forceUnpublishBusy}
+                rows={3}
+                placeholder="Why is this profile being unpublished?"
+                className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-yellow-500/40 transition resize-none"
+              />
+              {forceUnpublishError && (
+                <p className="text-red-400 text-xs">{forceUnpublishError}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (forceUnpublishBusy) return;
+                  setForceUnpublishTarget(null);
+                  setForceUnpublishReason("");
+                  setForceUnpublishError("");
+                }}
+                disabled={forceUnpublishBusy}
+                className="px-4 py-2 rounded-md text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const reason = forceUnpublishReason.trim();
+                  if (!reason) {
+                    setForceUnpublishError("A reason is required.");
+                    return;
+                  }
+                  setForceUnpublishBusy(true);
+                  setForceUnpublishError("");
+                  try {
+                    await adminForceUnpublishProfile(forceUnpublishTarget.email, reason);
+                    setForceUnpublishTarget(null);
+                    setForceUnpublishReason("");
+                  } catch (e: any) {
+                    setForceUnpublishError(e?.message || "Force-unpublish failed");
+                  } finally {
+                    setForceUnpublishBusy(false);
+                  }
+                }}
+                disabled={forceUnpublishBusy || !forceUnpublishReason.trim()}
+                className="px-4 py-2 rounded-md text-xs font-semibold border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                {forceUnpublishBusy ? "Unpublishing…" : "Force Unpublish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reset processing modal */}
       {resetTarget && (
         <div
@@ -1967,6 +2106,95 @@ export default function AdminPage() {
                           <Field label="Description" value={project.description} full />
                           <Field label="Cover Image" value={project.cover_image_url} link />
                           <Field label="Sample URL" value={project.sample_url} link />
+                        </div>
+
+                        {/* Phase 1 — Public Profile status + force-unpublish */}
+                        <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <p className="text-xs uppercase tracking-widest text-neutral-500">
+                              Public Profile
+                            </p>
+                            {project.profile_quarantined ? (
+                              <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/15 text-red-300 border-red-500/30">
+                                Quarantined (placeholder)
+                              </span>
+                            ) : project.profile_force_unpublished ? (
+                              <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/15 text-yellow-300 border-yellow-500/30">
+                                Force-unpublished
+                              </span>
+                            ) : project.profile_published ? (
+                              <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
+                                Published
+                              </span>
+                            ) : (
+                              <span className="text-[11px] px-2 py-0.5 rounded border bg-white/5 text-neutral-400 border-white/10">
+                                Not published
+                              </span>
+                            )}
+                          </div>
+
+                          {project.profile_handle ? (
+                            <p className="text-[11px] text-neutral-500 break-all">
+                              Handle:{" "}
+                              <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5">
+                                @{project.profile_handle}
+                              </code>
+                              {project.profile_published &&
+                               !project.profile_force_unpublished &&
+                               !project.profile_quarantined && (
+                                <>
+                                  {" "}·{" "}
+                                  <a
+                                    href={`/creators/${project.profile_handle}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-orange-400 hover:text-orange-300 underline underline-offset-2"
+                                  >
+                                    View public profile
+                                  </a>
+                                </>
+                              )}
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-neutral-500">
+                              No handle set — creator has not configured a public profile yet.
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-2 flex-wrap pt-1">
+                            {!project.profile_quarantined && !project.profile_force_unpublished && (
+                              <button
+                                onClick={() => {
+                                  setForceUnpublishTarget({
+                                    email:  project.creator_email,
+                                    title:  project.title || "",
+                                    handle: project.profile_handle ?? null,
+                                  });
+                                  setForceUnpublishReason("");
+                                  setForceUnpublishError("");
+                                }}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition"
+                              >
+                                Force Unpublish Profile
+                              </button>
+                            )}
+                            {project.profile_force_unpublished && (
+                              <button
+                                onClick={() => adminRestoreProfile(project.creator_email)}
+                                disabled={restoreProfileBusy === project.creator_email}
+                                className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-50"
+                              >
+                                {restoreProfileBusy === project.creator_email
+                                  ? "Restoring…"
+                                  : "Restore Profile (Admin)"}
+                              </button>
+                            )}
+                            {project.profile_quarantined && (
+                              <span className="text-[11px] text-red-300/80">
+                                Quarantined rows must be reviewed via SQL before any further action.
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </ExpandableSection>
 

@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import type { CSSProperties } from "react";
 import { createClient } from "@/lib/supabase-browser";
 
+type ExternalLink = { label: string; url: string };
+
 type ProfileForm = {
   displayName: string;
   handle: string;
@@ -11,6 +13,7 @@ type ProfileForm = {
   website: string;
   avatarUrl: string;
   bannerUrl: string;
+  externalLinks: ExternalLink[];
 };
 
 const defaultProfile: ProfileForm = {
@@ -20,17 +23,20 @@ const defaultProfile: ProfileForm = {
   website: "",
   avatarUrl: "",
   bannerUrl: "",
+  externalLinks: [],
 };
 
-const BIO_MAX = 160;
+const BIO_MAX             = 160;
+const MAX_EXTERNAL_LINKS  = 3;
+const HANDLE_RE           = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
 
 const COMPLETION_FIELDS: { key: keyof ProfileForm; label: string }[] = [
   { key: "displayName", label: "display name" },
-  { key: "handle", label: "handle" },
-  { key: "bio", label: "bio" },
-  { key: "website", label: "website" },
-  { key: "avatarUrl", label: "profile photo" },
-  { key: "bannerUrl", label: "banner image" },
+  { key: "handle",      label: "handle" },
+  { key: "bio",         label: "bio" },
+  { key: "website",     label: "website" },
+  { key: "avatarUrl",   label: "profile photo" },
+  { key: "bannerUrl",   label: "banner image" },
 ];
 
 export default function ProfilePage() {
@@ -45,14 +51,30 @@ export default function ProfilePage() {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout>>();
 
+  // Phase 1 — Public Profile control state.
+  const [isPublished, setIsPublished]                   = useState(false);
+  const [forceUnpublished, setForceUnpublished]         = useState(false);
+  const [forceUnpublishedReason, setForceUnpublishedReason] = useState<string>("");
+  const [placeholderQuarantined, setPlaceholderQuarantined] = useState(false);
+  const [publishBusy, setPublishBusy]                   = useState(false);
+
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
-  // Completion
-  const filledCount = COMPLETION_FIELDS.filter((f) => form[f.key].trim() !== "").length;
+  // Completion — string fields only; external_links contributes via website
+  const filledCount = COMPLETION_FIELDS.filter((f) => {
+    const v = form[f.key];
+    return typeof v === "string" && v.trim() !== "";
+  }).length;
   const completionPct = Math.round((filledCount / COMPLETION_FIELDS.length) * 100);
-  const firstMissing = COMPLETION_FIELDS.find((f) => form[f.key].trim() === "");
+  const firstMissing = COMPLETION_FIELDS.find((f) => {
+    const v = form[f.key];
+    return typeof v === "string" && v.trim() === "";
+  });
 
-  const cleanHandle = form.handle.replace(/^@+/, "").trim();
+  const cleanHandle = form.handle.replace(/^@+/, "").trim().toLowerCase();
+  const handleValid = !!cleanHandle && HANDLE_RE.test(cleanHandle);
+  const canPublish  =
+    !placeholderQuarantined && !forceUnpublished && handleValid && !!form.displayName.trim();
 
   useEffect(() => {
     async function init() {
@@ -80,19 +102,31 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Could not load profile");
       if (data.profile) {
+        const externalLinks: ExternalLink[] = Array.isArray(data.profile.external_links)
+          ? (data.profile.external_links as ExternalLink[]).slice(0, MAX_EXTERNAL_LINKS)
+          : [];
         const loaded: ProfileForm = {
-          displayName: data.profile.display_name || "",
-          handle: data.profile.handle || "",
-          bio: data.profile.bio_short || "",
-          website: data.profile.website || "",
-          avatarUrl: data.profile.avatar_url || "",
-          bannerUrl: data.profile.banner_url || "",
+          displayName:   data.profile.display_name || "",
+          handle:        data.profile.handle || "",
+          bio:           data.profile.bio_short || "",
+          website:       data.profile.website || "",
+          avatarUrl:     data.profile.avatar_url || "",
+          bannerUrl:     data.profile.banner_url || "",
+          externalLinks,
         };
         setForm(loaded);
         setInitialForm(loaded);
+        setIsPublished(!!data.profile.is_published_publicly);
+        setForceUnpublished(!!data.profile.force_unpublished);
+        setForceUnpublishedReason(data.profile.force_unpublished_reason || "");
+        setPlaceholderQuarantined(!!data.profile.placeholder_quarantined);
       } else {
         setForm(defaultProfile);
         setInitialForm(defaultProfile);
+        setIsPublished(false);
+        setForceUnpublished(false);
+        setForceUnpublishedReason("");
+        setPlaceholderQuarantined(false);
       }
     } catch (err: any) {
       setError(err.message || "Could not load profile");
@@ -118,12 +152,15 @@ export default function ProfilePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          display_name: form.displayName,
-          handle: form.handle.replace(/^@+/, "").trim(),
-          bio_short: form.bio,
+          display_name:   form.displayName,
+          handle:         form.handle.replace(/^@+/, "").trim().toLowerCase(),
+          bio_short:      form.bio,
           website,
-          avatar_url: form.avatarUrl || null,
-          banner_url: form.bannerUrl || null,
+          avatar_url:     form.avatarUrl || null,
+          banner_url:     form.bannerUrl || null,
+          external_links: form.externalLinks
+            .filter((l) => l.url.trim() !== "")
+            .slice(0, MAX_EXTERNAL_LINKS),
         }),
       });
       const data = await res.json();
@@ -138,6 +175,53 @@ export default function ProfilePage() {
     }
   }
 
+  // Publish / Unpublish — sends only the publish flag. Save the rest of the
+  // form first via Save Profile, then publish; the API rejects publishing if
+  // a handle isn't set or the row has been force-unpublished by an admin.
+  async function handleTogglePublish(next: boolean) {
+    setPublishBusy(true);
+    setError("");
+    setSavedMessage("");
+    try {
+      const res  = await fetch("/api/creators/profile", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ is_published_publicly: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Publish update failed");
+      setIsPublished(next);
+      setSavedMessage(next ? "Profile published." : "Profile unpublished.");
+      savedTimer.current = setTimeout(() => setSavedMessage(""), 2500);
+    } catch (err: any) {
+      setError(err?.message || "Publish update failed");
+    } finally {
+      setPublishBusy(false);
+    }
+  }
+
+  function setLinkAt(idx: number, patch: Partial<ExternalLink>) {
+    setForm((prev) => {
+      const links = [...prev.externalLinks];
+      while (links.length <= idx) links.push({ label: "", url: "" });
+      links[idx] = { ...links[idx], ...patch };
+      return { ...prev, externalLinks: links.slice(0, MAX_EXTERNAL_LINKS) };
+    });
+  }
+  function removeLinkAt(idx: number) {
+    setForm((prev) => ({
+      ...prev,
+      externalLinks: prev.externalLinks.filter((_, i) => i !== idx),
+    }));
+  }
+  function addLink() {
+    setForm((prev) =>
+      prev.externalLinks.length >= MAX_EXTERNAL_LINKS
+        ? prev
+        : { ...prev, externalLinks: [...prev.externalLinks, { label: "", url: "" }] }
+    );
+  }
+
   if (loading) {
     return (
       <div style={{ textAlign: "center", paddingTop: 80 }}>
@@ -149,27 +233,159 @@ export default function ProfilePage() {
   return (
     <div style={{ maxWidth: 800, paddingBottom: 100 }}>
 
-        {/* ── Live Strip ── */}
+        {/* ── Quarantine banner — admin-imposed hold ── */}
+        {placeholderQuarantined && (
+          <div
+            style={{
+              padding: "12px 16px",
+              marginBottom: 16,
+              borderRadius: 10,
+              background: "rgba(220,38,38,0.08)",
+              border: "1px solid rgba(220,38,38,0.25)",
+              color: "rgba(252,165,165,0.9)",
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            This profile has been placed under review and cannot be edited or
+            published from the workspace. Contact ShangoMaji support if you believe
+            this is in error.
+          </div>
+        )}
+
+        {/* ── Force-unpublished banner — admin trust/safety override ── */}
+        {forceUnpublished && (
+          <div
+            style={{
+              padding: "12px 16px",
+              marginBottom: 16,
+              borderRadius: 10,
+              background: "rgba(245,197,24,0.08)",
+              border: "1px solid rgba(245,197,24,0.3)",
+              color: "rgba(245,197,24,0.9)",
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: 600 }}>
+              Your public profile has been unpublished by ShangoMaji.
+            </p>
+            {forceUnpublishedReason && (
+              <p style={{ margin: "6px 0 0", color: "rgba(255,255,255,0.55)" }}>
+                Reason: {forceUnpublishedReason}
+              </p>
+            )}
+            <p style={{ margin: "6px 0 0", color: "rgba(255,255,255,0.45)" }}>
+              You can continue to edit profile fields, but republishing requires
+              admin review.
+            </p>
+          </div>
+        )}
+
+        {/* ── Publish strip ── */}
         {cleanHandle && (
-          <a
-            href={`/creators/${cleanHandle}`}
+          <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "10px 16px",
+              padding: "12px 16px",
               marginBottom: 24,
               borderRadius: 10,
-              background: "rgba(240,112,48,0.06)",
-              border: "1px solid rgba(240,112,48,0.12)",
-              textDecoration: "none",
+              background: isPublished
+                ? "rgba(52,211,153,0.06)"
+                : "rgba(255,255,255,0.03)",
+              border: isPublished
+                ? "1px solid rgba(52,211,153,0.25)"
+                : "1px solid rgba(255,255,255,0.08)",
               fontSize: 13,
-              color: "rgba(240,112,48,0.7)",
+              color: isPublished
+                ? "rgba(52,211,153,0.9)"
+                : "rgba(255,255,255,0.55)",
+              gap: 12,
+              flexWrap: "wrap",
             }}
           >
-            <span>Live at shangomaji.com/creators/{cleanHandle}</span>
-            <span>→</span>
-          </a>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <span style={{ fontWeight: 600 }}>
+                {isPublished ? "Published" : "Not published yet"}
+              </span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
+                {isPublished
+                  ? `Live at shangomaji.com/creators/${cleanHandle}`
+                  : "Save your profile, then publish to make it reachable at /creators/{handle}."}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {isPublished && (
+                <a
+                  href={`/creators/${cleanHandle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 12,
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    color: "rgba(255,255,255,0.85)",
+                    textDecoration: "none",
+                  }}
+                >
+                  Preview Public Profile
+                </a>
+              )}
+              {isPublished ? (
+                <button
+                  onClick={() => handleTogglePublish(false)}
+                  disabled={publishBusy || placeholderQuarantined}
+                  style={{
+                    fontSize: 12,
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.75)",
+                    cursor: publishBusy ? "not-allowed" : "pointer",
+                    opacity: publishBusy ? 0.6 : 1,
+                  }}
+                >
+                  {publishBusy ? "Working…" : "Unpublish"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleTogglePublish(true)}
+                  disabled={publishBusy || !canPublish}
+                  title={
+                    !canPublish
+                      ? placeholderQuarantined
+                        ? "Profile is under review."
+                        : forceUnpublished
+                        ? "Profile has been unpublished by ShangoMaji."
+                        : !handleValid
+                        ? "Set a valid handle (3–32 lowercase letters, digits, or hyphens)."
+                        : !form.displayName.trim()
+                        ? "Set a display name before publishing."
+                        : undefined
+                      : undefined
+                  }
+                  style={{
+                    fontSize: 12,
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    border: "none",
+                    background:
+                      "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                    color: "black",
+                    fontWeight: 600,
+                    cursor: publishBusy || !canPublish ? "not-allowed" : "pointer",
+                    opacity: publishBusy || !canPublish ? 0.55 : 1,
+                  }}
+                >
+                  {publishBusy ? "Publishing…" : "Publish Public Profile"}
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         {/* ── Identity Hero ── */}
@@ -208,12 +424,27 @@ export default function ProfilePage() {
           <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             {cleanHandle ? (
               <>
-                <a
-                  href={`/creators/${cleanHandle}`}
-                  style={primaryButtonStyle}
-                >
-                  Preview as Visitor
-                </a>
+                {isPublished ? (
+                  <a
+                    href={`/creators/${cleanHandle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={primaryButtonStyle}
+                  >
+                    Preview Public Profile
+                  </a>
+                ) : (
+                  <span
+                    style={{
+                      ...primaryButtonStyle,
+                      background: "rgba(255,255,255,0.06)",
+                      color: "rgba(255,255,255,0.5)",
+                      cursor: "not-allowed",
+                    }}
+                  >
+                    Not Yet Published
+                  </span>
+                )}
                 <span style={{
                   fontSize: 11,
                   color: "rgba(255,255,255,0.2)",
@@ -231,7 +462,7 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {cleanHandle && (
+          {cleanHandle && isPublished && (
             <p style={{ margin: "12px 0 0", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(240,112,48,0.6)" }}>
               Live on ShangoMaji
             </p>
@@ -443,6 +674,64 @@ export default function ProfilePage() {
               placeholder="https://yourdomain.com"
               style={inputStyle}
             />
+          </div>
+
+          <div style={{ marginTop: 24 }}>
+            <label style={labelStyle}>External Links (up to {MAX_EXTERNAL_LINKS})</label>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "0 0 12px" }}>
+              Optional. Each link must be a valid URL. Empty rows are dropped on save.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {form.externalLinks.map((l, idx) => (
+                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    value={l.label}
+                    onChange={(e) => setLinkAt(idx, { label: e.target.value })}
+                    placeholder="Label (optional)"
+                    style={{ ...inputStyle, maxWidth: 200 }}
+                  />
+                  <input
+                    value={l.url}
+                    onChange={(e) => setLinkAt(idx, { url: e.target.value })}
+                    placeholder="https://example.com"
+                    style={inputStyle}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeLinkAt(idx)}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: "rgba(255,255,255,0.5)",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              {form.externalLinks.length < MAX_EXTERNAL_LINKS && (
+                <button
+                  type="button"
+                  onClick={addLink}
+                  style={{
+                    alignSelf: "flex-start",
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px dashed rgba(255,255,255,0.18)",
+                    color: "rgba(240,112,48,0.85)",
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  + Add link
+                </button>
+              )}
+            </div>
           </div>
         </section>
 

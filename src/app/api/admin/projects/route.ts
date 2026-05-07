@@ -91,23 +91,39 @@ export async function GET(req: NextRequest) {
     )
   );
 
-  const identityByEmail = new Map<string, string>();
+  type AdminProfileRow = {
+    identity_status: string | null;
+    handle: string | null;
+    is_published_publicly: boolean;
+    force_unpublished: boolean;
+    placeholder_quarantined: boolean;
+  };
+  const profileByEmail = new Map<string, AdminProfileRow>();
   if (emails.length) {
     const { data: profileRows } = await supabase
       .from("creator_profiles")
-      .select("email, identity_status")
+      .select("email, identity_status, handle, is_published_publicly, force_unpublished, placeholder_quarantined")
       .in("email", emails);
     for (const pr of profileRows ?? []) {
-      const e = (pr as any).email?.trim().toLowerCase();
-      if (e) identityByEmail.set(e, (pr as any).identity_status ?? null);
+      const r = pr as any;
+      const e = (r.email ?? "").trim().toLowerCase();
+      if (e) {
+        profileByEmail.set(e, {
+          identity_status:         r.identity_status ?? null,
+          handle:                  r.handle ?? null,
+          is_published_publicly:   !!r.is_published_publicly,
+          force_unpublished:       !!r.force_unpublished,
+          placeholder_quarantined: !!r.placeholder_quarantined,
+        });
+      }
     }
   }
 
   const enriched = (projects ?? []).map((p: any) => {
     const t = titlesByProject.get(p.id);
     const l = licensesByProject.get(p.id);
-    const idStatus =
-      identityByEmail.get((p.creator_email ?? "").trim().toLowerCase()) ?? null;
+    const profile =
+      profileByEmail.get((p.creator_email ?? "").trim().toLowerCase()) ?? null;
     return {
       ...p,
       title_id:                       t?.id              ?? null,
@@ -120,7 +136,12 @@ export async function GET(req: NextRequest) {
       media_processing_reset_reason:  t?.media_processing_reset_reason  ?? null,
       media_processing_history:       t?.media_processing_history       ?? [],
       license:                        l ?? null,
-      identity_status:                idStatus,
+      identity_status:                profile?.identity_status ?? null,
+      // Phase 1 — public profile state surfaced into the admin Works panel.
+      profile_handle:                 profile?.handle ?? null,
+      profile_published:              profile?.is_published_publicly ?? false,
+      profile_force_unpublished:      profile?.force_unpublished ?? false,
+      profile_quarantined:            profile?.placeholder_quarantined ?? false,
     };
   });
 

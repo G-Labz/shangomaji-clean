@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -12,8 +13,19 @@ import {
   BadgeCheck,
   ChevronRight,
 } from "lucide-react";
-import { CreatorCard } from "@/components/creators/CreatorCard";
-import { getAllCreators } from "@/data/creatorData";
+
+// Phase 1 — Public listing reads only from /api/public/creators. The mock
+// dataset is no longer consulted, so demo handles cannot resurface here.
+type PublicCreatorCard = {
+  id: string;
+  handle: string;
+  name: string;
+  bio: string;
+  origin: string;
+  avatarUrl: string;
+  bannerUrl: string;
+  isVerified: boolean;
+};
 
 const PILLARS = [
   {
@@ -71,7 +83,19 @@ const fadeUp = {
 };
 
 export default function CreatorsPage() {
-  const creators = getAllCreators();
+  const [creators, setCreators] = useState<PublicCreatorCard[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/public/creators")
+      .then((r) => (r.ok ? r.json() : { creators: [] }))
+      .then((data) => {
+        if (cancelled) return;
+        setCreators(Array.isArray(data?.creators) ? data.creators : []);
+      })
+      .catch(() => { if (!cancelled) setCreators([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -187,14 +211,20 @@ export default function CreatorsPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.6 + i * 0.15, duration: 0.5 }}
               >
-                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-                  <Image
-                    src={c.avatarUrl}
-                    alt={c.name}
-                    width={40}
-                    height={40}
-                    className="object-cover"
-                  />
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-white/5 flex items-center justify-center">
+                  {c.avatarUrl ? (
+                    <Image
+                      src={c.avatarUrl}
+                      alt={c.name}
+                      width={40}
+                      height={40}
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span className="text-white/30 text-sm">
+                      {c.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-1">
@@ -203,7 +233,9 @@ export default function CreatorsPage() {
                       <BadgeCheck size={11} className="text-brand-yellow" />
                     )}
                   </div>
-                  <p className="text-ink-faint text-[10px]">{c.origin}</p>
+                  {c.origin && (
+                    <p className="text-ink-faint text-[10px]">{c.origin}</p>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -325,20 +357,88 @@ export default function CreatorsPage() {
             </motion.div>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {creators.map((c, i) => (
-              <motion.div
-                key={c.id}
-                custom={i}
-                variants={fadeUp}
-                initial="hidden"
-                whileInView="show"
-                viewport={{ once: true }}
-              >
-                <CreatorCard creator={c} />
-              </motion.div>
-            ))}
-          </div>
+          {creators.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {creators.map((c, i) => (
+                <motion.div
+                  key={c.id}
+                  custom={i}
+                  variants={fadeUp}
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true }}
+                >
+                  <Link href={`/creators/${c.handle}`} className="group block">
+                    <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden bg-surface-elevated">
+                      {c.bannerUrl ? (
+                        <Image
+                          src={c.bannerUrl}
+                          alt={c.name}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          sizes="260px"
+                        />
+                      ) : (
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background:
+                              "linear-gradient(135deg, #0d0d0d 0%, #1a0f0a 30%, #1f1510 50%, #0f1015 70%, #0a0a0f 100%)",
+                          }}
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end gap-3">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-white/20 bg-white/5 flex items-center justify-center flex-shrink-0">
+                          {c.avatarUrl ? (
+                            <Image
+                              src={c.avatarUrl}
+                              alt={c.name}
+                              width={48}
+                              height={48}
+                              className="object-cover"
+                            />
+                          ) : (
+                            <span className="text-white/40 text-base">
+                              {c.name.slice(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-white font-semibold text-sm truncate leading-tight">
+                              {c.name}
+                            </p>
+                            {c.isVerified && (
+                              <BadgeCheck size={13} className="text-brand-yellow flex-shrink-0" />
+                            )}
+                          </div>
+                          {c.origin && (
+                            <p className="text-white/50 text-[11px] truncate mt-0.5">
+                              {c.origin}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {c.bio && (
+                      <p className="mt-2.5 px-0.5 text-xs text-ink-muted leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
+                        {c.bio}
+                      </p>
+                    )}
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/8 bg-surface-raised px-6 py-16 text-center">
+              <p className="text-white font-semibold text-lg">No creators yet</p>
+              <p className="text-ink-muted text-sm mt-2 max-w-md mx-auto">
+                ShangoMaji is selective. The first wave of public profiles will
+                appear here as they are reviewed and onboarded.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
