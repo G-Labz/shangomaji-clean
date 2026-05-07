@@ -22,7 +22,15 @@ import { createClient } from "@/lib/supabase-browser";
 type AccessState =
   | { kind: "loading" }
   | { kind: "no_session" }
-  | { kind: "session_unapproved"; email: string; destination: string }
+  // The user is signed in but has an in-pipeline creator application
+  // (pending / rejected / onboarding-required). The page frames their
+  // status accurately because a real creator_applications row exists.
+  | { kind: "session_pipeline"; email: string; destination: "/creators/pending" | "/creators/rejected" | "/creators/onboarding/required" }
+  // The user is signed in but has NO creator_applications row at all.
+  // This is the Member-only case (or any auth'd user without Creator
+  // intent). The page shows separate-lane Member/Creator messaging and
+  // does NOT frame the email as "almost there" or partly in the pipeline.
+  | { kind: "session_no_application"; email: string; isMember: boolean }
   | { kind: "session_approved" }; // transient: routing to /workspace
 
 export default function CreatorAccessPage() {
@@ -53,21 +61,43 @@ export default function CreatorAccessPage() {
       if (data?.approved) {
         setState({ kind: "session_approved" });
         router.replace("/workspace");
-      } else {
-        setState({
-          kind:        "session_unapproved",
-          email:       user.email,
-          destination: data?.destination ?? "/creators/apply",
-        });
+        return;
       }
+
+      const destination: string = data?.destination ?? "/creators/apply";
+
+      // No creator_applications row → separate-lane view. Probe Member
+      // status so the body copy reflects whether this is a Member account.
+      // This does NOT promote the user, link identities, or create rows —
+      // it is read-only.
+      if (destination === "/creators/apply") {
+        let isMember = false;
+        try {
+          const memberRes  = await fetch("/api/members/session", { cache: "no-store" });
+          const memberData = await memberRes.json();
+          isMember = !!memberData?.isMember;
+        } catch { /* ignore — fall back to neutral copy */ }
+        setState({ kind: "session_no_application", email: user.email, isMember });
+        return;
+      }
+
+      // In-pipeline application (pending / rejected / onboarding-required).
+      // Coerce to the narrowed destination union; anything else falls back
+      // to no-application messaging.
+      if (
+        destination === "/creators/pending" ||
+        destination === "/creators/rejected" ||
+        destination === "/creators/onboarding/required"
+      ) {
+        setState({ kind: "session_pipeline", email: user.email, destination });
+        return;
+      }
+
+      setState({ kind: "session_no_application", email: user.email, isMember: false });
     } catch {
-      // If the status check fails, do not redirect blindly. Surface the
-      // signed-in-but-not-approved state so the user can choose.
-      setState({
-        kind:        "session_unapproved",
-        email:       user.email,
-        destination: "/creators/apply",
-      });
+      // If the status check fails, do not redirect blindly. Surface a safe
+      // separate-lane view so the user can choose to sign out or apply.
+      setState({ kind: "session_no_application", email: user.email, isMember: false });
     }
   }
 
@@ -120,25 +150,23 @@ export default function CreatorAccessPage() {
     );
   }
 
-  // ── Signed in, but no approved creator application ─────────────────────
-  if (state.kind === "session_unapproved") {
+  // ── Signed in, in-pipeline creator application ─────────────────────────
+  // Only reached when an actual creator_applications row exists. We frame
+  // the email accurately as a creator-side state.
+  if (state.kind === "session_pipeline") {
     const stateLabel =
       state.destination === "/creators/pending"
         ? "Your application is under review."
         : state.destination === "/creators/rejected"
         ? "Your application was not selected."
-        : state.destination === "/creators/onboarding/required"
-        ? "Onboarding is required before you can enter the workspace."
-        : "No creator application is on file for this account.";
+        : "Onboarding is required before you can enter the workspace.";
 
     const ctaPrimary =
       state.destination === "/creators/pending"
         ? { label: "View Application Status", href: "/creators/pending" }
         : state.destination === "/creators/rejected"
         ? { label: "View Application Status", href: "/creators/rejected" }
-        : state.destination === "/creators/onboarding/required"
-        ? { label: "Continue Onboarding", href: "/creators/onboarding/required" }
-        : { label: "Apply to ShangoMaji", href: "/creators/apply" };
+        : { label: "Continue Onboarding", href: "/creators/onboarding/required" };
 
     return (
       <div style={page}>
@@ -162,6 +190,43 @@ export default function CreatorAccessPage() {
 
           <div style={footer}>
             Need a different account? <button onClick={handleSignOut} style={inlineLink}>Sign out</button> and sign in with the email that received your invite.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Signed in, but no creator_applications row at all ──────────────────
+  // Member identity and Creator identity are separate lanes. We deliberately
+  // do NOT frame this email as part of the Creator pipeline. We also do not
+  // create or link any creator-side row from this view.
+  if (state.kind === "session_no_application") {
+    const body = state.isMember
+      ? "You are currently signed in with a Member account. Member accounts are for watching and managing your private audience account."
+      : "You are currently signed in with an account that has no Creator application on file.";
+
+    return (
+      <div style={page}>
+        <div style={card}>
+          <p style={eyebrow}>Creator Studio</p>
+          <h1 style={heading}>Creator Studio is for approved creators.</h1>
+          <p style={lead}>{body}</p>
+          <p style={leadMuted}>
+            To enter Creator Studio, sign in with an approved Creator account.
+            If you want to become a creator, apply separately.
+          </p>
+
+          <div style={ctaRow}>
+            <button onClick={handleSignOut} style={primaryBtn}>
+              Sign out and use Creator account
+            </button>
+            <Link href="/creators/apply" style={{ ...secondaryBtn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+              Apply as Creator
+            </Link>
+          </div>
+
+          <div style={footer}>
+            Signed in as <span style={emphasis}>{state.email}</span>.
           </div>
         </div>
       </div>

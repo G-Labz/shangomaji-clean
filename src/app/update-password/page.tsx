@@ -35,6 +35,11 @@ export default function MemberUpdatePasswordPage() {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (cancelled) return;
+      // PASSWORD_RECOVERY: server confirmed a recovery session.
+      // SIGNED_IN / USER_UPDATED: also fired by setSession / verifyOtp /
+      //   exchangeCodeForSession success paths; treat as ready since the
+      //   processUrlToken branch only reaches one of those after a positive
+      //   token response.
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "USER_UPDATED") {
         setError(null);
         goStage("ready");
