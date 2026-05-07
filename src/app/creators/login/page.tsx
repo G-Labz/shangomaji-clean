@@ -201,32 +201,35 @@ export default function CreatorAccessPage() {
   // do NOT frame this email as part of the Creator pipeline. We also do not
   // create or link any creator-side row from this view.
   if (state.kind === "session_no_application") {
-    const body = state.isMember
-      ? "You are currently signed in with a Member account. Member accounts are for watching and managing your private audience account."
+    const bodyFirst = state.isMember
+      ? "You are currently signed in with a Member account. Member accounts are for watching ShangoMaji."
       : "You are currently signed in with an account that has no Creator application on file.";
 
     return (
       <div style={page}>
         <div style={card}>
           <p style={eyebrow}>Creator Studio</p>
-          <h1 style={heading}>Creator Studio is for approved creators.</h1>
-          <p style={lead}>{body}</p>
+          <h1 style={heading}>Creator Studio is restricted.</h1>
+          <p style={lead}>{bodyFirst}</p>
+          <p style={lead}>
+            Creator Studio is separate and only available to approved creators.
+            Applying does not guarantee access.
+          </p>
           <p style={leadMuted}>
-            To enter Creator Studio, sign in with an approved Creator account.
-            If you want to become a creator, apply separately.
+            To continue, sign out and use an approved Creator account.
           </p>
 
           <div style={ctaRow}>
             <button onClick={handleSignOut} style={primaryBtn}>
-              Sign out and use Creator account
+              Sign out
             </button>
             <Link href="/creators/apply" style={{ ...secondaryBtn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-              Apply as Creator
+              Apply for Creator Review
             </Link>
           </div>
 
           <div style={footer}>
-            Signed in as <span style={emphasis}>{state.email}</span>.
+            Signed in as <span style={emphasis}>{state.email}</span>
           </div>
         </div>
       </div>
