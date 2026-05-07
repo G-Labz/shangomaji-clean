@@ -10,6 +10,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
+import { getSiteUrl } from "@/lib/site-url";
 
 export default function MemberResetPasswordPage() {
   const supabase = createClient();
@@ -37,13 +38,11 @@ export default function MemberResetPasswordPage() {
 
       // Supabase sends the recovery email. We do not surface whether the
       // email exists in our system to avoid enumeration.
+      const site = getSiteUrl();
       await supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
         {
-          redirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/update-password`
-              : undefined,
+          redirectTo: site ? `${site}/update-password` : undefined,
         }
       );
 

@@ -12,7 +12,7 @@
 // established explicitly — neither role auto-grants the other. /account
 // requires Member, /workspace requires Creator.
 
-import { createClient as createServiceClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient as createServiceClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 
 export type MembershipStatus = {
   authenticated: boolean;
@@ -20,6 +20,17 @@ export type MembershipStatus = {
   isMember:      boolean;
   isCreator:     boolean; // accepted application
 };
+
+// Metadata key set by /signup so we can identify a confirmed Supabase user
+// who explicitly signed up as a Member. Creator-only users never have this.
+export const MEMBER_INTENT_KEY = "account_type";
+export const MEMBER_INTENT_VALUE = "member";
+
+function hasMemberIntent(user: User | null | undefined): boolean {
+  if (!user) return false;
+  const md = (user.user_metadata ?? {}) as Record<string, unknown>;
+  return md[MEMBER_INTENT_KEY] === MEMBER_INTENT_VALUE;
+}
 
 function svc(): SupabaseClient {
   return createServiceClient(
@@ -100,6 +111,39 @@ export async function ensureMemberProfile(opts: {
     return { ok: false, error: error.message };
   }
   return { ok: true, created: true };
+}
+
+// Lazy ensure for users who completed email confirmation. Only creates a
+// member_profiles row when the Supabase user object carries explicit
+// `account_type: "member"` metadata (set by /signup). Creator-only users
+// have no such metadata and are left untouched, preserving role separation.
+//
+// Returns whether the user is a Member after this call. Idempotent —
+// existing rows are not mutated. Display name is taken from user_metadata
+// only if no row existed (matches ensureMemberProfile semantics).
+export async function ensureMemberFromUser(
+  user: User | null | undefined
+): Promise<{ isMember: boolean }> {
+  const email = normalizeEmail(user?.email);
+  if (!email) return { isMember: false };
+
+  const already = await isMemberEmail(email);
+  if (already) return { isMember: true };
+
+  if (!hasMemberIntent(user)) return { isMember: false };
+
+  const md = (user!.user_metadata ?? {}) as Record<string, unknown>;
+  const displayName =
+    typeof md.display_name === "string" ? md.display_name : null;
+
+  const result = await ensureMemberProfile({ email, displayName });
+  if (!result.ok) {
+    // Truthful logging without leaking PII beyond email (which the founder
+    // already sees in their own admin queries). No tokens, no metadata blob.
+    console.error("ensureMemberFromUser failed", { email, error: result.error });
+    return { isMember: false };
+  }
+  return { isMember: true };
 }
 
 // Public-safe shape for the /api/members/session endpoint. Note: email is

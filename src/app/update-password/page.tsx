@@ -59,6 +59,33 @@ export default function MemberUpdatePasswordPage() {
           return;
         }
 
+        // Hash-fragment implicit flow. This is what Supabase's default
+        // recovery email template produces after its /auth/v1/verify endpoint
+        // redirects the browser back to this page. We set the session
+        // explicitly instead of relying on detectSessionInUrl racing with the
+        // 8s watchdog. Tokens are never logged.
+        const accessToken  = hash.get("access_token");
+        const refreshToken = hash.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { error: setErr } = await supabase.auth.setSession({
+            access_token:  accessToken,
+            refresh_token: refreshToken,
+          });
+          if (cancelled) return;
+          if (setErr) {
+            setError(
+              /expired|invalid/i.test(setErr.message || "")
+                ? "This link has expired or is no longer valid. Please request a new reset link."
+                : "Could not verify your link."
+            );
+            goStage("error");
+          } else {
+            window.history.replaceState({}, "", window.location.pathname);
+            goStage("ready");
+          }
+          return;
+        }
+
         const tokenHash = query.get("token_hash") || hash.get("token_hash");
         const typeParam = query.get("type")       || hash.get("type");
         if (tokenHash && typeParam) {
@@ -92,7 +119,12 @@ export default function MemberUpdatePasswordPage() {
             window.history.replaceState({}, "", window.location.pathname);
             goStage("ready");
           }
+          return;
         }
+
+        // No explicit token in URL — fall through. detectSessionInUrl may
+        // still fire onAuthStateChange asynchronously; the watchdog catches
+        // the case where it never does.
       } catch {
         if (cancelled) return;
         setError("Could not verify your link.");

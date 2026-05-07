@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import {
-  isMemberEmail,
+  ensureMemberFromUser,
   hasAcceptedCreatorApplication,
   type MemberSessionPayload,
 } from "@/lib/member-auth";
@@ -36,8 +36,11 @@ export async function GET() {
     return NextResponse.json(payload, { headers: NO_STORE });
   }
 
-  const [isMember, isCreator] = await Promise.all([
-    isMemberEmail(user.email),
+  // ensureMemberFromUser is self-healing: it creates the member_profiles row
+  // when the user has explicit Member intent metadata (set by /signup) and
+  // no row yet. Creator-only users without that metadata are not promoted.
+  const [{ isMember }, isCreator] = await Promise.all([
+    ensureMemberFromUser(user),
     hasAcceptedCreatorApplication(user.email),
   ]);
 

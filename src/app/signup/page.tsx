@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
+import { getSiteUrl } from "@/lib/site-url";
 
 // Phase 2 — Create your Member account.
 //
@@ -77,15 +78,20 @@ export default function MemberSignupPage() {
       // Create the auth.users row. Verification email is sent automatically
       // by Supabase when email-confirm is on; otherwise the session is
       // available immediately.
+      // account_type marks this user as a Member at confirmation time. The
+      // /account gate and /api/members/session use this to lazily create the
+      // member_profiles row after email confirmation, since data.session is
+      // null when confirmation is required.
+      const site = getSiteUrl();
       const { data, error: signUpError } = await supabase.auth.signUp({
         email:    email.trim().toLowerCase(),
         password,
         options: {
-          emailRedirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/account`
-              : undefined,
-          data: { display_name: displayName.trim() || null },
+          emailRedirectTo: site ? `${site}/account` : undefined,
+          data: {
+            account_type: "member",
+            display_name: displayName.trim() || null,
+          },
         },
       });
 

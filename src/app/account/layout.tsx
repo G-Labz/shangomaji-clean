@@ -1,19 +1,20 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { isMemberEmail } from "@/lib/member-auth";
+import { ensureMemberFromUser } from "@/lib/member-auth";
 
 // Phase 2 — /account auth gate.
 //
 // Strict rules:
 //   1. No Supabase session → redirect to /login with redirect target.
-//   2. Authed but not a Member (no member_profiles row) → redirect to /signup
-//      with redirect target. We intentionally do NOT auto-create a Member
-//      profile here. A Creator-only account viewing /account is sent to
-//      /signup so role separation stays explicit.
+//   2. Authed but no member_profiles row:
+//        - If user_metadata.account_type === "member" (set by /signup),
+//          lazily create the profile row. This handles the email-confirmation
+//          case where data.session was null at signup time so the row could
+//          not be created then.
+//        - Otherwise (Creator-only or unknown intent) → redirect to /signup.
+//          We do NOT auto-create profiles for users without Member intent
+//          metadata, preserving role separation.
 //   3. Authed Member → render /account.
-//
-// /account never exposes Creator workspace data or admin data — it reads
-// only from member_profiles via /api/members/profile in the client.
 
 export default async function AccountLayout({
   children,
@@ -29,11 +30,8 @@ export default async function AccountLayout({
     redirect("/login?redirect=/account");
   }
 
-  const member = await isMemberEmail(user.email);
-  if (!member) {
-    // Authed but no Member profile. Send them to /signup with their email
-    // pre-fill not required; signup will use whatever they type. We do NOT
-    // auto-create the row here.
+  const { isMember } = await ensureMemberFromUser(user);
+  if (!isMember) {
     redirect("/signup?redirect=/account");
   }
 
