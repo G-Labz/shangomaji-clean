@@ -6,13 +6,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Phase 1 — Public listing of reachable creator profiles.
+// Phase 1 patch — Public roster of reachable creator profiles.
 //
-// Reachability mirrors /api/public/creator: published, not quarantined, not
-// force-unpublished, and tied to an accepted application. Listings ARE the
-// trust surface — every row that appears here must pass the same gate the
-// individual profile route uses, otherwise placeholders/demo rows could
-// resurface here.
+// Reachability MUST mirror /api/public/creator. If the singular profile route
+// would render the page, the listing must include the row. Earlier
+// implementation used a case-sensitive `.in("email", emails).eq("status",
+// "accepted")` filter against creator_applications, while the singular route
+// uses case-insensitive `.ilike()`. Profiles whose stored email differed in
+// case from their application row would render at /creators/{handle} but be
+// dropped from /creators — the bug this patch fixes.
+//
+// Implementation choices:
+//   - Match accepted-application by lowercased key in JS, not at the SQL
+//     `.in()` layer. Same approach used in /api/public/titles after the
+//     equivalent attribution bug was fixed.
+//   - `force-dynamic` so a freshly published profile appears on the next
+//     request without waiting for a static cache to expire.
+export const dynamic = "force-dynamic";
+
 const PUBLIC_CARD_FIELDS =
   "email, handle, display_name, bio_short, city, country, avatar_url, banner_url, identity_status, published_at";
 
@@ -31,19 +42,29 @@ export async function GET() {
 
   const rows = (profileRows ?? []) as any[];
 
-  // Verify each profile is still tied to an accepted application. Use a
-  // single batched lookup to avoid N+1.
-  const emails = rows.map((r) => (r.email ?? "").trim().toLowerCase()).filter(Boolean);
+  if (rows.length === 0) {
+    return NextResponse.json({ creators: [] });
+  }
+
+  // Verify each profile is still tied to an accepted application using a
+  // case-insensitive match. We fetch all accepted application emails (small
+  // table at Phase 1 scale) and match on lowercased keys in JS, mirroring
+  // /api/public/creator's `.ilike()` behavior.
+  const profileEmails = new Set(
+    rows
+      .map((r) => (r.email ?? "").trim().toLowerCase())
+      .filter((e: string) => e.length > 0)
+  );
+
   const acceptedSet = new Set<string>();
-  if (emails.length) {
+  if (profileEmails.size > 0) {
     const { data: appRows } = await supabase
       .from("creator_applications")
       .select("email, status")
-      .in("email", emails)
       .eq("status", "accepted");
-    for (const a of appRows ?? []) {
-      const e = ((a as any).email ?? "").trim().toLowerCase();
-      if (e) acceptedSet.add(e);
+    for (const a of (appRows ?? []) as any[]) {
+      const e = (a.email ?? "").trim().toLowerCase();
+      if (e && profileEmails.has(e)) acceptedSet.add(e);
     }
   }
 
@@ -52,6 +73,8 @@ export async function GET() {
     .map((r) => {
       const origin = [r.city, r.country].filter(Boolean).join(", ");
       return {
+        // Public-safe shape only. Email, identity_status raw, application
+        // answers, removal history, etc. are intentionally not surfaced.
         id:         r.handle,
         handle:     r.handle,
         name:       r.display_name || r.handle,

@@ -87,7 +87,10 @@ export default function CreatorsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/public/creators")
+    // no-store so a creator who just published shows up on the next nav,
+    // not after a stale-cache window. The route is `force-dynamic` server-side;
+    // this disables any browser/proxy caching layer above it as well.
+    fetch("/api/public/creators", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { creators: [] }))
       .then((data) => {
         if (cancelled) return;
