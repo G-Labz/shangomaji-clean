@@ -58,6 +58,13 @@ export default function ProfilePage() {
   const [placeholderQuarantined, setPlaceholderQuarantined] = useState(false);
   const [publishBusy, setPublishBusy]                   = useState(false);
 
+  // Phase 1 publish-safety patch — confirmation modal state for unpublish.
+  // Publishing remains one-click; unpublishing requires explicit confirmation
+  // because it removes the profile from the public roster and 404s the
+  // public page.
+  const [showUnpublishModal, setShowUnpublishModal] = useState(false);
+  const [unpublishError, setUnpublishError]         = useState("");
+
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
   // Completion — string fields only; external_links contributes via website
@@ -178,6 +185,11 @@ export default function ProfilePage() {
   // Publish / Unpublish — sends only the publish flag. Save the rest of the
   // form first via Save Profile, then publish; the API rejects publishing if
   // a handle isn't set or the row has been force-unpublished by an admin.
+  // Republish does NOT require profile edits — the existing display name,
+  // handle, bio, avatar, and banner are preserved as-is on the row.
+  //
+  // Throws on failure so callers (the unpublish modal in particular) can
+  // surface the message in their own error slot instead of the global save bar.
   async function handleTogglePublish(next: boolean) {
     setPublishBusy(true);
     setError("");
@@ -191,12 +203,32 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Publish update failed");
       setIsPublished(next);
+      // Re-fetch the canonical profile so admin-only fields (force_unpublished,
+      // placeholder_quarantined) and audit columns stay in sync with the DB
+      // immediately after publish/unpublish, instead of waiting for the next
+      // page navigation.
+      await loadProfile();
       setSavedMessage(next ? "Profile published." : "Profile unpublished.");
       savedTimer.current = setTimeout(() => setSavedMessage(""), 2500);
     } catch (err: any) {
-      setError(err?.message || "Publish update failed");
+      const msg = err?.message || "Publish update failed";
+      setError(msg);
+      throw err;
     } finally {
       setPublishBusy(false);
+    }
+  }
+
+  // Unpublish — confirmation-gated wrapper. The publish strip's "Unpublish"
+  // button opens this modal; the modal calls handleTogglePublish(false) only
+  // after the creator confirms.
+  async function handleConfirmUnpublish() {
+    setUnpublishError("");
+    try {
+      await handleTogglePublish(false);
+      setShowUnpublishModal(false);
+    } catch (err: any) {
+      setUnpublishError(err?.message || "Unpublish failed");
     }
   }
 
@@ -232,6 +264,121 @@ export default function ProfilePage() {
 
   return (
     <div style={{ maxWidth: 800, paddingBottom: 100 }}>
+
+        {/* ── Unpublish confirmation modal ── */}
+        {showUnpublishModal && (
+          <div
+            onClick={() => {
+              if (publishBusy) return;
+              setShowUnpublishModal(false);
+              setUnpublishError("");
+            }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 80,
+              background: "rgba(0,0,0,0.75)",
+              backdropFilter: "blur(4px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1rem",
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: 460,
+                padding: "28px 24px 22px",
+                borderRadius: 16,
+                background: "#141010",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "rgba(245,197,24,0.85)",
+                  margin: 0,
+                  marginBottom: 8,
+                }}
+              >
+                Public Profile
+              </p>
+              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "white" }}>
+                Unpublish this profile?
+              </h3>
+
+              <p style={{ margin: "12px 0 0", fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 1.55 }}>
+                Unpublishing hides this profile from the public creator roster and
+                makes the public profile page unavailable.
+              </p>
+              <p style={{ margin: "10px 0 0", fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55 }}>
+                Your profile data is preserved. You can republish at any time
+                without re-entering anything.
+              </p>
+
+              {unpublishError && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: "10px 12px",
+                    background: "rgba(220,38,38,0.08)",
+                    border: "1px solid rgba(220,38,38,0.25)",
+                    borderRadius: 10,
+                    color: "rgba(252,165,165,0.9)",
+                    fontSize: 13,
+                  }}
+                >
+                  {unpublishError}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
+                <button
+                  onClick={() => {
+                    if (publishBusy) return;
+                    setShowUnpublishModal(false);
+                    setUnpublishError("");
+                  }}
+                  disabled={publishBusy}
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.75)",
+                    fontSize: 13,
+                    cursor: publishBusy ? "not-allowed" : "pointer",
+                    opacity: publishBusy ? 0.6 : 1,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmUnpublish}
+                  disabled={publishBusy}
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(245,197,24,0.4)",
+                    background: "rgba(245,197,24,0.08)",
+                    color: "rgba(245,197,24,0.95)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: publishBusy ? "not-allowed" : "pointer",
+                    opacity: publishBusy ? 0.6 : 1,
+                  }}
+                >
+                  {publishBusy ? "Unpublishing…" : "Unpublish Profile"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Quarantine banner — admin-imposed hold ── */}
         {placeholderQuarantined && (
@@ -336,7 +483,11 @@ export default function ProfilePage() {
               )}
               {isPublished ? (
                 <button
-                  onClick={() => handleTogglePublish(false)}
+                  onClick={() => {
+                    if (publishBusy || placeholderQuarantined) return;
+                    setUnpublishError("");
+                    setShowUnpublishModal(true);
+                  }}
                   disabled={publishBusy || placeholderQuarantined}
                   style={{
                     fontSize: 12,

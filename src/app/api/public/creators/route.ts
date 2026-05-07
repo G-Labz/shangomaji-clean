@@ -14,15 +14,25 @@ const supabase = createClient(
 // "accepted")` filter against creator_applications, while the singular route
 // uses case-insensitive `.ilike()`. Profiles whose stored email differed in
 // case from their application row would render at /creators/{handle} but be
-// dropped from /creators — the bug this patch fixes.
+// dropped from /creators — the bug that was fixed in the prior patch.
+//
+// Caching posture (this patch — publish/unpublish consistency):
+//   - `force-dynamic` ensures Next.js does not statically cache the route
+//     output between deploys.
+//   - Explicit `Cache-Control: no-store` header on every response prevents
+//     CDN/edge/browser caches from serving a stale roster after a creator
+//     unpublishes. Without this header an unpublished profile could persist
+//     on /creators while /creators/{handle} already returns 404.
 //
 // Implementation choices:
 //   - Match accepted-application by lowercased key in JS, not at the SQL
-//     `.in()` layer. Same approach used in /api/public/titles after the
-//     equivalent attribution bug was fixed.
-//   - `force-dynamic` so a freshly published profile appears on the next
-//     request without waiting for a static cache to expire.
-export const dynamic = "force-dynamic";
+//     `.in()` layer. Same approach used in /api/public/titles.
+export const dynamic   = "force-dynamic";
+export const revalidate = 0;
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+} as const;
 
 const PUBLIC_CARD_FIELDS =
   "email, handle, display_name, bio_short, city, country, avatar_url, banner_url, identity_status, published_at";
@@ -37,13 +47,16 @@ export async function GET() {
     .order("published_at", { ascending: false, nullsFirst: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 
   const rows = (profileRows ?? []) as any[];
 
   if (rows.length === 0) {
-    return NextResponse.json({ creators: [] });
+    return NextResponse.json({ creators: [] }, { headers: NO_STORE_HEADERS });
   }
 
   // Verify each profile is still tied to an accepted application using a
@@ -86,5 +99,5 @@ export async function GET() {
       };
     });
 
-  return NextResponse.json({ creators });
+  return NextResponse.json({ creators }, { headers: NO_STORE_HEADERS });
 }
