@@ -98,6 +98,17 @@ body::after {
   100% { background-position: 0% 50%; }
 }
 
+/* Phase 5 watch-entry brand beat — cinematic logo entrance + idle ember breath. */
+@keyframes brand-entry {
+  0%   { opacity: 0; transform: scale(0.94); }
+  55%  { opacity: 1; transform: scale(1.015); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes ember-breathe-sm {
+  0%, 100% { filter: drop-shadow(0 0 32px rgba(229,62,42,0.22)); }
+  50%      { filter: drop-shadow(0 0 64px rgba(229,62,42,0.40)); }
+}
+
 body > * { position: relative; z-index: 1; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }

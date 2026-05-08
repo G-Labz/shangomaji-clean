@@ -382,16 +382,35 @@ function CreatorBunnyPlayer({
   );
 }
 
-// Phase 5 — Native watch frame.
+// Phase 5 watch-entry brand beat.
 //
 // Renders the ShangoMaji-owned chrome (back arrow + title bar, black
-// canvas, centered 16:9 player container) plus a non-forced loading
-// plate. The plate is hidden by default; it only appears if the iframe
-// has not fired `onLoad` after ~400ms. There is no forced delay — fast
-// loads never see the plate.
+// canvas, centered 16:9 player container) and a deliberate brand-entry
+// overlay that holds the ShangoMaji mark for ~2.2s before revealing the
+// Bunny iframe. This is the one place in the product where a forced
+// delay is intentional — modeled on streaming-platform watch-entry beats.
+//
+// Architecture:
+//   • iframe mounts immediately and begins preloading underneath the
+//     overlay, so the brand beat is the only thing visible while the
+//     player gets ready.
+//   • The overlay covers the player canvas only (not the top bar), so
+//     a user who changed their mind can still click Back during the
+//     beat. No UX trap.
+//   • Fade-out triggers when both:
+//       (a) MIN_BEAT_MS has elapsed, and
+//       (b) iframe.onLoad has fired.
+//     A FALLBACK_MS safety timer also forces fade-out so the screen can
+//     never hang forever.
+//   • After fade-out completes the overlay unmounts so it cannot
+//     intercept clicks.
 //
 // Bunny's native controls (speed, quality, fullscreen, AirPlay/cast,
 // PiP) remain owned by Bunny. We do not layer custom controls.
+const MIN_BEAT_MS  = 2200;
+const FALLBACK_MS  = 8000;
+const FADE_OUT_MS  = 600;
+
 function PlayingFrame({
   url,
   title,
@@ -403,20 +422,39 @@ function PlayingFrame({
   onBack: () => void;
   onStreamError: () => void;
 }) {
-  const [loaded, setLoaded]     = useState(false);
-  const [showPlate, setShowPlate] = useState(false);
-  const PLATE_DELAY_MS = 400;
+  const [iframeLoaded,  setIframeLoaded]  = useState(false);
+  const [minBeatPassed, setMinBeatPassed] = useState(false);
+  const [revealPlayer,  setRevealPlayer]  = useState(false);
+  const [beatMounted,   setBeatMounted]   = useState(true);
 
+  // Min hold + safety fallback timers. Both clean up on unmount.
   useEffect(() => {
-    if (loaded) return;
-    const t = setTimeout(() => setShowPlate(true), PLATE_DELAY_MS);
+    const minT = setTimeout(() => setMinBeatPassed(true), MIN_BEAT_MS);
+    const safT = setTimeout(() => setRevealPlayer(true),  FALLBACK_MS);
+    return () => {
+      clearTimeout(minT);
+      clearTimeout(safT);
+    };
+  }, []);
+
+  // Reveal the player once both gates are open.
+  useEffect(() => {
+    if (revealPlayer) return;
+    if (iframeLoaded && minBeatPassed) setRevealPlayer(true);
+  }, [iframeLoaded, minBeatPassed, revealPlayer]);
+
+  // After the fade-out completes, fully unmount the overlay so it cannot
+  // intercept pointer events on the player.
+  useEffect(() => {
+    if (!revealPlayer) return;
+    const t = setTimeout(() => setBeatMounted(false), FADE_OUT_MS + 100);
     return () => clearTimeout(t);
-  }, [loaded]);
+  }, [revealPlayer]);
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col">
       <PageTitle title={`${title.title} · Watch`} />
-      <div className="flex items-center gap-4 px-5 py-4 bg-black/90 z-10">
+      <div className="flex items-center gap-4 px-5 py-4 bg-black/90 z-20">
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-white/70 hover:text-white text-sm transition"
@@ -432,9 +470,8 @@ function PlayingFrame({
         </p>
       </div>
 
-      {/* Centered 16:9 player container. flex-1 + items-center + justify-center
-          keeps the player canvas cinematic on tall viewports without
-          stretching, while still going edge-to-edge on standard 16:9. */}
+      {/* Player canvas — iframe mounts immediately so the Bunny session
+          can preload behind the brand-entry overlay. */}
       <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
         <div
           className="relative w-full h-full max-h-[100vh]"
@@ -446,39 +483,53 @@ function PlayingFrame({
             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             className="absolute inset-0 w-full h-full border-0"
-            onLoad={() => setLoaded(true)}
+            onLoad={() => setIframeLoaded(true)}
             onError={onStreamError}
           />
 
-          {/* Non-forced loading plate — only appears after PLATE_DELAY_MS
-              and disappears the moment the iframe loads. */}
-          {!loaded && showPlate && <LoadingPlate title={title.title} />}
+          {/* Brand-entry overlay — covers the player canvas only,
+              leaving the top bar (Back arrow) reachable. */}
+          {beatMounted && <BrandEntryBeat fadingOut={revealPlayer} />}
         </div>
       </div>
     </div>
   );
 }
 
-function LoadingPlate({ title }: { title: string }) {
+// Phase 5 watch-entry brand beat — cinematic logo overlay.
+// Pure presentation: no timing logic here, parent owns the lifecycle.
+function BrandEntryBeat({ fadingOut }: { fadingOut: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="absolute inset-0 flex flex-col items-center justify-center bg-black"
-      style={{ pointerEvents: "none" }}
+      className="absolute inset-0 flex items-center justify-center bg-black"
+      style={{
+        transition:    `opacity ${FADE_OUT_MS}ms ease`,
+        opacity:       fadingOut ? 0 : 1,
+        pointerEvents: fadingOut ? "none" : "auto",
+        // Layer above the iframe within the player canvas only.
+        zIndex: 5,
+      }}
     >
-      <BrandLoadingMark size="large" />
-      <span
-        className="mt-4 px-4 text-center"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo.png"
+        alt=""
+        aria-hidden="true"
+        className="object-contain"
         style={{
-          fontSize: 12,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          color: "rgba(255,255,255,0.55)",
-          fontWeight: 600,
+          width:  "clamp(280px, 55vmin, 640px)",
+          height: "clamp(280px, 55vmin, 640px)",
+          // Two animations stacked:
+          //   1. brand-entry — one-shot 1.4s entrance (fade + scale settle).
+          //   2. ember-breathe-sm — slow infinite glow during the hold.
+          // The ember pulse sits on `filter`, the entrance sits on
+          // `opacity` + `transform`, so they coexist without conflict.
+          animation:
+            "brand-entry 1.4s cubic-bezier(0.22, 1, 0.36, 1) both, " +
+            "ember-breathe-sm 5s ease-in-out 1.4s infinite",
         }}
-      >
-        {title}
-      </span>
+      />
     </div>
   );
 }
@@ -492,26 +543,17 @@ function LoadingPlate({ title }: { title: string }) {
 //
 // Visual brief: cinematic, subtle, premium-streaming feel. The pulse is the
 // only motion — no spinner, no caption, no "Loading…" text.
-function BrandLoadingMark({ size = "medium" }: { size?: "medium" | "large" }) {
-  // Phase 5 final correction — institutional streaming-mark presence.
+function BrandLoadingMark() {
+  // Phase 5 — gate-fetch screen mark.
   //
-  // Sizing intent: read as a brand "moment" rather than a nav favicon.
-  // Reference scale: Netflix N / Hulu wordmark / HBO Max stacked mark when
-  // they appear on cold-load black screens. We anchor the size to viewport
-  // min-edge (vmin) so the mark stays roughly the same visual weight on
-  // both wide desktop and tall mobile, with a generous max so 4K displays
-  // don't blow it out.
+  // Used only by CheckingState (the brief moment between mount and the
+  // /api/playback/session response). Sized smaller than the watch-entry
+  // brand beat so the gate fetch reads as quiet/system, not as the
+  // premium watch-entry moment.
   //
-  //   medium  → CheckingState (gate-fetch screen)
-  //   large   → LoadingPlate  (post-iframe-mount, before iframe onLoad)
-  //
-  // Animation is a restrained pulse — no spinner, no glow stack. A single
-  // soft brand drop-shadow gives the mark a cinematic edge without going
-  // gimmicky.
-  const dimension =
-    size === "large"
-      ? "clamp(180px, 28vmin, 360px)"
-      : "clamp(140px, 22vmin, 280px)";
+  // Watch-entry brand beat is its own component (`BrandEntryBeat`) with
+  // a larger logo and full cinematic timing.
+  const dimension = "clamp(140px, 22vmin, 280px)";
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
