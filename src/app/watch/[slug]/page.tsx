@@ -493,7 +493,25 @@ function LoadingPlate({ title }: { title: string }) {
 // Visual brief: cinematic, subtle, premium-streaming feel. The pulse is the
 // only motion — no spinner, no caption, no "Loading…" text.
 function BrandLoadingMark({ size = "medium" }: { size?: "medium" | "large" }) {
-  const dimension = size === "large" ? "clamp(96px, 12vw, 168px)" : "clamp(72px, 9vw, 128px)";
+  // Phase 5 final correction — institutional streaming-mark presence.
+  //
+  // Sizing intent: read as a brand "moment" rather than a nav favicon.
+  // Reference scale: Netflix N / Hulu wordmark / HBO Max stacked mark when
+  // they appear on cold-load black screens. We anchor the size to viewport
+  // min-edge (vmin) so the mark stays roughly the same visual weight on
+  // both wide desktop and tall mobile, with a generous max so 4K displays
+  // don't blow it out.
+  //
+  //   medium  → CheckingState (gate-fetch screen)
+  //   large   → LoadingPlate  (post-iframe-mount, before iframe onLoad)
+  //
+  // Animation is a restrained pulse — no spinner, no glow stack. A single
+  // soft brand drop-shadow gives the mark a cinematic edge without going
+  // gimmicky.
+  const dimension =
+    size === "large"
+      ? "clamp(180px, 28vmin, 360px)"
+      : "clamp(140px, 22vmin, 280px)";
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -504,8 +522,7 @@ function BrandLoadingMark({ size = "medium" }: { size?: "medium" | "large" }) {
       style={{
         width:  dimension,
         height: dimension,
-        filter:
-          "drop-shadow(0 0 24px rgba(229,62,42,0.35)) drop-shadow(0 0 6px rgba(245,197,24,0.18))",
+        filter: "drop-shadow(0 0 32px rgba(229,62,42,0.28))",
       }}
     />
   );

@@ -36,12 +36,12 @@ export default function AccountPage() {
   const router   = useRouter();
   const supabase = createClient();
 
-  const [profile, setProfile]         = useState<MemberProfile | null>(null);
-  const [loading, setLoading]         = useState(true);
-  const [saving, setSaving]           = useState(false);
-  const [error, setError]             = useState<string | null>(null);
-  const [savedMessage, setSavedMessage] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState("");
+  // Phase 5 final correction — display name editing has been moved off this
+  // page entirely, so `saving` / `displayName` / `savedMessage` are no longer
+  // needed here. The overview just reads the profile.
+  const [profile, setProfile] = useState<MemberProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
 
   const [savedTitles, setSavedTitles] = useState<TitleSummary[] | null>(null);
   const [recent, setRecent]           = useState<RecentProgress>(null);
@@ -55,7 +55,6 @@ export default function AccountPage() {
       if (!res.ok) throw new Error(data?.error || "Could not load account");
       const p: MemberProfile | null = data.profile ?? null;
       setProfile(p);
-      setDisplayName(p?.display_name || "");
     } catch (e: any) {
       setError(e?.message || "Could not load account");
     } finally {
@@ -91,27 +90,7 @@ export default function AccountPage() {
     loadRecent();
   }, []);
 
-  async function handleSaveName() {
-    setSaving(true);
-    setError(null);
-    setSavedMessage(null);
-    try {
-      const res = await fetch("/api/members/profile", {
-        method:  "PUT",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ display_name: displayName.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Save failed");
-      setSavedMessage("Saved.");
-      setTimeout(() => setSavedMessage(null), 2000);
-      await loadProfile();
-    } catch (e: any) {
-      setError(e?.message || "Save failed");
-    } finally {
-      setSaving(false);
-    }
-  }
+  // handleSaveName removed — display-name editing now lives on /account/settings.
 
   async function handleSignOut() {
     // Phase 5 fix — sign-out hygiene.
@@ -161,7 +140,8 @@ export default function AccountPage() {
         <p style={lead}>Your saved titles live here.</p>
 
         {error && <div style={errorBox}>{error}</div>}
-        {savedMessage && <div style={infoBox}>{savedMessage}</div>}
+        {/* savedMessage banner removed in Phase 5 final correction —
+            display-name save lives on /account/settings now. */}
 
         {/* Phase 5 — "Last watched" row hidden in this build.
             Honest playback time is not yet captured from Bunny; the
@@ -219,29 +199,26 @@ export default function AccountPage() {
         </section>
 
         {/* ── Member profile ──────────────────────────────────────── */}
+        {/* Phase 5 final correction — overview-only, not a form.
+            Display name is read-only here; editing happens on
+            /account/settings via the existing "Account settings" entry. */}
         <section style={section}>
           <h2 style={sectionHeading}>Member profile</h2>
 
           <div style={row}>
             <label style={label}>Email</label>
-            <input value={profile.email} readOnly style={{ ...input, opacity: 0.55 }} />
+            <p style={readOnlyValue}>{profile.email}</p>
           </div>
 
           <div style={row}>
             <label style={label}>Display name</label>
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              maxLength={80}
-              style={input}
-              placeholder="What should we call you?"
-            />
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={handleSaveName} disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.6 : 1 }}>
-              {saving ? "Saving…" : "Save"}
-            </button>
+            {profile.display_name && profile.display_name.trim() ? (
+              <p style={readOnlyValue}>{profile.display_name}</p>
+            ) : (
+              <p style={{ ...readOnlyValue, color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>
+                No display name set.
+              </p>
+            )}
           </div>
         </section>
 
@@ -332,6 +309,20 @@ const input: React.CSSProperties = {
   fontSize: 14,
   outline: "none",
   boxSizing: "border-box",
+};
+const readOnlyValue: React.CSSProperties = {
+  // Phase 5 final correction — read-only display values on /account.
+  // Visually flush with the form-field surface but with no border,
+  // no caret, and no input affordance, so it reads as "this is your
+  // current value" rather than "edit me here".
+  margin: 0,
+  padding: "11px 14px",
+  borderRadius: 10,
+  background: "rgba(255,255,255,0.03)",
+  color: "white",
+  fontSize: 14,
+  lineHeight: 1.4,
+  wordBreak: "break-word",
 };
 const kv: React.CSSProperties = { display: "flex", justifyContent: "space-between" };
 const kLabel: React.CSSProperties = { fontSize: 13, color: "rgba(255,255,255,0.55)" };
