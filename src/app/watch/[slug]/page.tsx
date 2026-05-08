@@ -409,6 +409,28 @@ const FADE_OUT_MS      = 400;
 const IFRAME_FADE_MS   = 300;
 const FALLBACK_MS      = 6000; // hard cap — never hang forever
 
+// Append Bunny Stream embed parameters that honor the user's Play intent.
+// The user clicked Play on /title and was navigated here, so the watch
+// page is a direct continuation of that gesture. We request autoplay +
+// preload on the iframe URL.
+//
+// Bunny token signing covers (key + videoId + expires) only — adding
+// presentation query params here does NOT invalidate the token.
+//   • autoplay=true — request autoplay; browser may still block without
+//     a user gesture, in which case Bunny's native play button surfaces.
+//   • preload=true  — start fetching the manifest while the watch intro
+//     is on screen, so playback is ready by the time the overlay exits.
+function withPlayIntent(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.set("autoplay", "true");
+    u.searchParams.set("preload",  "true");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 function PlayingFrame({
   url,
   title,
@@ -490,7 +512,7 @@ function PlayingFrame({
           style={{ aspectRatio: "16 / 9" }}
         >
           <iframe
-            src={url}
+            src={withPlayIntent(url)}
             title={title.title}
             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -512,8 +534,15 @@ function PlayingFrame({
   );
 }
 
-// Phase 5 watch-entry brand beat — clean fade-in, steady hold, clean
-// fade-out. No scale settle, no pulse, no breathing. Pure opacity.
+// Phase 5 watch intro — clean fade-in, steady hold, clean fade-out.
+// No scale, no transform, no pulse, no breathing, no bounce. Pure opacity.
+//
+// Sizing note: /logo.png is a 1536×1024 (3:2) wordmark. We size the
+// WRAPPER to that aspect ratio at full intended dimensions and let the
+// <img> fill the wrapper exactly. This prevents the perceptual "starts
+// small and grows" issue caused by letterbox snap during decode of a
+// landscape image inside a square box. The wrapper has its final size
+// from frame one; only opacity moves.
 function BrandEntryBeat({ fadingOut }: { fadingOut: boolean }) {
   return (
     <div
@@ -527,20 +556,34 @@ function BrandEntryBeat({ fadingOut }: { fadingOut: boolean }) {
         zIndex: 5,
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/logo.png"
-        alt=""
-        aria-hidden="true"
-        className="object-contain"
+      <div
         style={{
-          width:  "clamp(280px, 55vmin, 640px)",
-          height: "clamp(280px, 55vmin, 640px)",
-          // Single one-shot fade-in. No transform, no infinite loops,
-          // no breathing. The hold is just steady opacity 1.
-          animation: `brand-entry-fade ${ENTRY_MS}ms ease-out both`,
+          // 3:2 aspect — matches the source logo. No letterbox, no
+          // box-vs-content size mismatch.
+          width: "clamp(380px, 60vmin, 800px)",
+          aspectRatio: "3 / 2",
+          // Single one-shot opacity fade-in on the wrapper. No transform.
+          // willChange hints the browser to GPU-composite the fade so it
+          // doesn't trigger any layout work mid-animation.
+          animation:  `brand-entry-fade ${ENTRY_MS}ms ease-out both`,
+          willChange: "opacity",
         }}
-      />
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.png"
+          alt=""
+          aria-hidden="true"
+          decoding="sync"
+          loading="eager"
+          style={{
+            display:  "block",
+            width:    "100%",
+            height:   "100%",
+            objectFit: "contain",
+          }}
+        />
+      </div>
     </div>
   );
 }
