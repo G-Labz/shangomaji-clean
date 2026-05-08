@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { buildBunnyEmbedUrl, buildBunnyThumbnailUrl } from "@/lib/bunny";
+import { buildBunnyThumbnailUrl } from "@/lib/bunny";
+
+// Phase 3 — public title metadata is freely browsable, but the playback
+// embed URL is NEVER returned here. Members must obtain a signed/expiring
+// playback URL via /api/playback/session, which enforces auth, Member
+// status, license term, and distribution window before signing.
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -131,8 +136,13 @@ export async function GET() {
         profileFallbackNameByEmail.get(emailKey) ||
         null;
 
-      const playbackEmbedUrl = buildBunnyEmbedUrl(t.bunny_video_id);
-      if (!playbackEmbedUrl) return null;
+      // Phase 3: a title is "playable" iff media_ready, has a bunny_video_id,
+      // and the Bunny library is configured server-side. We do NOT return the
+      // embed URL itself — the client must call /api/playback/session to
+      // receive a signed/expiring URL. We still surface the thumbnail because
+      // it is a low-value image asset, not a playback grant.
+      const libraryConfigured = !!process.env.BUNNY_STREAM_LIBRARY_ID;
+      if (!libraryConfigured) return null;
 
       const bunnyThumb = t.bunny_thumbnail_url || buildBunnyThumbnailUrl(t.bunny_video_id);
 
@@ -170,8 +180,10 @@ export async function GET() {
         distributionStart:     t.distribution_start,
         distributionEnd:       t.distribution_end,
         activatedAt:           t.activated_at,
+        // Phase 3: `playable` continues to drive the title-page Play CTA, but
+        // there is no `playbackEmbedUrl` field here. /api/playback/session
+        // is the only path that yields a signed playback URL.
         playable:              true,
-        playbackEmbedUrl,
         isNew:                 true,
         isCreatorProject:      true,
       };

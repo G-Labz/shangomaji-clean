@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { buildBunnyEmbedUrl, buildBunnyThumbnailUrl } from "@/lib/bunny";
+import { buildBunnyThumbnailUrl } from "@/lib/bunny";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,10 +97,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Phase 3: filter titles to those that are playback-eligible *server-side*
+  // (library configured + bunny_video_id present). The actual signed URL is
+  // never included here — Members must call /api/playback/session to play.
+  const libraryConfigured = !!process.env.BUNNY_STREAM_LIBRARY_ID;
   const titles = (titleRows ?? [])
     .map((t: any) => {
-      const playbackEmbedUrl = buildBunnyEmbedUrl(t.bunny_video_id);
-      if (!playbackEmbedUrl) return null;
+      if (!libraryConfigured || !t.bunny_video_id) return null;
       const p = projectMap.get(t.project_id);
       const bunnyThumb = t.bunny_thumbnail_url || buildBunnyThumbnailUrl(t.bunny_video_id);
       return {

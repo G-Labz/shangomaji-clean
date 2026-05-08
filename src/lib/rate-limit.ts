@@ -80,11 +80,16 @@ export function clientIpFromRequest(req: Request): string {
   return "unknown";
 }
 
-// Default policy table. Tuned for Phase 2 scale. Tighten if abuse is observed.
+// Default policy table. Tuned for Phase 2/3 scale. Tighten if abuse is observed.
 export const RATE_POLICY = {
-  signup:  { limit: 5,  windowMs: 60 * 60 * 1000 }, // 5 / hour / IP
-  signin:  { limit: 10, windowMs: 5  * 60 * 1000 }, // 10 / 5min / IP
-  reset:   { limit: 5,  windowMs: 60 * 60 * 1000 }, // 5 / hour / IP
+  signup:   { limit: 5,  windowMs: 60 * 60 * 1000 }, // 5 / hour / IP
+  signin:   { limit: 10, windowMs: 5  * 60 * 1000 }, // 10 / 5min / IP
+  reset:    { limit: 5,  windowMs: 60 * 60 * 1000 }, // 5 / hour / IP
+  // Phase 3 — Member playback access. Signed-URL issuance is rate-limited
+  // per (member email + IP) to bound scraping/automation. Tuned to allow
+  // legitimate refresh-near-expiry plus reasonable channel-flipping while
+  // capping a runaway loop.
+  playback: { limit: 30, windowMs: 5  * 60 * 1000 }, // 30 / 5min / member+IP
 } as const;
 
 export type RateLimitAction = keyof typeof RATE_POLICY;
