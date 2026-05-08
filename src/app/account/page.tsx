@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase-browser";
 import type { TitleSummary } from "@/lib/title-summaries";
+import { PosterArt } from "@/components/artwork/Artwork";
+import { PageTitle } from "@/components/util/PageTitle";
 
 // Phase 4 — Member Account page.
 //
@@ -140,57 +141,22 @@ export default function AccountPage() {
 
   return (
     <div style={page}>
+      <PageTitle title="Account" />
       <div style={card}>
         <h1 style={heading}>Member Account</h1>
-        <p style={lead}>Your saved titles and watch progress live here.</p>
+        <p style={lead}>Your saved titles live here.</p>
 
         {error && <div style={errorBox}>{error}</div>}
         {savedMessage && <div style={infoBox}>{savedMessage}</div>}
 
-        {/* ── Last watched ─────────────────────────────────────────── */}
-        {recent && (
-          <section style={section}>
-            <h2 style={sectionHeading}>Last watched</h2>
-            <Link
-              href={`/title/${recent.title.slug}`}
-              style={{
-                display:        "flex",
-                gap:            14,
-                alignItems:     "center",
-                padding:        "12px 14px",
-                borderRadius:   12,
-                background:     "rgba(20,16,16,0.55)",
-                border:         "1px solid rgba(255,255,255,0.06)",
-                textDecoration: "none",
-              }}
-            >
-              <div style={{ position: "relative", width: 64, aspectRatio: "2/3", flexShrink: 0, borderRadius: 8, overflow: "hidden", background: "rgba(255,255,255,0.04)" }}>
-                {recent.title.posterUrl && (
-                  <Image
-                    src={recent.title.posterUrl}
-                    alt={recent.title.title}
-                    fill
-                    sizes="64px"
-                    className="object-cover"
-                  />
-                )}
-              </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <p style={{ color: "white", fontSize: 14, fontWeight: 600, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {recent.title.title}
-                </p>
-                {recent.title.creatorName && (
-                  <p style={{ fontSize: 11, color: "rgba(240,112,48,0.85)", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    By {recent.title.creatorName}
-                  </p>
-                )}
-              </div>
-              <span style={{ fontSize: 12, color: "rgba(245,197,24,0.85)", fontWeight: 600 }}>
-                {recent.completed ? "Watch again →" : recent.position_seconds >= 30 ? "Resume →" : "Open →"}
-              </span>
-            </Link>
-          </section>
-        )}
+        {/* Phase 5 — "Last watched" row hidden in this build.
+            Honest playback time is not yet captured from Bunny; the
+            current /api/members/progress beacon only proves a session
+            was opened (position 0). Surfacing "Resume" or "Last watched"
+            here would lie about engagement. The fetch + state are kept
+            in place (loadRecent + recent) so the row can be revived
+            once real position data is available. */}
+        {false && recent && <></>}
 
         {/* ── My List preview ──────────────────────────────────────── */}
         <section style={section}>
@@ -205,12 +171,11 @@ export default function AccountPage() {
               {savedTitles.map((t) => (
                 <Link key={t.titleId} href={`/title/${t.slug}`} style={{ display: "block", textDecoration: "none" }}>
                   <div style={{ position: "relative", aspectRatio: "2/3", borderRadius: 10, overflow: "hidden", background: "rgba(255,255,255,0.04)" }}>
-                    <Image
+                    <PosterArt
                       src={t.posterUrl}
                       alt={t.title}
-                      fill
+                      title={t.title}
                       sizes="160px"
-                      className="object-cover"
                     />
                   </div>
                   <p style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", margin: "6px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -231,7 +196,7 @@ export default function AccountPage() {
                 lineHeight:   1.55,
               }}
             >
-              Your list is empty.{" "}
+              Nothing saved yet.{" "}
               <Link href="/browse" style={{ color: "rgba(245,197,24,0.9)", textDecoration: "none", fontWeight: 600 }}>
                 Browse Catalog →
               </Link>

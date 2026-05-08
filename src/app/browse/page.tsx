@@ -6,6 +6,7 @@ import { FilterBar } from "@/components/browse/FilterBar";
 import { TitleCard } from "@/components/cards/TitleCard";
 import { titles, allGenres } from "@/data/mockData";
 import type { Genre, Title } from "@/data/mockData";
+import { PageTitle } from "@/components/util/PageTitle";
 
 type SortKey = "score" | "year" | "title";
 
@@ -85,6 +86,7 @@ export default function BrowsePage() {
 
   return (
     <div className="min-h-screen pt-16">
+      <PageTitle title="Browse" />
       {/* Page header */}
       <div className="max-w-[1600px] mx-auto px-6 md:px-10 pt-10 pb-6">
         <motion.h1
@@ -163,7 +165,7 @@ export default function BrowsePage() {
               animate={{ opacity: 1 }}
             >
               <p className="text-ink-muted text-lg">
-                No titles match your filters.
+                Nothing in this lane yet.
               </p>
               <button
                 onClick={() => {

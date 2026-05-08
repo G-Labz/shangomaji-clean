@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { buildBunnyThumbnailUrl } from "@/lib/bunny";
+import { normalizeArtworkUrl } from "@/lib/artwork";
+import { isWithinNewWindow } from "@/lib/new-badge";
 
 // Phase 3 — public title metadata is freely browsable, but the playback
 // embed URL is NEVER returned here. Members must obtain a signed/expiring
@@ -160,8 +162,11 @@ export async function GET() {
         seasons:     null,
         genres:      (p?.genres || []).map((g: string) => GENRE_MAP[g] || g),
         type:        (p?.project_type || "").toLowerCase() === "series" ? "series" : "movie",
-        backdropUrl: p?.banner_url || p?.cover_image_url || bunnyThumb || "/images/placeholder.png",
-        posterUrl:   p?.cover_image_url || bunnyThumb || "/images/placeholder.png",
+        // Phase 5: emit null when no real artwork exists. Consumers render a
+        // black typographic fallback (M-mark + title) instead of a broken
+        // /images/placeholder.png that no longer exists in /public.
+        backdropUrl: normalizeArtworkUrl(p?.banner_url) || normalizeArtworkUrl(p?.cover_image_url) || normalizeArtworkUrl(bunnyThumb),
+        posterUrl:   normalizeArtworkUrl(p?.cover_image_url) || normalizeArtworkUrl(bunnyThumb),
         cast:        [],
         // Last-resort generic attribution. The title page only uses this when
         // creatorName is null; per the institutional copy standard we do not
@@ -184,7 +189,9 @@ export async function GET() {
         // there is no `playbackEmbedUrl` field here. /api/playback/session
         // is the only path that yields a signed playback URL.
         playable:              true,
-        isNew:                 true,
+        // Phase 5: NEW reflects real activation freshness, not a hand-flag.
+        // Falsy `activated_at` rows simply do not get the badge.
+        isNew:                 isWithinNewWindow(t.activated_at),
         isCreatorProject:      true,
       };
     })

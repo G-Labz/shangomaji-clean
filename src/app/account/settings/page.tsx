@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PageTitle } from "@/components/util/PageTitle";
 
 // Phase 2 — /account/settings.
 //
@@ -14,6 +15,7 @@ import Link from "next/link";
 export default function AccountSettingsPage() {
   return (
     <div style={page}>
+      <PageTitle title="Account settings" />
       <div style={card}>
         <p style={eyebrow}>Account</p>
         <h1 style={heading}>Settings</h1>

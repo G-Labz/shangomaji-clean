@@ -36,6 +36,7 @@ import {
   getNextEpisode,
 } from "@/data/videoData";
 import type { Episode } from "@/data/videoData";
+import { PageTitle } from "@/components/util/PageTitle";
 
 interface PageProps {
   params:       { slug: string };
@@ -372,11 +373,54 @@ function CreatorBunnyPlayer({
 
   // playing — render Bunny iframe with signed URL.
   return (
+    <PlayingFrame
+      url={stage.url}
+      title={stage.title}
+      onBack={handleBack}
+      onStreamError={() => setStage({ kind: "stream_error", title: stage.title })}
+    />
+  );
+}
+
+// Phase 5 — Native watch frame.
+//
+// Renders the ShangoMaji-owned chrome (back arrow + title bar, black
+// canvas, centered 16:9 player container) plus a non-forced loading
+// plate. The plate is hidden by default; it only appears if the iframe
+// has not fired `onLoad` after ~400ms. There is no forced delay — fast
+// loads never see the plate.
+//
+// Bunny's native controls (speed, quality, fullscreen, AirPlay/cast,
+// PiP) remain owned by Bunny. We do not layer custom controls.
+function PlayingFrame({
+  url,
+  title,
+  onBack,
+  onStreamError,
+}: {
+  url:    string;
+  title:  PlaybackTitle;
+  onBack: () => void;
+  onStreamError: () => void;
+}) {
+  const [loaded, setLoaded]     = useState(false);
+  const [showPlate, setShowPlate] = useState(false);
+  const PLATE_DELAY_MS = 400;
+
+  useEffect(() => {
+    if (loaded) return;
+    const t = setTimeout(() => setShowPlate(true), PLATE_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [loaded]);
+
+  return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col">
+      <PageTitle title={`${title.title} · Watch`} />
       <div className="flex items-center gap-4 px-5 py-4 bg-black/90 z-10">
         <button
-          onClick={handleBack}
+          onClick={onBack}
           className="flex items-center gap-2 text-white/70 hover:text-white text-sm transition"
+          aria-label="Back to title"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
@@ -384,20 +428,70 @@ function CreatorBunnyPlayer({
           <span className="hidden sm:inline">Back</span>
         </button>
         <p className="text-white font-semibold text-sm md:text-base truncate">
-          {stage.title.title}
+          {title.title}
         </p>
       </div>
 
-      <div className="flex-1 relative bg-black">
-        <iframe
-          src={stage.url}
-          title={stage.title.title}
-          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="absolute inset-0 w-full h-full border-0"
-          onError={() => setStage({ kind: "stream_error", title: stage.title })}
-        />
+      {/* Centered 16:9 player container. flex-1 + items-center + justify-center
+          keeps the player canvas cinematic on tall viewports without
+          stretching, while still going edge-to-edge on standard 16:9. */}
+      <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+        <div
+          className="relative w-full h-full max-h-[100vh]"
+          style={{ aspectRatio: "16 / 9" }}
+        >
+          <iframe
+            src={url}
+            title={title.title}
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full border-0"
+            onLoad={() => setLoaded(true)}
+            onError={onStreamError}
+          />
+
+          {/* Non-forced loading plate — only appears after PLATE_DELAY_MS
+              and disappears the moment the iframe loads. */}
+          {!loaded && showPlate && <LoadingPlate title={title.title} />}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function LoadingPlate({ title }: { title: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute inset-0 flex flex-col items-center justify-center bg-black"
+      style={{ pointerEvents: "none" }}
+    >
+      <span
+        className="leading-none animate-pulse"
+        style={{
+          fontSize: "clamp(48px, 8vw, 92px)",
+          fontWeight: 800,
+          letterSpacing: "0.04em",
+          background: "linear-gradient(135deg, #e53e2a, #f07030, #f5c518)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+        }}
+      >
+        M
+      </span>
+      <span
+        className="mt-3 px-4 text-center"
+        style={{
+          fontSize: 12,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "rgba(255,255,255,0.55)",
+          fontWeight: 600,
+        }}
+      >
+        {title}
+      </span>
     </div>
   );
 }
@@ -407,6 +501,7 @@ function CreatorBunnyPlayer({
 function CheckingState() {
   return (
     <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center">
+      <PageTitle title="Watch" />
       <p className="text-white/45 text-sm">Loading…</p>
     </div>
   );
@@ -418,6 +513,7 @@ function SignInToWatchState({ slug, mode }: { slug: string; mode: "signin" | "si
   const returnPath = encodeURIComponent(`/watch/${slug}`);
   return (
     <FrameScreen>
+      <PageTitle title="Sign in to watch · Watch" />
       <h1 className="text-white text-3xl md:text-4xl font-bold leading-tight">
         Sign in to watch.
       </h1>
@@ -449,11 +545,12 @@ function TitleUnavailableState({ slug, title }: { slug: string; title: PlaybackT
     : null;
   return (
     <FrameScreen>
+      <PageTitle title="Title unavailable · Watch" />
       <h1 className="text-white text-3xl md:text-4xl font-bold leading-tight">
-        This title is not available right now.
+        This title is no longer on the stage.
       </h1>
       <p className="text-white/70 text-sm md:text-base leading-relaxed">
-        This work is currently outside ShangoMaji playback access.
+        It is currently outside ShangoMaji playback access.
       </p>
       <div className="flex flex-wrap gap-3 mt-2">
         {visitCreator ? (
@@ -490,6 +587,7 @@ function TitleUnavailableState({ slug, title }: { slug: string; title: PlaybackT
 function MediaNotReadyState({ slug }: { slug: string }) {
   return (
     <FrameScreen>
+      <PageTitle title="Not ready · Watch" />
       <h1 className="text-white text-3xl md:text-4xl font-bold leading-tight">
         Not yet.
       </h1>
@@ -517,6 +615,7 @@ function SessionEndedState({ slug }: { slug: string }) {
   const returnPath = encodeURIComponent(`/watch/${slug}`);
   return (
     <FrameScreen>
+      <PageTitle title="Session ended · Watch" />
       <h1 className="text-white text-3xl md:text-4xl font-bold leading-tight">
         Sign in to keep watching.
       </h1>
@@ -544,11 +643,12 @@ function SessionEndedState({ slug }: { slug: string }) {
 function PlaybackErrorState({ onRetry, onBack }: { onRetry: () => void; onBack: () => void }) {
   return (
     <FrameScreen>
+      <PageTitle title="Stream unavailable · Watch" />
       <h1 className="text-white text-3xl md:text-4xl font-bold leading-tight">
-        Something interrupted this.
+        This stream is temporarily unavailable.
       </h1>
       <p className="text-white/70 text-sm md:text-base leading-relaxed">
-        The stream could not load.
+        Try again, or come back in a moment.
       </p>
       <div className="flex flex-wrap gap-3 mt-2">
         <button

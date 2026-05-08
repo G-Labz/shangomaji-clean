@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { buildBunnyThumbnailUrl } from "@/lib/bunny";
+import { normalizeArtworkUrl } from "@/lib/artwork";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -114,8 +115,10 @@ export async function GET(req: NextRequest) {
         year:        p ? new Date(p.created_at).getFullYear() : new Date().getFullYear(),
         type:        (p?.project_type || "").toLowerCase() === "series" ? "series" : "movie",
         genres:      ((p?.genres ?? []) as string[]).map((g) => GENRE_MAP[g] || g),
-        posterUrl:   p?.cover_image_url || bunnyThumb || "/images/placeholder.png",
-        backdropUrl: p?.banner_url || p?.cover_image_url || bunnyThumb || "/images/placeholder.png",
+        // Phase 5 — emit null when no real artwork. Consumers render a
+        // typographic fallback rather than a missing image.
+        posterUrl:   normalizeArtworkUrl(p?.cover_image_url) || normalizeArtworkUrl(bunnyThumb),
+        backdropUrl: normalizeArtworkUrl(p?.banner_url) || normalizeArtworkUrl(p?.cover_image_url) || normalizeArtworkUrl(bunnyThumb),
       };
     })
     .filter(Boolean);

@@ -16,6 +16,8 @@ import {
   Film,
   Tv,
 } from "lucide-react";
+import { PageTitle } from "@/components/util/PageTitle";
+import { PosterArt, BackdropArt } from "@/components/artwork/Artwork";
 
 // Phase 1 — Public Creator Profile page.
 //
@@ -37,8 +39,10 @@ type PublicTitle = {
   year: number;
   type: "series" | "movie";
   genres: string[];
-  posterUrl: string;
-  backdropUrl: string;
+  // Phase 5: API returns null when no real artwork. Consumers render a
+  // typographic fallback via <PosterArt> / <BackdropArt>.
+  posterUrl: string | null;
+  backdropUrl: string | null;
 };
 
 type PublicCreator = {
@@ -114,15 +118,13 @@ function TitleTile({ title }: { title: PublicTitle }) {
     >
       <Link href={`/title/${title.slug}`} className="block">
         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface-elevated mb-3">
-          {title.posterUrl && (
-            <Image
-              src={title.posterUrl}
-              alt={title.title}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="240px"
-            />
-          )}
+          <PosterArt
+            src={title.posterUrl}
+            alt={title.title}
+            title={title.title}
+            sizes="240px"
+            className="transition-transform duration-500 group-hover:scale-105"
+          />
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center">
@@ -183,6 +185,7 @@ function CreatorProfileContent({ creator }: { creator: PublicCreator }) {
 
   return (
     <div className="min-h-screen">
+      <PageTitle title={creator.name} />
       {/* ── Banner ── */}
       <div className="relative w-full h-[50vh] min-h-[380px] max-h-[520px] overflow-hidden">
         {creator.bannerUrl ? (
@@ -323,15 +326,13 @@ function CreatorProfileContent({ creator }: { creator: PublicCreator }) {
           {featuredTitle ? (
             <Link href={`/title/${featuredTitle.slug}`} className="group block">
               <div className="relative aspect-video rounded-2xl overflow-hidden bg-surface-elevated">
-                {featuredTitle.backdropUrl && (
-                  <Image
-                    src={featuredTitle.backdropUrl}
-                    alt={featuredTitle.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 1600px) 100vw, 1600px"
-                  />
-                )}
+                <BackdropArt
+                  src={featuredTitle.backdropUrl}
+                  alt={featuredTitle.title}
+                  title={featuredTitle.title}
+                  sizes="(max-width: 1600px) 100vw, 1600px"
+                  className="transition-transform duration-500 group-hover:scale-105"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6">
                   <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md glass-dark text-white mb-3 inline-block">

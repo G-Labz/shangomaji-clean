@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Play, Plus, Check } from "lucide-react";
 import type { Title } from "@/data/mockData";
+import { PosterArt, BackdropArt } from "@/components/artwork/Artwork";
+import { isWithinNewWindow } from "@/lib/new-badge";
 
 // Phase 4 — title card.
 //   • The + button now toggles My List via /api/members/my-list.
@@ -32,6 +33,13 @@ export function TitleCard({
   const isOriginal = title.studio === "ShangoMaji Originals";
   const hasMeaningfulScore = typeof title.score === "number" && title.score > 0;
   const hasSeasons         = title.type === "series" && typeof title.seasons === "number" && title.seasons > 0;
+  // Phase 5 — NEW badge driven by date, not the legacy hand-flag. The
+  // mock catalog ships a few `isNew: true` rows; we still gate them by
+  // (year ≈ current year) so the badge reads honestly even there.
+  const titleDate = (title as any).activatedAt as string | undefined;
+  const isNewByDate = titleDate
+    ? isWithinNewWindow(titleDate)
+    : !!title.isNew && typeof title.year === "number" && Math.abs(new Date().getFullYear() - title.year) <= 1;
 
   // The slug used by /api/members/my-list to resolve a real titles.id row.
   // Mock-catalog titles do not yet have a backing titles row, so save calls
@@ -97,13 +105,23 @@ export function TitleCard({
       <Link href={`/title/${title.slug}`} className="block">
         {/* Thumbnail */}
         <div className={`relative overflow-hidden rounded-xl bg-surface-elevated ${isPoster ? "aspect-[2/3]" : "aspect-video"}`}>
-          <Image
-            src={isPoster ? title.posterUrl : title.backdropUrl}
-            alt={title.title}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            sizes={isPoster ? "180px" : "320px"}
-          />
+          {isPoster ? (
+            <PosterArt
+              src={title.posterUrl}
+              alt={title.title}
+              title={title.title}
+              className="transition-transform duration-500 group-hover:scale-105"
+              sizes="180px"
+            />
+          ) : (
+            <BackdropArt
+              src={title.backdropUrl}
+              alt={title.title}
+              title={title.title}
+              className="transition-transform duration-500 group-hover:scale-105"
+              sizes="320px"
+            />
+          )}
 
           {/* Hover overlay */}
           <div className="absolute inset-0 bg-black/55 flex flex-col justify-end p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -154,7 +172,7 @@ export function TitleCard({
                 Original
               </span>
             )}
-            {title.isNew && !isOriginal && (
+            {isNewByDate && !isOriginal && (
               <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md backdrop-blur-sm"
                 style={{ background: "rgba(0,0,0,0.6)", color: "#f5c518" }}>
                 New

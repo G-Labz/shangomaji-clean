@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import { getSiteUrl } from "@/lib/site-url";
+import { PageTitle } from "@/components/util/PageTitle";
 
 // Phase 2 — Create your Member account.
 //
@@ -138,6 +139,7 @@ export default function MemberSignupPage() {
 
   return (
     <div style={page}>
+      <PageTitle title="Create account" />
       <div style={card}>
         <p style={eyebrow}>Member</p>
         <h1 style={heading}>Create your Member account</h1>

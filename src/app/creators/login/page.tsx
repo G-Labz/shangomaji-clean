@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
+import { PageTitle } from "@/components/util/PageTitle";
 
 // Phase 1 patch — Creator Studio access page.
 //
@@ -145,6 +146,7 @@ export default function CreatorAccessPage() {
   if (state.kind === "loading" || state.kind === "session_approved") {
     return (
       <div style={center}>
+        <PageTitle title="Creator Studio" />
         <p style={{ color: "rgba(255,255,255,0.45)" }}>Loading…</p>
       </div>
     );
@@ -170,6 +172,7 @@ export default function CreatorAccessPage() {
 
     return (
       <div style={page}>
+        <PageTitle title="Creator Studio" />
         <div style={card}>
           <p style={eyebrow}>Creator Studio</p>
           <h1 style={heading}>Almost there.</h1>
@@ -207,6 +210,7 @@ export default function CreatorAccessPage() {
 
     return (
       <div style={page}>
+        <PageTitle title="Creator Studio" />
         <div style={card}>
           <p style={eyebrow}>Creator Studio</p>
           <h1 style={heading}>Creator Studio is restricted.</h1>
@@ -239,6 +243,7 @@ export default function CreatorAccessPage() {
   // ── No session — sign-in form ───────────────────────────────────────────
   return (
     <div style={page}>
+      <PageTitle title="Creator Studio" />
       <div style={card}>
         <p style={eyebrow}>Creator Studio</p>
         <h1 style={heading}>Already accepted?</h1>

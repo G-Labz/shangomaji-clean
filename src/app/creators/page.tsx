@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { PageTitle } from "@/components/util/PageTitle";
 import {
   ArrowRight,
   Globe,
@@ -102,6 +103,7 @@ export default function CreatorsPage() {
 
   return (
     <div className="min-h-screen">
+      <PageTitle title="Creators" />
       {/* ── HERO ── */}
       <section className="relative min-h-screen flex items-center overflow-hidden pt-16">
         {/* Ambient background */}

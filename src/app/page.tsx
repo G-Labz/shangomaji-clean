@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { HeroBanner } from "@/components/home/HeroBanner";
 import { ContentRow } from "@/components/home/ContentRow";
+import { PageTitle } from "@/components/util/PageTitle";
 import {
   getTrending,
   getNewReleases,
@@ -80,6 +81,7 @@ export default function HomePage() {
 
   return (
     <>
+      <PageTitle title="ShangoMaji" raw />
       {heroTitles.length > 0 && <HeroBanner titles={heroTitles} />}
 
       <div className="pt-10">

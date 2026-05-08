@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Home, Search } from "lucide-react";
+import { PageTitle } from "@/components/util/PageTitle";
 
 export default function NotFound() {
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
+      <PageTitle title="Not Found" />
       <motion.div
         className="text-center max-w-md"
         initial={{ opacity: 0, y: 30 }}
@@ -17,11 +19,11 @@ export default function NotFound() {
           404
         </p>
         <h1 className="text-white text-2xl font-semibold mt-2 mb-3">
-          Lost in the credits?
+          This page isn&apos;t on the stage.
         </h1>
         <p className="text-ink-muted text-sm mb-8 leading-relaxed">
-          The title you're looking for doesn't exist, was removed, or is
-          unavailable in your region.
+          The page you&apos;re looking for doesn&apos;t exist, was moved, or is
+          no longer available.
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link

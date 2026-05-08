@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Title } from "@/data/mockData";
+import { BackdropArt } from "@/components/artwork/Artwork";
+import { isWithinNewWindow } from "@/lib/new-badge";
 
 interface HeroBannerProps { titles: Title[]; }
 
@@ -48,8 +49,14 @@ export function HeroBanner({ titles }: HeroBannerProps) {
           transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="absolute inset-0"
         >
-          <Image src={title.backdropUrl} alt={title.title} fill priority
-            className="object-cover object-center" sizes="100vw" />
+          <BackdropArt
+            src={title.backdropUrl}
+            alt={title.title}
+            title={title.title}
+            priority
+            sizes="100vw"
+            className="object-center"
+          />
 
           {/* Deep cinematic overlays */}
           <div className="absolute inset-0"
@@ -105,25 +112,51 @@ export function HeroBanner({ titles }: HeroBannerProps) {
               )}
 
               {/* Badges */}
-              <div className="flex items-center gap-2.5 mb-5">
-                {title.isNew && (
-                  <span className="text-xs font-bold uppercase tracking-[0.2em] font-mono"
-                    style={{
-                      background: "linear-gradient(90deg, #e53e2a, #f5c518)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text",
-                    }}>New</span>
-                )}
-                {title.isTrending && (
-                  <span className="text-white/40 text-xs uppercase tracking-widest">
-                    {title.isNew ? "·" : ""} Trending
-                  </span>
-                )}
-                <span className="text-white/25 text-xs">
-                  · {title.type === "series" ? `${title.seasons} Seasons` : title.runtime}
-                </span>
-              </div>
+              {(() => {
+                // Phase 5 — only render the badge row if it carries something
+                // honest. NEW is now date-driven. Season / runtime label only
+                // appears when real data backs it (no `null Seasons`,
+                // no `undefined`).
+                const titleDate = (title as any).activatedAt as string | undefined;
+                const showNew = titleDate
+                  ? isWithinNewWindow(titleDate)
+                  : !!title.isNew &&
+                    typeof title.year === "number" &&
+                    Math.abs(new Date().getFullYear() - title.year) <= 1;
+                const seasonsLabel =
+                  title.type === "series" &&
+                  typeof title.seasons === "number" &&
+                  title.seasons > 0
+                    ? `${title.seasons} Season${title.seasons === 1 ? "" : "s"}`
+                    : null;
+                const lengthLabel =
+                  title.type === "movie" && title.runtime ? title.runtime : null;
+                const formatLabel = seasonsLabel || lengthLabel;
+                if (!showNew && !title.isTrending && !formatLabel) return null;
+                return (
+                  <div className="flex items-center gap-2.5 mb-5">
+                    {showNew && (
+                      <span className="text-xs font-bold uppercase tracking-[0.2em] font-mono"
+                        style={{
+                          background: "linear-gradient(90deg, #e53e2a, #f5c518)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                        }}>New</span>
+                    )}
+                    {title.isTrending && (
+                      <span className="text-white/40 text-xs uppercase tracking-widest">
+                        {showNew ? "· " : ""}Trending
+                      </span>
+                    )}
+                    {formatLabel && (
+                      <span className="text-white/25 text-xs">
+                        {(showNew || title.isTrending) ? "· " : ""}{formatLabel}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* TITLE — max impact */}
               <h1
@@ -136,40 +169,56 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                 {title.title}
               </h1>
 
-              {/* Tagline */}
-              <p className="text-display italic mb-5 leading-snug"
-                style={{
-                  fontSize: "clamp(15px, 1.8vw, 21px)",
-                  color: "rgba(255,255,255,0.60)",
-                }}>
-                "{title.tagline}"
-              </p>
+              {/* Tagline — only when present, no orphaned quotes */}
+              {title.tagline && title.tagline.trim() && (
+                <p className="text-display italic mb-5 leading-snug"
+                  style={{
+                    fontSize: "clamp(15px, 1.8vw, 21px)",
+                    color: "rgba(255,255,255,0.60)",
+                  }}>
+                  &ldquo;{title.tagline.trim()}&rdquo;
+                </p>
+              )}
 
-              {/* Meta */}
-              <div className="flex items-center gap-3 text-sm mb-5 flex-wrap">
-                <span className="text-white/40">{title.year}</span>
-                <span className="w-1 h-1 rounded-full" style={{ background: "rgba(229,62,42,0.6)" }} />
-                <span className="border px-1.5 py-0.5 text-xs rounded text-white/40"
-                  style={{ borderColor: "rgba(255,255,255,0.12)" }}>
-                  {title.rating}
-                </span>
-                {typeof title.score === "number" && title.score > 0 && (
-                  <>
-                    <span className="w-1 h-1 rounded-full" style={{ background: "rgba(245,197,24,0.6)" }} />
-                    <span
-                      className="font-bold"
-                      style={{
-                        background: "linear-gradient(90deg, #f07030, #f5c518)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text",
-                      }}
-                    >
-                      {title.score}
-                    </span>
-                  </>
-                )}
-              </div>
+              {/* Meta — only render dots between fields that actually exist. */}
+              {(() => {
+                const hasYear = typeof title.year === "number" && title.year > 0;
+                const hasRating = typeof title.rating === "string" && title.rating.trim().length > 0;
+                const hasScore = typeof title.score === "number" && title.score > 0;
+                if (!hasYear && !hasRating && !hasScore) return null;
+                return (
+                  <div className="flex items-center gap-3 text-sm mb-5 flex-wrap">
+                    {hasYear && <span className="text-white/40">{title.year}</span>}
+                    {hasYear && hasRating && (
+                      <span className="w-1 h-1 rounded-full" style={{ background: "rgba(229,62,42,0.6)" }} />
+                    )}
+                    {hasRating && (
+                      <span className="border px-1.5 py-0.5 text-xs rounded text-white/40"
+                        style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                        {title.rating}
+                      </span>
+                    )}
+                    {hasScore && (
+                      <>
+                        {(hasYear || hasRating) && (
+                          <span className="w-1 h-1 rounded-full" style={{ background: "rgba(245,197,24,0.6)" }} />
+                        )}
+                        <span
+                          className="font-bold"
+                          style={{
+                            background: "linear-gradient(90deg, #f07030, #f5c518)",
+                            WebkitBackgroundClip: "text",
+                            WebkitTextFillColor: "transparent",
+                            backgroundClip: "text",
+                          }}
+                        >
+                          {title.score}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Genres */}
               <div className="flex gap-2 flex-wrap mb-7">
@@ -184,11 +233,13 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                 ))}
               </div>
 
-              {/* Description */}
-              <p className="text-sm leading-relaxed line-clamp-2 mb-9 max-w-lg"
-                style={{ color: "rgba(255,255,255,0.50)" }}>
-                {title.description}
-              </p>
+              {/* Description — only render when copy is real */}
+              {title.description && title.description.trim() && (
+                <p className="text-sm leading-relaxed line-clamp-2 mb-9 max-w-lg"
+                  style={{ color: "rgba(255,255,255,0.50)" }}>
+                  {title.description}
+                </p>
+              )}
 
               {/* CTAs */}
               <div className="flex items-center gap-3 flex-wrap">

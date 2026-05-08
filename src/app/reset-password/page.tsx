@@ -11,6 +11,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import { getSiteUrl } from "@/lib/site-url";
+import { PageTitle } from "@/components/util/PageTitle";
 
 export default function MemberResetPasswordPage() {
   const supabase = createClient();
@@ -56,6 +57,7 @@ export default function MemberResetPasswordPage() {
 
   return (
     <div style={page}>
+      <PageTitle title="Reset password" />
       <div style={card}>
         <p style={eyebrow}>Member</p>
         <h1 style={heading}>Reset your password</h1>

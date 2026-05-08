@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
+import { PageTitle } from "@/components/util/PageTitle";
 
 type Stage = "verifying" | "ready" | "error";
 
@@ -182,6 +183,7 @@ export default function MemberUpdatePasswordPage() {
   if (stage === "verifying") {
     return (
       <div style={center}>
+        <PageTitle title="Set a new password" />
         <p style={{ color: "rgba(255,255,255,0.55)" }}>Verifying your reset link…</p>
       </div>
     );
@@ -190,6 +192,7 @@ export default function MemberUpdatePasswordPage() {
   if (stage === "error") {
     return (
       <div style={page}>
+        <PageTitle title="Set a new password" />
         <div style={card}>
           <p style={eyebrow}>Member</p>
           <h1 style={heading}>Link issue</h1>
@@ -206,6 +209,7 @@ export default function MemberUpdatePasswordPage() {
 
   return (
     <div style={page}>
+      <PageTitle title="Set a new password" />
       <div style={card}>
         <p style={eyebrow}>Member</p>
         <h1 style={heading}>Set a new password</h1>

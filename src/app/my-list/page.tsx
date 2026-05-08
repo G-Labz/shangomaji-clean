@@ -8,10 +8,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Play, X } from "lucide-react";
 import type { TitleSummary } from "@/lib/title-summaries";
+import { PosterArt } from "@/components/artwork/Artwork";
+import { PageTitle } from "@/components/util/PageTitle";
 
 type Stage =
   | { kind: "loading" }
@@ -110,6 +111,7 @@ export default function MyListPage() {
   const titles = stage.titles;
   return (
     <div className="max-w-[1600px] mx-auto px-6 md:px-10 pt-28 pb-20">
+      <PageTitle title="My List" />
       <div className="flex items-baseline justify-between mb-8">
         <div>
           <p className="text-[11px] uppercase tracking-[0.22em] mb-1" style={{ color: "rgba(245,197,24,0.85)" }}>
@@ -156,11 +158,11 @@ function SavedTitleCard({
     <div className="group relative">
       <Link href={`/title/${title.slug}`} className="block">
         <div className="relative overflow-hidden rounded-xl bg-surface-elevated aspect-[2/3]">
-          <Image
+          <PosterArt
             src={title.posterUrl}
             alt={title.title}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            title={title.title}
+            className="transition-transform duration-500 group-hover:scale-[1.03]"
             sizes="180px"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
@@ -221,10 +223,10 @@ function EmptyState() {
       }}
     >
       <h2 className="text-white text-2xl md:text-3xl font-semibold tracking-tight mb-2">
-        Your list is empty.
+        Nothing saved yet.
       </h2>
       <p className="text-white/55 text-sm md:text-base mb-6">
-        Titles you save will appear here.
+        Save titles to find them here.
       </p>
       <Link
         href="/browse"

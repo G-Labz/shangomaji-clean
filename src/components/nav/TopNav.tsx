@@ -4,7 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+// Phase 5 — `Bell` import retained intentionally as scaffolding for the
+// future notifications surface; the rendered bell has been removed from
+// production UI per founder decision (no public notification activity to
+// represent honestly yet).
 import { Search, Bell, User, Menu, X } from "lucide-react";
+void Bell;
 
 const NAV_LINKS = [
   { label: "Home",     href: "/" },
@@ -132,15 +137,9 @@ export function TopNav() {
               <Search size={18} />
             </Link>
 
-            <div className="hidden md:flex">
-              <div
-                className="p-2.5"
-                style={{ color: "rgba(255,255,255,0.2)", cursor: "default" }}
-                aria-hidden="true"
-              >
-                <Bell size={18} />
-              </div>
-            </div>
+            {/* Phase 5: notification bell removed from production UI.
+                The Bell import + scaffolding stays so a real notification
+                surface can be wired in a later phase without re-plumbing. */}
 
             <Link href="/account" className="ml-1.5 group" aria-label="Your account">
               <div className="w-8 h-8 rounded-full p-[1.5px] transition-all duration-300"

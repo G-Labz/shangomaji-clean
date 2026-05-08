@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
+import { PageTitle } from "@/components/util/PageTitle";
 
 // Phase 2 — Sign in as a Member.
 //
@@ -105,6 +106,7 @@ export default function MemberLoginPage() {
 
   return (
     <div style={page}>
+      <PageTitle title="Sign in" />
       <div style={card}>
         <p style={eyebrow}>Member</p>
         <h1 style={heading}>Sign in as a Member</h1>

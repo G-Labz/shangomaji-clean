@@ -11,6 +11,7 @@
 
 import { createClient as createServiceClient, type SupabaseClient } from "@supabase/supabase-js";
 import { buildBunnyThumbnailUrl } from "@/lib/bunny";
+import { normalizeArtworkUrl } from "@/lib/artwork";
 
 const GENRE_MAP: Record<string, string> = {
   "Mythic":    "Mythology & Gods",
@@ -35,8 +36,10 @@ export type TitleSummary = {
   year:           number;
   type:           "series" | "movie";
   genres:         string[];
-  posterUrl:      string;
-  backdropUrl:    string;
+  // Phase 5: null when no real artwork exists. Consumers render a
+  // typographic fallback via <PosterArt> / <BackdropArt>.
+  posterUrl:      string | null;
+  backdropUrl:    string | null;
   creatorHandle:  string | null;
   creatorName:    string | null;
   studio:         string;
@@ -137,8 +140,9 @@ export async function fetchTitleSummariesByIds(orderedIds: string[]): Promise<Ti
       year:         p ? new Date((p as any).created_at).getFullYear() : new Date().getFullYear(),
       type:         ((p as any)?.project_type || "").toLowerCase() === "series" ? "series" : "movie",
       genres:       (((p as any)?.genres ?? []) as string[]).map((g) => GENRE_MAP[g] || g),
-      posterUrl:    (p as any)?.cover_image_url || bunnyThumb || "/images/placeholder.png",
-      backdropUrl:  (p as any)?.banner_url || (p as any)?.cover_image_url || bunnyThumb || "/images/placeholder.png",
+      // Phase 5 — null instead of legacy placeholder. Consumer renders fallback.
+      posterUrl:    normalizeArtworkUrl((p as any)?.cover_image_url) || normalizeArtworkUrl(bunnyThumb),
+      backdropUrl:  normalizeArtworkUrl((p as any)?.banner_url) || normalizeArtworkUrl((p as any)?.cover_image_url) || normalizeArtworkUrl(bunnyThumb),
       creatorHandle: reachableHandle,
       creatorName,
       studio:       "ShangoMaji",
