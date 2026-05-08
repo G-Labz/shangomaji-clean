@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase-browser";
+import type { TitleSummary } from "@/lib/title-summaries";
 
-// Phase 2 — Member account page (private).
+// Phase 4 — Member Account page.
 //
-// Reads the member's own profile via /api/members/profile. Writes display_name
-// via the same endpoint. Does not show creator workspace data, admin data, or
-// any cross-role information.
-//
-// Watch history, watchlist, recommendations, payments are intentionally NOT
-// here. They are post-launch parking lot items.
+// Heading: "Member Account". No "Private Account" eyebrow, no "only you can
+// see this page" privacy lecture — there are no public Member profiles, so
+// the privacy framing is implicit. We add a compact saved-titles preview
+// and a single last-watched item where data exists; both are honest empty
+// states when not.
 
 type MemberProfile = {
   email:        string;
@@ -21,6 +22,14 @@ type MemberProfile = {
   created_at:   string;
   updated_at:   string;
 };
+
+type RecentProgress = {
+  title:            TitleSummary;
+  position_seconds: number;
+  duration_seconds: number | null;
+  completed:        boolean;
+  last_watched_at:  string;
+} | null;
 
 export default function AccountPage() {
   const router   = useRouter();
@@ -32,6 +41,9 @@ export default function AccountPage() {
   const [error, setError]             = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
+
+  const [savedTitles, setSavedTitles] = useState<TitleSummary[] | null>(null);
+  const [recent, setRecent]           = useState<RecentProgress>(null);
 
   async function loadProfile() {
     setLoading(true);
@@ -50,7 +62,33 @@ export default function AccountPage() {
     }
   }
 
-  useEffect(() => { loadProfile(); }, []);
+  async function loadSavedPreview() {
+    try {
+      const res = await fetch("/api/members/my-list", { cache: "no-store" });
+      if (!res.ok) { setSavedTitles([]); return; }
+      const data = await res.json();
+      setSavedTitles(Array.isArray(data?.titles) ? data.titles.slice(0, 4) : []);
+    } catch {
+      setSavedTitles([]);
+    }
+  }
+
+  async function loadRecent() {
+    try {
+      const res = await fetch("/api/members/progress?recent=1", { cache: "no-store" });
+      if (!res.ok) { setRecent(null); return; }
+      const data = await res.json();
+      setRecent(data?.recent ?? null);
+    } catch {
+      setRecent(null);
+    }
+  }
+
+  useEffect(() => {
+    loadProfile();
+    loadSavedPreview();
+    loadRecent();
+  }, []);
 
   async function handleSaveName() {
     setSaving(true);
@@ -103,20 +141,111 @@ export default function AccountPage() {
   return (
     <div style={page}>
       <div style={card}>
-        <p style={eyebrow}>Private Account</p>
-        <h1 style={heading}>Your account</h1>
-        <p style={lead}>This is your private Member account. Only you can see this page.</p>
+        <h1 style={heading}>Member Account</h1>
+        <p style={lead}>Your saved titles and watch progress live here.</p>
 
         {error && <div style={errorBox}>{error}</div>}
         {savedMessage && <div style={infoBox}>{savedMessage}</div>}
 
+        {/* ── Last watched ─────────────────────────────────────────── */}
+        {recent && (
+          <section style={section}>
+            <h2 style={sectionHeading}>Last watched</h2>
+            <Link
+              href={`/title/${recent.title.slug}`}
+              style={{
+                display:        "flex",
+                gap:            14,
+                alignItems:     "center",
+                padding:        "12px 14px",
+                borderRadius:   12,
+                background:     "rgba(20,16,16,0.55)",
+                border:         "1px solid rgba(255,255,255,0.06)",
+                textDecoration: "none",
+              }}
+            >
+              <div style={{ position: "relative", width: 64, aspectRatio: "2/3", flexShrink: 0, borderRadius: 8, overflow: "hidden", background: "rgba(255,255,255,0.04)" }}>
+                {recent.title.posterUrl && (
+                  <Image
+                    src={recent.title.posterUrl}
+                    alt={recent.title.title}
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                  />
+                )}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ color: "white", fontSize: 14, fontWeight: 600, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {recent.title.title}
+                </p>
+                {recent.title.creatorName && (
+                  <p style={{ fontSize: 11, color: "rgba(240,112,48,0.85)", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    By {recent.title.creatorName}
+                  </p>
+                )}
+              </div>
+              <span style={{ fontSize: 12, color: "rgba(245,197,24,0.85)", fontWeight: 600 }}>
+                {recent.completed ? "Watch again →" : recent.position_seconds >= 30 ? "Resume →" : "Open →"}
+              </span>
+            </Link>
+          </section>
+        )}
+
+        {/* ── My List preview ──────────────────────────────────────── */}
+        <section style={section}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <h2 style={sectionHeading}>My List</h2>
+            <Link href="/my-list" style={{ fontSize: 12, color: "rgba(245,197,24,0.85)", textDecoration: "none", fontWeight: 600 }}>
+              See all →
+            </Link>
+          </div>
+          {savedTitles && savedTitles.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+              {savedTitles.map((t) => (
+                <Link key={t.titleId} href={`/title/${t.slug}`} style={{ display: "block", textDecoration: "none" }}>
+                  <div style={{ position: "relative", aspectRatio: "2/3", borderRadius: 10, overflow: "hidden", background: "rgba(255,255,255,0.04)" }}>
+                    <Image
+                      src={t.posterUrl}
+                      alt={t.title}
+                      fill
+                      sizes="160px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", margin: "6px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {t.title}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding:      "16px 14px",
+                borderRadius: 12,
+                background:   "rgba(20,16,16,0.45)",
+                border:       "1px solid rgba(255,255,255,0.06)",
+                color:        "rgba(255,255,255,0.55)",
+                fontSize:     13,
+                lineHeight:   1.55,
+              }}
+            >
+              Your list is empty.{" "}
+              <Link href="/browse" style={{ color: "rgba(245,197,24,0.9)", textDecoration: "none", fontWeight: 600 }}>
+                Browse Catalog →
+              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* ── Member profile ──────────────────────────────────────── */}
         <section style={section}>
           <h2 style={sectionHeading}>Member profile</h2>
 
           <div style={row}>
             <label style={label}>Email</label>
             <input value={profile.email} readOnly style={{ ...input, opacity: 0.55 }} />
-            <p style={hint}>Email is private and used only for sign-in and notifications.</p>
           </div>
 
           <div style={row}>
@@ -140,7 +269,7 @@ export default function AccountPage() {
         <section style={section}>
           <h2 style={sectionHeading}>Account</h2>
           <div style={kv}>
-            <span style={kLabel}>Member since</span>
+            <span style={kLabel}>Active Member since</span>
             <span style={kValue}>{memberSince}</span>
           </div>
         </section>
@@ -178,14 +307,6 @@ const card: React.CSSProperties = {
   borderRadius: 18,
   background: "rgba(20,16,16,0.85)",
   border: "1px solid rgba(255,255,255,0.08)",
-};
-const eyebrow: React.CSSProperties = {
-  fontSize: 11,
-  letterSpacing: "0.22em",
-  textTransform: "uppercase",
-  color: "rgba(245,197,24,0.85)",
-  margin: 0,
-  marginBottom: 8,
 };
 const heading: React.CSSProperties = {
   fontSize: 28,
@@ -232,11 +353,6 @@ const input: React.CSSProperties = {
   fontSize: 14,
   outline: "none",
   boxSizing: "border-box",
-};
-const hint: React.CSSProperties = {
-  fontSize: 11,
-  color: "rgba(255,255,255,0.35)",
-  margin: "6px 0 0",
 };
 const kv: React.CSSProperties = { display: "flex", justifyContent: "space-between" };
 const kLabel: React.CSSProperties = { fontSize: 13, color: "rgba(255,255,255,0.55)" };

@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import {
   Play,
   Plus,
-  ThumbsUp,
+  Check,
   Share2,
   Star,
   Clock,
@@ -131,28 +131,41 @@ export default function TitlePage({ params }: PageProps) {
 
           {/* Stats row */}
           <div className="flex items-center gap-4 flex-wrap text-sm mb-5">
-            <div className="flex items-center gap-1.5">
-              <Star size={14} className="text-brand-yellow fill-brand-yellow" />
-              <span className="brand-text font-semibold">{title.score}%</span>
-              <span className="text-ink-faint">Match</span>
-            </div>
-            <span className="text-ink-faint">·</span>
-            <span className="text-ink-muted">{title.year}</span>
-            <span className="text-ink-faint">·</span>
-            <span className="border border-white/20 px-1.5 py-0.5 text-xs rounded text-ink-muted">
-              {title.rating}
-            </span>
-            <span className="text-ink-faint">·</span>
-            {title.type === "movie" ? (
-              <span className="flex items-center gap-1 text-ink-muted">
-                <Clock size={13} />
-                {title.runtime}
-              </span>
-            ) : (
-              <span className="text-ink-muted">
-                {title.seasons} Season{title.seasons !== 1 ? "s" : ""}
-              </span>
+            {typeof title.score === "number" && title.score > 0 && (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <Star size={14} className="text-brand-yellow fill-brand-yellow" />
+                  <span className="brand-text font-semibold">{title.score}</span>
+                </div>
+                <span className="text-ink-faint">·</span>
+              </>
             )}
+            <span className="text-ink-muted">{title.year}</span>
+            {title.rating ? (
+              <>
+                <span className="text-ink-faint">·</span>
+                <span className="border border-white/20 px-1.5 py-0.5 text-xs rounded text-ink-muted">
+                  {title.rating}
+                </span>
+              </>
+            ) : null}
+            {title.type === "movie" && title.runtime ? (
+              <>
+                <span className="text-ink-faint">·</span>
+                <span className="flex items-center gap-1 text-ink-muted">
+                  <Clock size={13} />
+                  {title.runtime}
+                </span>
+              </>
+            ) : null}
+            {title.type === "series" && typeof title.seasons === "number" && title.seasons > 0 ? (
+              <>
+                <span className="text-ink-faint">·</span>
+                <span className="text-ink-muted">
+                  {title.seasons} Season{title.seasons !== 1 ? "s" : ""}
+                </span>
+              </>
+            ) : null}
           </div>
 
           {/* Genres */}
@@ -170,20 +183,8 @@ export default function TitlePage({ params }: PageProps) {
 
           {/* CTA */}
           <div className="flex items-center gap-3 flex-wrap mb-8">
-            <Link
-              href={`/watch/${title.slug}`}
-              className="flex items-center gap-2.5 bg-white text-black font-semibold px-7 py-3.5 rounded-xl hover:bg-white/90 active:scale-95 transition-all duration-200 text-sm"
-            >
-              <Play size={16} fill="currentColor" />
-              {title.type === "movie" ? "Play Movie" : "Play S1 E1"}
-            </Link>
-            <button className="flex items-center gap-2.5 glass text-white font-medium px-5 py-3.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all duration-200 text-sm">
-              <Plus size={16} />
-              My List
-            </button>
-            <button className="p-3.5 glass rounded-xl text-ink-muted hover:text-white hover:bg-white/10 transition-all duration-200">
-              <ThumbsUp size={16} />
-            </button>
+            <TitlePlayCta slug={title.slug} type={title.type} />
+            <SaveButton slug={title.slug} />
             <button className="p-3.5 glass rounded-xl text-ink-muted hover:text-white hover:bg-white/10 transition-all duration-200">
               <Share2 size={16} />
             </button>
@@ -427,13 +428,10 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
           {/* Watch CTA — only when playable media is bound to this title */}
           <div className="flex items-center gap-3 flex-wrap mb-8">
             {title.playable ? (
-              <Link
-                href={`/watch/${title.slug}`}
-                className="flex items-center gap-2.5 bg-white text-black font-semibold px-7 py-3.5 rounded-xl hover:bg-white/90 active:scale-95 transition-all duration-200 text-sm"
-              >
-                <Play size={16} fill="currentColor" />
-                {title.type === "series" ? "Play S1 E1" : "Play"}
-              </Link>
+              <>
+                <TitlePlayCta slug={title.slug} type={title.type === "series" ? "series" : "movie"} />
+                <SaveButton slug={title.slug} />
+              </>
             ) : (
               <span
                 className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs uppercase tracking-widest"
@@ -499,5 +497,106 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+// ── Phase 4 — title-page action helpers ──────────────────────────────────
+// Both helpers run client-side and call private Member endpoints. They
+// gracefully redirect to /login or /signup with a return path on auth /
+// member denials. No tokens, no permanent embed URLs leave the server.
+
+function TitlePlayCta({ slug, type }: { slug: string; type: "movie" | "series" }) {
+  // Optimistic Resume: if the Member has stored progress for this title, the
+  // CTA reads "Resume." Otherwise it stays "Play." We never invent fake
+  // progress — if /api/members/progress returns null or the position is
+  // below the meaningful threshold, the CTA reads "Play" and there is no
+  // visible progress bar. Anonymous / non-Member users see "Play" only.
+  const [hasProgress, setHasProgress] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/members/progress?slug=${encodeURIComponent(slug)}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const p = data?.progress;
+        if (p && typeof p.position_seconds === "number" && p.position_seconds >= 30 && !p.completed) {
+          setHasProgress(true);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  const label = hasProgress
+    ? "Resume"
+    : type === "series" ? "Play S1 E1" : "Play";
+
+  return (
+    <Link
+      href={`/watch/${slug}`}
+      className="flex items-center gap-2.5 bg-white text-black font-semibold px-7 py-3.5 rounded-xl hover:bg-white/90 active:scale-95 transition-all duration-200 text-sm"
+    >
+      <Play size={16} fill="currentColor" />
+      {label}
+    </Link>
+  );
+}
+
+function SaveButton({ slug }: { slug: string }) {
+  const [saved, setSaved]     = useState(false);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/members/my-list", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const titles: Array<{ slug?: string }> = Array.isArray(data?.titles) ? data.titles : [];
+        if (titles.some((t) => t.slug === slug)) setSaved(true);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  async function toggle() {
+    if (pending) return;
+    setPending(true);
+    try {
+      const res = await fetch("/api/members/my-list", {
+        method:  saved ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ slug }),
+      });
+      if (res.status === 401) {
+        const r = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login?redirect=${r}`;
+        return;
+      }
+      if (res.status === 403) {
+        const r = encodeURIComponent(window.location.pathname);
+        window.location.href = `/signup?redirect=${r}`;
+        return;
+      }
+      if (res.ok) setSaved(!saved);
+    } catch { /* noop */ }
+    finally { setPending(false); }
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={pending}
+      className="flex items-center gap-2.5 glass text-white font-medium px-5 py-3.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all duration-200 text-sm"
+      style={{ opacity: pending ? 0.6 : 1 }}
+    >
+      {saved ? <Check size={16} /> : <Plus size={16} />}
+      {saved ? "Saved" : "Add to My List"}
+    </button>
   );
 }

@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { label: "Home",     href: "/" },
   { label: "Browse",   href: "/browse" },
   { label: "Creators", href: "/creators" },
-  { label: "My List",  href: "/profile" },
+  { label: "My List",  href: "/my-list" },
   { label: "Why",      href: "/why" },
 { label: "Creator Studio", href: "/creators/login" }];
 

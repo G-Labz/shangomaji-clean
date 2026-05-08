@@ -309,6 +309,21 @@ function CreatorBunnyPlayer({
         everPlayedRef.current = true;
         setStage({ kind: "playing", url: data.playbackUrl, expiresAt: data.expiresAt, title: data.title });
         scheduleRefresh(data.expiresAt);
+
+        // Phase 4 — light-touch "last watched" beacon. Bunny's iframe
+        // doesn't expose a reliable, dependency-free time signal in this
+        // build, so we don't claim precise resume position: we record a
+        // session-started row (position=0) and let the title page surface
+        // a Resume CTA only when meaningful progress is later present.
+        // Tokens / signed URLs are never sent to the progress endpoint.
+        try {
+          await fetch("/api/members/progress", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ slug, position_seconds: 0 }),
+            cache:   "no-store",
+          });
+        } catch { /* non-fatal */ }
       } else {
         setStage({ kind: "denied", reason: data.reason, title: data.title ?? null });
       }
@@ -317,7 +332,7 @@ function CreatorBunnyPlayer({
       cancelledRef.current = true;
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [fetchSession, scheduleRefresh]);
+  }, [fetchSession, scheduleRefresh, slug]);
 
   const handleBack = () => router.push(`/title/${slug}`);
 

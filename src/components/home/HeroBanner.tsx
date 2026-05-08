@@ -153,17 +153,22 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                   style={{ borderColor: "rgba(255,255,255,0.12)" }}>
                   {title.rating}
                 </span>
-                <span className="w-1 h-1 rounded-full" style={{ background: "rgba(245,197,24,0.6)" }} />
-                <span className="font-bold"
-                  style={{
-                    background: "linear-gradient(90deg, #f07030, #f5c518)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                  }}>
-                  {title.score}%
-                </span>
-                <span className="text-white/30">Match</span>
+                {typeof title.score === "number" && title.score > 0 && (
+                  <>
+                    <span className="w-1 h-1 rounded-full" style={{ background: "rgba(245,197,24,0.6)" }} />
+                    <span
+                      className="font-bold"
+                      style={{
+                        background: "linear-gradient(90deg, #f07030, #f5c518)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                      }}
+                    >
+                      {title.score}
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* Genres */}
