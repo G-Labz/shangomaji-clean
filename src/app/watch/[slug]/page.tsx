@@ -382,31 +382,28 @@ function CreatorBunnyPlayer({
   );
 }
 
-// Phase 5 watch-entry brand beat (final correction).
+// Phase 5 watch intro (final hard correction).
 //
-// Tight, premium watch-entry: black canvas → ShangoMaji logo fades in →
-// steady hold → fades out → player fades in. No scale settle. No pulse.
-// No breathing. No "Loading…" text. The video does NOT visibly play
-// underneath the overlay — the iframe is held at opacity 0 while the
-// brand beat is on screen and only fades up after the overlay is gone.
+// Founder rejected every variant of "logo enters" — even a pure opacity
+// fade-in read as "the logo grows in." This pass removes ALL animation
+// from the logo and its wrapper. The logo is at full opacity and final
+// size from the first frame. Only the surrounding black overlay fades
+// out at the end of the hold.
 //
-// Total visible duration on a fast connection: ~2.0s.
-//
-//   T=0–400      logo fades in (ENTRY_MS)
-//   T=400–1400   steady hold (HOLD_MS)
-//   T=1400       minBeatPassed flips. If iframe.onLoad has fired, exit.
-//                Otherwise keep holding until iframe loads or the safety
-//                fallback fires.
-//   T=exit       overlay fades to opacity 0 over FADE_OUT_MS.
-//   T=exit+FADE  iframe fades 0→1 over IFRAME_FADE_MS. Overlay unmounts.
+//   T=0          mount. logo visible at full size + full opacity.
+//                iframe is mounted but held at opacity 0.
+//   T=0–HOLD_MS  steady hold. nothing animates.
+//   T=HOLD_MS    min hold elapsed. if iframe.onLoad has fired, begin exit.
+//                otherwise keep holding until iframe loads or fallback.
+//   T=exit       overlay opacity 1→0 over FADE_OUT_MS (the only animation).
+//   T=exit+FADE  iframe opacity 0→1 over IFRAME_FADE_MS. overlay unmounts.
 //
 // Bunny native controls (speed, quality, fullscreen, AirPlay/cast, PiP)
 // remain owned by Bunny. /api/playback/session is not touched.
-const ENTRY_MS         = 400;
-const HOLD_MS          = 1000;
-const MIN_BEAT_MS      = ENTRY_MS + HOLD_MS; // 1400
+const HOLD_MS          = 1300; // visible static hold
+const MIN_BEAT_MS      = HOLD_MS;
 const FADE_OUT_MS      = 400;
-const IFRAME_FADE_MS   = 300;
+const IFRAME_FADE_MS   = 250;
 const FALLBACK_MS      = 6000; // hard cap — never hang forever
 
 // Append Bunny Stream embed parameters that honor the user's Play intent.
@@ -534,21 +531,30 @@ function PlayingFrame({
   );
 }
 
-// Phase 5 watch intro — clean fade-in, steady hold, clean fade-out.
-// No scale, no transform, no pulse, no breathing, no bounce. Pure opacity.
+// Phase 5 watch intro — STATIC logo, only the overlay fades out.
 //
-// Sizing note: /logo.png is a 1536×1024 (3:2) wordmark. We size the
-// WRAPPER to that aspect ratio at full intended dimensions and let the
-// <img> fill the wrapper exactly. This prevents the perceptual "starts
-// small and grows" issue caused by letterbox snap during decode of a
-// landscape image inside a square box. The wrapper has its final size
-// from frame one; only opacity moves.
+// Founder direction: "The logo must render at full opacity and final
+// size from the first visible frame. No keyframe attached to the logo.
+// No transform. No scale. No animate-pulse. No breathing." This is the
+// final, intentional posture.
+//
+// The only animation in this component is the OUTER overlay's CSS
+// `transition: opacity` for the exit fade. The logo wrapper has zero
+// animation, zero transform, zero will-change. It sits.
+//
+// Sizing: /logo.png is 1536×1024 (3:2). The wrapper is sized to that
+// exact aspect ratio so the rendered image fills the wrapper without
+// letterbox — eliminating the layout-snap-during-decode artifact that
+// previously read as "logo grows in." Intrinsic width/height attributes
+// on the <img> reinforce the aspect for the layout engine before the
+// pixel data has decoded.
 function BrandEntryBeat({ fadingOut }: { fadingOut: boolean }) {
   return (
     <div
       aria-hidden="true"
       className="absolute inset-0 flex items-center justify-center bg-black"
       style={{
+        // The overlay's exit fade is the only animation in the watch intro.
         transition:    `opacity ${FADE_OUT_MS}ms ease`,
         opacity:       fadingOut ? 0 : 1,
         pointerEvents: fadingOut ? "none" : "auto",
@@ -558,15 +564,9 @@ function BrandEntryBeat({ fadingOut }: { fadingOut: boolean }) {
     >
       <div
         style={{
-          // 3:2 aspect — matches the source logo. No letterbox, no
-          // box-vs-content size mismatch.
           width: "clamp(380px, 60vmin, 800px)",
           aspectRatio: "3 / 2",
-          // Single one-shot opacity fade-in on the wrapper. No transform.
-          // willChange hints the browser to GPU-composite the fade so it
-          // doesn't trigger any layout work mid-animation.
-          animation:  `brand-entry-fade ${ENTRY_MS}ms ease-out both`,
-          willChange: "opacity",
+          // No animation. No transform. No will-change. Logo is static.
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -574,6 +574,8 @@ function BrandEntryBeat({ fadingOut }: { fadingOut: boolean }) {
           src="/logo.png"
           alt=""
           aria-hidden="true"
+          width={1536}
+          height={1024}
           decoding="sync"
           loading="eager"
           style={{
@@ -627,18 +629,9 @@ function BrandLoadingMark() {
 // ── Access-state screens ─────────────────────────────────────────────────
 
 function CheckingState() {
-  // Phase 5 brand correction — the loading plate now uses the real ShangoMaji
-  // logo asset (/logo.png), not a synthesized "M". Silent black canvas for
-  // fast checks; the logo pulse only fades in after ~400ms. No forced delay.
-  const [showPlate, setShowPlate] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setShowPlate(true), 400);
-    return () => clearTimeout(t);
-  }, []);
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center">
+    <div className="fixed inset-0 bg-black z-[100]">
       <PageTitle title="Watch" />
-      {showPlate && <BrandLoadingMark />}
     </div>
   );
 }

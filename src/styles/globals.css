@@ -98,13 +98,10 @@ body::after {
   100% { background-position: 0% 50%; }
 }
 
-/* Phase 5 watch-entry brand beat — clean fade-in. No scale, no pulse,
-   no breathing. The hold is steady; only opacity moves on entry. The
-   exit fade is driven by an inline transition on the overlay element. */
-@keyframes brand-entry-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+/* Phase 5 watch intro — no logo entrance animation.
+   Founder direction: the logo must be visible at full opacity and final
+   size from the first frame. Only the surrounding black overlay fades
+   out. All entrance keyframes intentionally retired. */
 
 body > * { position: relative; z-index: 1; }
 
