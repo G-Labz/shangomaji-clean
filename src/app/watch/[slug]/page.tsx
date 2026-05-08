@@ -499,10 +499,35 @@ function LoadingPlate({ title }: { title: string }) {
 // ── Access-state screens ─────────────────────────────────────────────────
 
 function CheckingState() {
+  // Phase 5 fix — replace the generic "Loading…" text with a silent black
+  // canvas. If the gate fetch takes longer than ~400ms an unobtrusive M-mark
+  // pulse fades in. Fast checks render nothing visible at all, removing
+  // the clunky "Loading…" flash the founder reported.
+  const [showPlate, setShowPlate] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShowPlate(true), 400);
+    return () => clearTimeout(t);
+  }, []);
   return (
     <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center">
       <PageTitle title="Watch" />
-      <p className="text-white/45 text-sm">Loading…</p>
+      {showPlate && (
+        <span
+          aria-hidden="true"
+          className="leading-none animate-pulse"
+          style={{
+            fontSize: "clamp(40px, 7vw, 80px)",
+            fontWeight: 800,
+            letterSpacing: "0.04em",
+            background: "linear-gradient(135deg, #e53e2a, #f07030, #f5c518)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
+          M
+        </span>
+      )}
     </div>
   );
 }

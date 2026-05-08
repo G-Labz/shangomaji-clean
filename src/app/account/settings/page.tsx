@@ -17,9 +17,16 @@ export default function AccountSettingsPage() {
     <div style={page}>
       <PageTitle title="Account settings" />
       <div style={card}>
+        {/* Phase 5 fix — back affordance to /account so the settings page
+            is not a navigation dead-end. Stays visually quiet, aligned
+            with the existing eyebrow strip. */}
+        <Link href="/account" style={backLink}>
+          ← Back to Account
+        </Link>
+
         <p style={eyebrow}>Account</p>
         <h1 style={heading}>Settings</h1>
-        <p style={lead}>Manage your private Member account.</p>
+        <p style={lead}>Manage your Member account.</p>
 
         <section style={section}>
           <h2 style={sectionHeading}>Sign-in &amp; Security</h2>
@@ -44,6 +51,15 @@ export default function AccountSettingsPage() {
     </div>
   );
 }
+
+const backLink: React.CSSProperties = {
+  display: "inline-block",
+  fontSize: 12,
+  color: "rgba(255,255,255,0.55)",
+  textDecoration: "none",
+  marginBottom: 14,
+  letterSpacing: "0.02em",
+};
 
 const page: React.CSSProperties = {
   display: "flex",

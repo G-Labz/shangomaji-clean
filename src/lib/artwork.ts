@@ -9,6 +9,13 @@
 //   3. Stock placeholder hosts (picsum.photos) that occasionally leak in
 //      from demo/seed data.
 //
+// IMPORTANT — what is NOT blocked here, by design:
+//   - Bunny CDN thumbnails (b-cdn.net hosts). These are valid cover art
+//     for tester videos, including the gray crown thumbnail the founder
+//     uses during pre-launch testing. They render normally.
+//   - Creator-uploaded poster/banner URLs hosted anywhere except the
+//     two sentinels above.
+//
 // When any of these conditions hits, callers render a black typographic
 // fallback (M-mark + title) via <PosterArt> / <BackdropArt> instead of an
 // <Image src=""> that would either 404 or throw. The data layer is patched

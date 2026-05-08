@@ -7,6 +7,7 @@ import { Play, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Title } from "@/data/mockData";
 import { BackdropArt } from "@/components/artwork/Artwork";
 import { isWithinNewWindow } from "@/lib/new-badge";
+import { isRealText } from "@/lib/copy-guards";
 
 interface HeroBannerProps { titles: Title[]; }
 
@@ -169,8 +170,9 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                 {title.title}
               </h1>
 
-              {/* Tagline — only when present, no orphaned quotes */}
-              {title.tagline && title.tagline.trim() && (
+              {/* Tagline — guarded by isRealText so DB-typed sentinels
+                  ("WORKING", "test", "lorem", …) never render. */}
+              {isRealText(title.tagline) && (
                 <p className="text-display italic mb-5 leading-snug"
                   style={{
                     fontSize: "clamp(15px, 1.8vw, 21px)",
@@ -233,8 +235,9 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                 ))}
               </div>
 
-              {/* Description — only render when copy is real */}
-              {title.description && title.description.trim() && (
+              {/* Description — guarded by isRealText so DB-typed sentinels
+                  never render. */}
+              {isRealText(title.description) && (
                 <p className="text-sm leading-relaxed line-clamp-2 mb-9 max-w-lg"
                   style={{ color: "rgba(255,255,255,0.50)" }}>
                   {title.description}

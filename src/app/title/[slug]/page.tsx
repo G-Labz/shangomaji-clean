@@ -21,6 +21,7 @@ import { CulturalContextPanel } from "@/components/title/CulturalContextPanel";
 import { PosterArt, BackdropArt } from "@/components/artwork/Artwork";
 import { PageTitle } from "@/components/util/PageTitle";
 import { isWithinNewWindow } from "@/lib/new-badge";
+import { isRealText } from "@/lib/copy-guards";
 interface PageProps {
   params: { slug: string };
 }
@@ -136,8 +137,9 @@ export default function TitlePage({ params }: PageProps) {
             {title.title}
           </h1>
 
-          {/* Tagline — only when present */}
-          {title.tagline && title.tagline.trim() && (
+          {/* Tagline — only when present and not a placeholder sentinel
+              like "WORKING" / "test" / "lorem". */}
+          {isRealText(title.tagline) && (
             <p className="text-display italic text-ink-muted text-xl mb-5">
               &ldquo;{title.tagline.trim()}&rdquo;
             </p>
@@ -242,9 +244,12 @@ export default function TitlePage({ params }: PageProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          {/* About — only when real description exists */}
+          {/* About — only when description is real copy. `isRealText` rejects
+              null/empty + sentinel values typed during testing (WORKING,
+              test, lorem, …) so those never render in production. The
+              entire heading + body is hidden together — no orphaned label. */}
           <div className="lg:col-span-2">
-            {title.description && title.description.trim() && (
+            {isRealText(title.description) && (
               <>
                 <h2 className="text-xs uppercase tracking-widest text-ink-faint mb-3">
                   About
@@ -370,8 +375,8 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
             {title.title}
           </h1>
 
-          {title.tagline && (
-            <p className="text-display italic text-ink-muted text-xl mb-5">"{title.tagline}"</p>
+          {isRealText(title.tagline) && (
+            <p className="text-display italic text-ink-muted text-xl mb-5">&ldquo;{title.tagline.trim()}&rdquo;</p>
           )}
 
           {(() => {
@@ -469,7 +474,7 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
             </div>
           )}
 
-          {title.description && (
+          {isRealText(title.description) && (
             <div className="py-8 border-t border-white/5">
               <h2 className="text-xs uppercase tracking-widest text-ink-faint mb-3">About</h2>
               <p className="text-ink-muted leading-relaxed text-sm md:text-base">{title.description}</p>

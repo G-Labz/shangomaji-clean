@@ -114,8 +114,22 @@ export default function AccountPage() {
   }
 
   async function handleSignOut() {
+    // Phase 5 fix — sign-out hygiene.
+    //
+    // signOut clears the Supabase session in memory and rewrites cookies.
+    // Following up with a Next.js client-side router.replace can leave
+    // hydrated state from this page mounted in memory, which contributed
+    // to the "sign out → sign back in same tab" race the founder
+    // observed. A full window.location nav guarantees:
+    //   • the singleton supabase browser client is re-initialized,
+    //   • cookies are committed before the next request,
+    //   • the next /login mount starts from a clean slate.
     await supabase.auth.signOut();
-    router.replace("/");
+    if (typeof window !== "undefined") {
+      window.location.assign("/");
+    } else {
+      router.replace("/");
+    }
   }
 
   if (loading) {

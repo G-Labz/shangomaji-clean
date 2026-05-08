@@ -72,22 +72,66 @@ export default function MemberLoginPage() {
         return;
       }
 
-      // Confirm the signed-in user is a Member. If they are only a Creator
-      // (or neither), send them somewhere appropriate without promoting them.
-      const sessionRes  = await fetch("/api/members/session", { cache: "no-store" });
-      const sessionData = await sessionRes.json();
+      // Phase 5 fix — sign-out / sign-in race.
+      //
+      // Cookie propagation between the browser client's signInWithPassword
+      // resolution and the next /api/members/session fetch can race when
+      // the user has just signed out earlier in the same tab. Old code
+      // would see `authenticated: false` once and fall straight through
+      // to "No Member account found", forcing the user to refresh and try
+      // again. We now:
+      //
+      //   1. Force a sync barrier via getSession() so the local client has
+      //      the new tokens fully hydrated.
+      //   2. Probe /api/members/session up to 3 times with a small backoff
+      //      to absorb cookie propagation jitter.
+      //   3. Navigate via window.location for the success path so the
+      //      destination's server-side gate sees fresh cookies on the
+      //      first paint.
+      await supabase.auth.getSession();
+
+      let sessionData: {
+        authenticated?: boolean;
+        isMember?:      boolean;
+        isCreator?:     boolean;
+      } = {};
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await fetch("/api/members/session", { cache: "no-store" });
+          sessionData = await res.json();
+          if (sessionData?.authenticated) break;
+        } catch {
+          // network blip — fall through to retry
+        }
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 150));
+        }
+      }
+
       if (sessionData?.isMember) {
-        router.replace(redirect);
+        // Hard navigation guarantees the destination layout sees the new
+        // cookie set on first request, avoiding any residual race.
+        if (typeof window !== "undefined") {
+          window.location.assign(redirect);
+        } else {
+          router.replace(redirect);
+        }
         return;
       }
 
-      // Authenticated but not a Member. Sign them out so the session is not
-      // ambiguous, and direct them to the right surface.
+      // Authenticated but not a Member (or session probe failed three times).
+      // Sign them out so the session is not ambiguous, and direct them to
+      // the right surface.
       await supabase.auth.signOut();
       if (sessionData?.isCreator) {
         setError(
           "This account is a Creator account. Sign in via Creator Studio instead."
         );
+      } else if (sessionData?.authenticated === false) {
+        // Server never saw a valid session even after retries — this is
+        // the tab-state hiccup the founder reported. The clearest user-
+        // facing remedy is to retry; cookies will be in sync by then.
+        setError("Sign-in did not complete. Please try again.");
       } else {
         setError("No Member account exists for this email. Create one to continue.");
       }
@@ -110,7 +154,7 @@ export default function MemberLoginPage() {
       <div style={card}>
         <p style={eyebrow}>Member</p>
         <h1 style={heading}>Sign in as a Member</h1>
-        <p style={lead}>Continue to your private account.</p>
+        <p style={lead}>Continue to your ShangoMaji Member account.</p>
 
         {error && <div style={errorBox}>{error}</div>}
 
