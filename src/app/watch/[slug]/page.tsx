@@ -382,34 +382,32 @@ function CreatorBunnyPlayer({
   );
 }
 
-// Phase 5 watch-entry brand beat.
+// Phase 5 watch-entry brand beat (final correction).
 //
-// Renders the ShangoMaji-owned chrome (back arrow + title bar, black
-// canvas, centered 16:9 player container) and a deliberate brand-entry
-// overlay that holds the ShangoMaji mark for ~2.2s before revealing the
-// Bunny iframe. This is the one place in the product where a forced
-// delay is intentional — modeled on streaming-platform watch-entry beats.
+// Tight, premium watch-entry: black canvas → ShangoMaji logo fades in →
+// steady hold → fades out → player fades in. No scale settle. No pulse.
+// No breathing. No "Loading…" text. The video does NOT visibly play
+// underneath the overlay — the iframe is held at opacity 0 while the
+// brand beat is on screen and only fades up after the overlay is gone.
 //
-// Architecture:
-//   • iframe mounts immediately and begins preloading underneath the
-//     overlay, so the brand beat is the only thing visible while the
-//     player gets ready.
-//   • The overlay covers the player canvas only (not the top bar), so
-//     a user who changed their mind can still click Back during the
-//     beat. No UX trap.
-//   • Fade-out triggers when both:
-//       (a) MIN_BEAT_MS has elapsed, and
-//       (b) iframe.onLoad has fired.
-//     A FALLBACK_MS safety timer also forces fade-out so the screen can
-//     never hang forever.
-//   • After fade-out completes the overlay unmounts so it cannot
-//     intercept clicks.
+// Total visible duration on a fast connection: ~2.0s.
 //
-// Bunny's native controls (speed, quality, fullscreen, AirPlay/cast,
-// PiP) remain owned by Bunny. We do not layer custom controls.
-const MIN_BEAT_MS  = 2200;
-const FALLBACK_MS  = 8000;
-const FADE_OUT_MS  = 600;
+//   T=0–400      logo fades in (ENTRY_MS)
+//   T=400–1400   steady hold (HOLD_MS)
+//   T=1400       minBeatPassed flips. If iframe.onLoad has fired, exit.
+//                Otherwise keep holding until iframe loads or the safety
+//                fallback fires.
+//   T=exit       overlay fades to opacity 0 over FADE_OUT_MS.
+//   T=exit+FADE  iframe fades 0→1 over IFRAME_FADE_MS. Overlay unmounts.
+//
+// Bunny native controls (speed, quality, fullscreen, AirPlay/cast, PiP)
+// remain owned by Bunny. /api/playback/session is not touched.
+const ENTRY_MS         = 400;
+const HOLD_MS          = 1000;
+const MIN_BEAT_MS      = ENTRY_MS + HOLD_MS; // 1400
+const FADE_OUT_MS      = 400;
+const IFRAME_FADE_MS   = 300;
+const FALLBACK_MS      = 6000; // hard cap — never hang forever
 
 function PlayingFrame({
   url,
@@ -422,34 +420,45 @@ function PlayingFrame({
   onBack: () => void;
   onStreamError: () => void;
 }) {
-  const [iframeLoaded,  setIframeLoaded]  = useState(false);
-  const [minBeatPassed, setMinBeatPassed] = useState(false);
-  const [revealPlayer,  setRevealPlayer]  = useState(false);
-  const [beatMounted,   setBeatMounted]   = useState(true);
+  // Lifecycle flags
+  const [iframeLoaded,  setIframeLoaded]  = useState(false); // iframe.onLoad fired
+  const [minBeatPassed, setMinBeatPassed] = useState(false); // hold elapsed
+  const [exitBeat,      setExitBeat]      = useState(false); // begin overlay fade-out
+  const [revealIframe,  setRevealIframe]  = useState(false); // begin iframe fade-in
+  const [unmountBeat,   setUnmountBeat]   = useState(false); // remove overlay from tree
 
-  // Min hold + safety fallback timers. Both clean up on unmount.
+  // Hold + safety timers.
   useEffect(() => {
     const minT = setTimeout(() => setMinBeatPassed(true), MIN_BEAT_MS);
-    const safT = setTimeout(() => setRevealPlayer(true),  FALLBACK_MS);
+    const safT = setTimeout(() => setExitBeat(true),      FALLBACK_MS);
     return () => {
       clearTimeout(minT);
       clearTimeout(safT);
     };
   }, []);
 
-  // Reveal the player once both gates are open.
+  // Trigger exit when both conditions are satisfied.
   useEffect(() => {
-    if (revealPlayer) return;
-    if (iframeLoaded && minBeatPassed) setRevealPlayer(true);
-  }, [iframeLoaded, minBeatPassed, revealPlayer]);
+    if (exitBeat) return;
+    if (iframeLoaded && minBeatPassed) setExitBeat(true);
+  }, [iframeLoaded, minBeatPassed, exitBeat]);
 
-  // After the fade-out completes, fully unmount the overlay so it cannot
-  // intercept pointer events on the player.
+  // After the overlay finishes fading out, fade the iframe in. After the
+  // iframe fade completes, unmount the overlay entirely so it cannot
+  // intercept clicks. The iframe stays at opacity 0 for the entire
+  // duration of the overlay, so the video is never visible behind it.
   useEffect(() => {
-    if (!revealPlayer) return;
-    const t = setTimeout(() => setBeatMounted(false), FADE_OUT_MS + 100);
-    return () => clearTimeout(t);
-  }, [revealPlayer]);
+    if (!exitBeat) return;
+    const t1 = setTimeout(() => setRevealIframe(true), FADE_OUT_MS);
+    const t2 = setTimeout(
+      () => setUnmountBeat(true),
+      FADE_OUT_MS + IFRAME_FADE_MS + 50
+    );
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [exitBeat]);
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col">
@@ -471,7 +480,10 @@ function PlayingFrame({
       </div>
 
       {/* Player canvas — iframe mounts immediately so the Bunny session
-          can preload behind the brand-entry overlay. */}
+          can preload behind the brand-entry overlay, but is held at
+          opacity 0 until the overlay has finished fading out. This
+          prevents the founder-reported "video plays under the logo"
+          regression: nothing is visible until the beat is done. */}
       <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
         <div
           className="relative w-full h-full max-h-[100vh]"
@@ -483,21 +495,25 @@ function PlayingFrame({
             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             className="absolute inset-0 w-full h-full border-0"
+            style={{
+              transition: `opacity ${IFRAME_FADE_MS}ms ease`,
+              opacity:    revealIframe ? 1 : 0,
+            }}
             onLoad={() => setIframeLoaded(true)}
             onError={onStreamError}
           />
 
           {/* Brand-entry overlay — covers the player canvas only,
               leaving the top bar (Back arrow) reachable. */}
-          {beatMounted && <BrandEntryBeat fadingOut={revealPlayer} />}
+          {!unmountBeat && <BrandEntryBeat fadingOut={exitBeat} />}
         </div>
       </div>
     </div>
   );
 }
 
-// Phase 5 watch-entry brand beat — cinematic logo overlay.
-// Pure presentation: no timing logic here, parent owns the lifecycle.
+// Phase 5 watch-entry brand beat — clean fade-in, steady hold, clean
+// fade-out. No scale settle, no pulse, no breathing. Pure opacity.
 function BrandEntryBeat({ fadingOut }: { fadingOut: boolean }) {
   return (
     <div
@@ -520,14 +536,9 @@ function BrandEntryBeat({ fadingOut }: { fadingOut: boolean }) {
         style={{
           width:  "clamp(280px, 55vmin, 640px)",
           height: "clamp(280px, 55vmin, 640px)",
-          // Two animations stacked:
-          //   1. brand-entry — one-shot 1.4s entrance (fade + scale settle).
-          //   2. ember-breathe-sm — slow infinite glow during the hold.
-          // The ember pulse sits on `filter`, the entrance sits on
-          // `opacity` + `transform`, so they coexist without conflict.
-          animation:
-            "brand-entry 1.4s cubic-bezier(0.22, 1, 0.36, 1) both, " +
-            "ember-breathe-sm 5s ease-in-out 1.4s infinite",
+          // Single one-shot fade-in. No transform, no infinite loops,
+          // no breathing. The hold is just steady opacity 1.
+          animation: `brand-entry-fade ${ENTRY_MS}ms ease-out both`,
         }}
       />
     </div>
