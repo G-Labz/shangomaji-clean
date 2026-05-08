@@ -109,10 +109,33 @@ async function resolveTitleByIdOrSlug(opts: {
   return { ok: true, titleRow, projectRow };
 }
 
-// Look up an executed license for the project and confirm `now` is inside
-// the term window. A null term_start or term_end means open-ended in that
-// direction (matches the schema convention used elsewhere).
-async function isInLicenseTerm(projectId: string): Promise<boolean> {
+// Tri-state evaluation of license-term coverage for a project.
+//
+//   in_term       — an executed creator_licenses row exists, has explicit
+//                   term_start and/or term_end, and `now` falls inside it.
+//   no_term_data  — either no executed creator_licenses row exists for this
+//                   project (legacy-active title pre-dating SDL term
+//                   stamping), or the row exists but BOTH term_start and
+//                   term_end are NULL (license signed, term not yet stamped
+//                   at activation). In both cases the license layer is
+//                   silent and eligibility defers to the catalog-standard
+//                   gates (status / media_ready / distribution window) that
+//                   the public catalog itself enforces.
+//   out_of_term   — an executed license with explicit boundaries places
+//                   `now` outside the window. This is a hard deny mapped
+//                   to the `license_out_of_term` reason.
+//
+// Rationale: the previous binary helper returned `false` whenever no
+// executed license row was found, which over-blocked legitimately-active,
+// catalog-visible titles that pre-date the SDL term-stamping work. Per
+// Phase 3 spec, missing legacy license data must NOT override an active
+// title's distribution window.
+type LicenseTermEvaluation =
+  | { kind: "in_term" }
+  | { kind: "no_term_data" }
+  | { kind: "out_of_term" };
+
+async function evaluateLicenseTerm(projectId: string): Promise<LicenseTermEvaluation> {
   const admin = svc();
   const { data: license } = await admin
     .from("creator_licenses")
@@ -122,16 +145,29 @@ async function isInLicenseTerm(projectId: string): Promise<boolean> {
     .maybeSingle();
 
   if (!license) {
-    // No executed license → publication is not allowed. Fail closed.
-    return false;
+    // No executed license at all. Legacy-active title — defer to the
+    // catalog-standard distribution gates checked elsewhere in the resolver.
+    return { kind: "no_term_data" };
   }
 
-  const now = Date.now();
-  const startOk =
-    !license.term_start || new Date(license.term_start).getTime() <= now;
-  const endOk =
-    !license.term_end || new Date(license.term_end).getTime() >= now;
-  return startOk && endOk;
+  const hasStart = !!license.term_start;
+  const hasEnd   = !!license.term_end;
+
+  if (!hasStart && !hasEnd) {
+    // License is signed but term boundaries have not been stamped (per
+    // migration 011, stamping happens at activation). Defer to catalog
+    // gates rather than denying.
+    return { kind: "no_term_data" };
+  }
+
+  const now     = Date.now();
+  const startMs = hasStart ? new Date(license.term_start as string).getTime() : Number.NEGATIVE_INFINITY;
+  const endMs   = hasEnd   ? new Date(license.term_end   as string).getTime() : Number.POSITIVE_INFINITY;
+
+  if (now < startMs || now > endMs) {
+    return { kind: "out_of_term" };
+  }
+  return { kind: "in_term" };
 }
 
 // Attribution lookup for the title summary. Mirrors the public/titles logic
@@ -323,8 +359,24 @@ export async function resolvePlaybackAccess(opts: {
   }
 
   // 7. License term gate.
-  const inLicenseTerm = await isInLicenseTerm(t.project_id);
-  if (!inLicenseTerm) {
+  //
+  // Eligibility hierarchy (per Phase 3 patch):
+  //   - `in_term`      → license confirms playback window — allow.
+  //   - `no_term_data` → no executed license OR license signed without
+  //                      stamped term boundaries. Catalog-standard gates
+  //                      above (status / media_ready / distribution window)
+  //                      have already passed, so allow as a legacy-active
+  //                      / catalog-controlled title. Public catalog and
+  //                      playback eligibility now agree on this case
+  //                      instead of diverging.
+  //   - `out_of_term`  → executed license with explicit boundaries places
+  //                      `now` outside the window. Hard deny.
+  //
+  // We do NOT block solely because a legacy executed-license row is
+  // missing; that produced the spurious `license_out_of_term` denials on
+  // already-active live titles.
+  const licenseEval = await evaluateLicenseTerm(t.project_id);
+  if (licenseEval.kind === "out_of_term") {
     return { ok: false, reason: "license_out_of_term", title: titleSummary };
   }
 
