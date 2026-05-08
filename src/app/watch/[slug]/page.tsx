@@ -466,22 +466,9 @@ function LoadingPlate({ title }: { title: string }) {
       className="absolute inset-0 flex flex-col items-center justify-center bg-black"
       style={{ pointerEvents: "none" }}
     >
+      <BrandLoadingMark size="large" />
       <span
-        className="leading-none animate-pulse"
-        style={{
-          fontSize: "clamp(48px, 8vw, 92px)",
-          fontWeight: 800,
-          letterSpacing: "0.04em",
-          background: "linear-gradient(135deg, #e53e2a, #f07030, #f5c518)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-        }}
-      >
-        M
-      </span>
-      <span
-        className="mt-3 px-4 text-center"
+        className="mt-4 px-4 text-center"
         style={{
           fontSize: 12,
           letterSpacing: "0.18em",
@@ -496,13 +483,40 @@ function LoadingPlate({ title }: { title: string }) {
   );
 }
 
+// Phase 5 brand correction — shared loading mark that uses the real
+// ShangoMaji logo asset already shipped at /logo.png and surfaced in TopNav.
+// We intentionally use a plain <img> (not next/image) because:
+//   • this is a fixed-size UI element rendered briefly during a load gate,
+//     so the next/image LCP/optimization layer adds no value;
+//   • <img> matches the pattern TopNav uses for the same asset.
+//
+// Visual brief: cinematic, subtle, premium-streaming feel. The pulse is the
+// only motion — no spinner, no caption, no "Loading…" text.
+function BrandLoadingMark({ size = "medium" }: { size?: "medium" | "large" }) {
+  const dimension = size === "large" ? "clamp(96px, 12vw, 168px)" : "clamp(72px, 9vw, 128px)";
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/logo.png"
+      alt=""
+      aria-hidden="true"
+      className="object-contain animate-pulse"
+      style={{
+        width:  dimension,
+        height: dimension,
+        filter:
+          "drop-shadow(0 0 24px rgba(229,62,42,0.35)) drop-shadow(0 0 6px rgba(245,197,24,0.18))",
+      }}
+    />
+  );
+}
+
 // ── Access-state screens ─────────────────────────────────────────────────
 
 function CheckingState() {
-  // Phase 5 fix — replace the generic "Loading…" text with a silent black
-  // canvas. If the gate fetch takes longer than ~400ms an unobtrusive M-mark
-  // pulse fades in. Fast checks render nothing visible at all, removing
-  // the clunky "Loading…" flash the founder reported.
+  // Phase 5 brand correction — the loading plate now uses the real ShangoMaji
+  // logo asset (/logo.png), not a synthesized "M". Silent black canvas for
+  // fast checks; the logo pulse only fades in after ~400ms. No forced delay.
   const [showPlate, setShowPlate] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setShowPlate(true), 400);
@@ -511,23 +525,7 @@ function CheckingState() {
   return (
     <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center">
       <PageTitle title="Watch" />
-      {showPlate && (
-        <span
-          aria-hidden="true"
-          className="leading-none animate-pulse"
-          style={{
-            fontSize: "clamp(40px, 7vw, 80px)",
-            fontWeight: 800,
-            letterSpacing: "0.04em",
-            background: "linear-gradient(135deg, #e53e2a, #f07030, #f5c518)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}
-        >
-          M
-        </span>
-      )}
+      {showPlate && <BrandLoadingMark />}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { buildBunnyThumbnailUrl } from "@/lib/bunny";
 import { normalizeArtworkUrl } from "@/lib/artwork";
 import { isWithinNewWindow } from "@/lib/new-badge";
+import { filterSuppressedTaxonomy } from "@/lib/copy-guards";
 
 // Phase 3 — public title metadata is freely browsable, but the playback
 // embed URL is NEVER returned here. Members must obtain a signed/expiring
@@ -160,7 +161,12 @@ export async function GET() {
         score:       0,
         runtime:     null,
         seasons:     null,
-        genres:      (p?.genres || []).map((g: string) => GENRE_MAP[g] || g),
+        // Phase 5 brand correction — retired taxonomy ("Afrofuturism") is
+        // filtered out at the API boundary so it never reaches any client
+        // surface. GENRE_MAP rewrites legacy short codes to current labels.
+        genres:      filterSuppressedTaxonomy(
+          (p?.genres || []).map((g: string) => GENRE_MAP[g] || g)
+        ),
         type:        (p?.project_type || "").toLowerCase() === "series" ? "series" : "movie",
         // Phase 5: emit null when no real artwork exists. Consumers render a
         // black typographic fallback (M-mark + title) instead of a broken

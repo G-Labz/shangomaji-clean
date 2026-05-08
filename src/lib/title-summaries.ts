@@ -12,6 +12,7 @@
 import { createClient as createServiceClient, type SupabaseClient } from "@supabase/supabase-js";
 import { buildBunnyThumbnailUrl } from "@/lib/bunny";
 import { normalizeArtworkUrl } from "@/lib/artwork";
+import { filterSuppressedTaxonomy } from "@/lib/copy-guards";
 
 const GENRE_MAP: Record<string, string> = {
   "Mythic":    "Mythology & Gods",
@@ -139,7 +140,12 @@ export async function fetchTitleSummariesByIds(orderedIds: string[]): Promise<Ti
       description:  (p as any)?.description || (p as any)?.logline || "",
       year:         p ? new Date((p as any).created_at).getFullYear() : new Date().getFullYear(),
       type:         ((p as any)?.project_type || "").toLowerCase() === "series" ? "series" : "movie",
-      genres:       (((p as any)?.genres ?? []) as string[]).map((g) => GENRE_MAP[g] || g),
+      // Phase 5 brand correction — strip retired taxonomy here too so saved
+      // titles in My List / Account preview don't surface it via the summary
+      // shape.
+      genres:       filterSuppressedTaxonomy(
+        (((p as any)?.genres ?? []) as string[]).map((g) => GENRE_MAP[g] || g)
+      ),
       // Phase 5 — null instead of legacy placeholder. Consumer renders fallback.
       posterUrl:    normalizeArtworkUrl((p as any)?.cover_image_url) || normalizeArtworkUrl(bunnyThumb),
       backdropUrl:  normalizeArtworkUrl((p as any)?.banner_url) || normalizeArtworkUrl((p as any)?.cover_image_url) || normalizeArtworkUrl(bunnyThumb),

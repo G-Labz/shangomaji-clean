@@ -64,3 +64,42 @@ export function realTextOrNull(
 ): string | null {
   return isRealText(value, opts) ? value.trim() : null;
 }
+
+// ── Retired taxonomy ─────────────────────────────────────────────────────
+//
+// Genre / category labels that are no longer current ShangoMaji language.
+// Filtered at the data layer (public API + title-summaries) so they never
+// reach the client and never render on cards, chips, hero, or My List.
+//
+// Founder direction (Phase 5 brand correction): "Afrofuturism" is retired
+// pre-launch language; it must not surface on the tester title or anywhere
+// else. We do NOT mutate the underlying database row — the DB column may
+// still carry the value for historical reference. The filter is render-time
+// only.
+//
+// Match is case-insensitive, whole-string. "Afrofuturism" is dropped;
+// "Afrofuturist Mythology" (a hypothetical compound genre) is preserved
+// because it is not the same label.
+const SUPPRESSED_TAXONOMY = new Set<string>([
+  "afrofuturism",
+]);
+
+export function isSuppressedTaxonomy(label: unknown): boolean {
+  if (typeof label !== "string") return false;
+  return SUPPRESSED_TAXONOMY.has(label.trim().toLowerCase());
+}
+
+/**
+ * Drop retired taxonomy labels from a genres/categories array. Returns a
+ * fresh array containing only the still-current values. If every input
+ * label is retired, returns `[]`. Callers downstream of an empty result
+ * must hide their chip/divider/wrapper entirely (no orphaned UI).
+ */
+export function filterSuppressedTaxonomy(
+  labels: ReadonlyArray<string> | null | undefined
+): string[] {
+  if (!Array.isArray(labels)) return [];
+  return labels.filter(
+    (l): l is string => typeof l === "string" && !isSuppressedTaxonomy(l)
+  );
+}
