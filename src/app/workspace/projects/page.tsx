@@ -444,13 +444,27 @@ export default function WorkspaceProjects() {
                       package action. This is NOT an "Edit Work" button —
                       core metadata stays locked at the API level. The
                       route renders only the promotional asset surface
-                      (poster / banner / stills / trailer / deliverables). */}
+                      (poster / banner / stills / trailer / deliverables).
+
+                      Phase 6 Tier 2.5 fix v2 — Live works also get a
+                      visible media affordance, but as "View Media
+                      Package" (read-only). Founder rule: live media
+                      changes are not direct-edit in this phase. The
+                      page itself enforces read-only when status === live. */}
                   {isApproved && (
                     <Link
                       href={`/workspace/projects/${project.id}/media`}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition"
                     >
                       Manage Media Package
+                    </Link>
+                  )}
+                  {isLive && (
+                    <Link
+                      href={`/workspace/projects/${project.id}/media`}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition"
+                    >
+                      View Media Package
                     </Link>
                   )}
                   <ItemActions

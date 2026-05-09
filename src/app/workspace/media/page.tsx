@@ -232,18 +232,56 @@ export default function WorkspaceMedia() {
         <p className="text-brand-red text-sm">{error}</p>
       )}
 
+      {/* Phase 6 Tier 2.5 fix v2 — empty-state copy distinguishes
+          "no media saved on any work yet" from "filter excludes
+          everything we have". Neither path implies a submission flow;
+          both point the creator at the work-side media-package action. */}
       {!loading && !error && filtered.length === 0 && (
-        <Card className="text-center py-8">
+        <Card className="text-center py-8 space-y-2">
           <p className="text-ink-faint text-sm">
             {filter === "All"
-              ? "No media yet. Add assets when creating a project."
+              ? "No media assets attached yet."
               : "No media matches this filter."}
           </p>
+          {filter === "All" && (
+            <p className="text-ink-muted text-xs">
+              Choose a work to add or view its media package.
+            </p>
+          )}
+          <div className="pt-2">
+            <Link
+              href="/workspace/projects"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition"
+            >
+              Choose Work for Media
+            </Link>
+          </div>
         </Card>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((item, i) => (
+        {filtered.map((item, i) => {
+          // Phase 6 Tier 2.5 fix v2 — route to the right per-work
+          // surface based on status:
+          //   - draft / rejected → full editor (existing behavior)
+          //   - approved / live  → media package page (Tier 2.5 surface)
+          //   - other            → no per-card "edit" affordance (the
+          //                        item is read-only at this layer)
+          const isMediaPackageState =
+            item.projectStatus === "approved" || item.projectStatus === "live";
+          const isFullEditState =
+            item.projectStatus === "draft" || item.projectStatus === "rejected";
+          const projectHref = isMediaPackageState
+            ? `/workspace/projects/${item.projectId}/media`
+            : isFullEditState
+            ? `/workspace/projects/${item.projectId}/edit`
+            : undefined;
+          // Sample / screener stays a creator/admin-private asset. Do NOT
+          // expose it for inline deletion alongside public-facing assets.
+          // Removing requires the draft surface (existing behavior).
+          const allowDelete = item.field !== "sample_url" && isFullEditState;
+
+          return (
           <Card key={`${item.projectId}-${item.field}-${i}`} className="space-y-3">
             {item.isLink ? (
               <div className="h-36 rounded-lg overflow-hidden bg-black/30 border border-white/5 flex items-center justify-center">
@@ -261,13 +299,27 @@ export default function WorkspaceMedia() {
             {/* Info + project linkage */}
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-white font-semibold text-sm">{item.type}</p>
-                <Link
-                  href={`/workspace/projects/${item.projectId}/edit`}
-                  className="text-ink-faint text-xs hover:text-brand-orange transition"
-                >
-                  {item.projectTitle}
-                </Link>
+                <p className="text-white font-semibold text-sm">
+                  {item.type}
+                  {item.field === "sample_url" && (
+                    <span
+                      className="ml-2 text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded border align-middle bg-yellow-500/10 text-yellow-300 border-yellow-500/30"
+                      title="Sample / screener URL is creator/admin private. Not part of the public media package."
+                    >
+                      Private
+                    </span>
+                  )}
+                </p>
+                {projectHref ? (
+                  <Link
+                    href={projectHref}
+                    className="text-ink-faint text-xs hover:text-brand-orange transition"
+                  >
+                    {item.projectTitle}
+                  </Link>
+                ) : (
+                  <span className="text-ink-faint text-xs">{item.projectTitle}</span>
+                )}
               </div>
               <StatusBadge status={item.projectStatus} />
             </div>
@@ -279,12 +331,13 @@ export default function WorkspaceMedia() {
                 <span>{item.isLink ? "External link" : "Uploaded image"}</span>
               </div>
               <ItemActions
-                editHref={`/workspace/projects/${item.projectId}/edit`}
-                onDelete={() => handleDeleteMedia(item)}
+                editHref={projectHref}
+                onDelete={allowDelete ? () => handleDeleteMedia(item) : undefined}
               />
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -10,6 +10,9 @@
 //   - draft     → this page redirects the creator to the regular edit page
 //                 (full edit is the right surface there)
 //   - approved  → media inputs editable; core metadata locked
+//   - live      → read-only media-package view (founder rule: live media
+//                 changes are not direct-edit in this phase). Save is
+//                 hidden; PUT is not invoked for live status.
 //   - all else  → page renders a read-only "locked" notice
 //
 // Editable here:
@@ -213,9 +216,11 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
     );
   }
 
-  // Locked notice for any state that is not draft / approved. Draft is
-  // already redirected above; approved is the editable case below.
-  const allowedStates = new Set(["approved"]);
+  // Locked notice for any state that is not draft / approved / live.
+  // Draft is already redirected above; approved is the editable case
+  // below; live is the read-only case below (founder rule: live media
+  // changes are not direct-edit in this phase).
+  const allowedStates = new Set(["approved", "live"]);
   if (!allowedStates.has(project.status)) {
     return (
       <div className="space-y-4 pb-10">
@@ -240,6 +245,12 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
   }
 
   const licenseExecuted = project.license_status === "executed";
+  // Phase 6 Tier 2.5 fix v2 — Live works render the same surface as
+  // approved works, but in read-only mode. No save button, no upload
+  // affordances, no remove buttons. The page exists so the creator can
+  // see what is currently attached to the live work and confirm what
+  // the public is seeing.
+  const readOnly = project.status === "live";
 
   return (
     <div className="space-y-6 pb-10">
@@ -268,8 +279,9 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
           {project.title}
         </p>
         <p className="text-ink-muted text-xs mt-2 max-w-2xl leading-relaxed">
-          Add the assets required for distribution activation. Core work details
-          are locked after review.
+          {readOnly
+            ? "This work is under active distribution. Media changes require ShangoMaji review. The current package is shown below."
+            : "Add the assets required for distribution activation. Core work details are locked after review."}
         </p>
       </div>
 
@@ -306,185 +318,233 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
       <Card className="space-y-6">
         <SectionHeading title="Promotional artwork" />
 
-        <Field label="Poster / Thumbnail" hint="Square or 2:3 portrait recommended.">
-          {draft.thumbUrl && (
+        <Field label="Poster / Thumbnail" hint={readOnly ? undefined : "Square or 2:3 portrait recommended."}>
+          {draft.thumbUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={draft.thumbUrl}
               alt="Poster"
               className="h-24 w-auto rounded-lg object-cover mb-2"
             />
+          ) : (
+            readOnly && <p className="text-xs text-ink-muted">No poster attached.</p>
           )}
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const url = await uploadFile(file, "poster");
-                  setDraft((d) => ({ ...d, thumbUrl: url }));
-                } catch (err: any) {
-                  showError(err.message || "Upload failed");
-                }
-              }}
-              className="text-xs text-ink-faint"
-            />
-            {uploading.poster && <Loader2 size={14} className="animate-spin text-ink-faint" />}
-            {draft.thumbUrl && (
-              <button
-                type="button"
-                onClick={() => setDraft((d) => ({ ...d, thumbUrl: "" }))}
-                className="text-[11px] text-ink-faint hover:text-white"
-              >
-                Remove
-              </button>
-            )}
-          </div>
+          {!readOnly && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const url = await uploadFile(file, "poster");
+                    setDraft((d) => ({ ...d, thumbUrl: url }));
+                  } catch (err: any) {
+                    showError(err.message || "Upload failed");
+                  }
+                }}
+                className="text-xs text-ink-faint"
+              />
+              {uploading.poster && <Loader2 size={14} className="animate-spin text-ink-faint" />}
+              {draft.thumbUrl && (
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, thumbUrl: "" }))}
+                  className="text-[11px] text-ink-faint hover:text-white"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          )}
         </Field>
 
-        <Field label="Banner" hint="Wide cinematic image used in hero contexts.">
-          {draft.bannerUrl && (
+        <Field label="Banner" hint={readOnly ? undefined : "Wide cinematic image used in hero contexts."}>
+          {draft.bannerUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={draft.bannerUrl}
               alt="Banner"
               className="h-24 w-auto rounded-lg object-cover mb-2"
             />
+          ) : (
+            readOnly && <p className="text-xs text-ink-muted">No banner attached.</p>
           )}
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const url = await uploadFile(file, "banner");
-                  setDraft((d) => ({ ...d, bannerUrl: url }));
-                } catch (err: any) {
-                  showError(err.message || "Upload failed");
-                }
-              }}
-              className="text-xs text-ink-faint"
-            />
-            {uploading.banner && <Loader2 size={14} className="animate-spin text-ink-faint" />}
-            {draft.bannerUrl && (
-              <button
-                type="button"
-                onClick={() => setDraft((d) => ({ ...d, bannerUrl: "" }))}
-                className="text-[11px] text-ink-faint hover:text-white"
-              >
-                Remove
-              </button>
-            )}
-          </div>
+          {!readOnly && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const url = await uploadFile(file, "banner");
+                    setDraft((d) => ({ ...d, bannerUrl: url }));
+                  } catch (err: any) {
+                    showError(err.message || "Upload failed");
+                  }
+                }}
+                className="text-xs text-ink-faint"
+              />
+              {uploading.banner && <Loader2 size={14} className="animate-spin text-ink-faint" />}
+              {draft.bannerUrl && (
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, bannerUrl: "" }))}
+                  className="text-[11px] text-ink-faint hover:text-white"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          )}
         </Field>
 
-        <Field label="Stills" hint="Two or more stills render as a release gallery.">
-          {draft.stillsUrls.length > 0 && (
+        <Field label="Stills" hint={readOnly ? undefined : "Two or more stills render as a release gallery."}>
+          {draft.stillsUrls.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
               {draft.stillsUrls.map((url, i) => (
                 <div key={`${url}-${i}`} className="relative aspect-video rounded-lg overflow-hidden border border-white/8">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={url} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i),
-                      }))
-                    }
-                    className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] hover:bg-black/80"
-                  >
-                    Remove
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDraft((d) => ({
+                          ...d,
+                          stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i),
+                        }))
+                      }
+                      className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] hover:bg-black/80"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
+          ) : (
+            readOnly && <p className="text-xs text-ink-muted">No stills attached.</p>
           )}
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const url = await uploadFile(file, "still");
-                  setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] }));
-                  // Reset the input so re-uploading the same file fires onChange.
-                  e.target.value = "";
-                } catch (err: any) {
-                  showError(err.message || "Upload failed");
-                }
-              }}
-              className="text-xs text-ink-faint"
-            />
-            {uploading.still && <Loader2 size={14} className="animate-spin text-ink-faint" />}
-          </div>
+          {!readOnly && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const url = await uploadFile(file, "still");
+                    setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] }));
+                    // Reset the input so re-uploading the same file fires onChange.
+                    e.target.value = "";
+                  } catch (err: any) {
+                    showError(err.message || "Upload failed");
+                  }
+                }}
+                className="text-xs text-ink-faint"
+              />
+              {uploading.still && <Loader2 size={14} className="animate-spin text-ink-faint" />}
+            </div>
+          )}
         </Field>
       </Card>
 
       <Card className="space-y-6">
         <SectionHeading title="Trailer & deliverables" />
 
-        <Field label="Trailer URL" hint="Outbound link only. The public title page renders this as a single &ldquo;Watch trailer&rdquo; link.">
-          <input
-            value={draft.trailerUrl}
-            onChange={(e) => setDraft((d) => ({ ...d, trailerUrl: e.target.value }))}
-            placeholder="https://youtube.com/... or direct link"
-          />
+        <Field label="Trailer URL" hint={readOnly ? undefined : "Outbound link only. The public title page renders this as a single “Watch trailer” link."}>
+          {readOnly ? (
+            draft.trailerUrl ? (
+              <a
+                href={draft.trailerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-orange-400 hover:text-orange-300 break-all underline underline-offset-2"
+              >
+                {draft.trailerUrl}
+              </a>
+            ) : (
+              <p className="text-xs text-ink-muted">No trailer attached.</p>
+            )
+          ) : (
+            <input
+              value={draft.trailerUrl}
+              onChange={(e) => setDraft((d) => ({ ...d, trailerUrl: e.target.value }))}
+              placeholder="https://youtube.com/... or direct link"
+            />
+          )}
         </Field>
 
-        <Field label="Deliverables" hint="Track which assets are committed for this work.">
-          <div className="space-y-2">
-            {DELIVERABLES.map((item) => {
-              const on = draft.deliverables.includes(item);
-              return (
-                <label
-                  key={item}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer ${
-                    on ? "border-white/20 bg-white/5" : "border-white/10"
-                  }`}
-                >
-                  <span className="text-sm text-white">{item}</span>
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    onChange={() => toggleDeliverable(item)}
-                    style={{ accentColor: "#f5c518" }}
-                  />
-                </label>
-              );
-            })}
-          </div>
+        <Field label="Deliverables" hint={readOnly ? undefined : "Track which assets are committed for this work."}>
+          {readOnly ? (
+            draft.deliverables.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {draft.deliverables.map((item) => (
+                  <span
+                    key={item}
+                    className="text-[11px] px-2 py-1 rounded-full bg-white/5 border border-white/10 text-ink-faint"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-ink-muted">No deliverables marked.</p>
+            )
+          ) : (
+            <div className="space-y-2">
+              {DELIVERABLES.map((item) => {
+                const on = draft.deliverables.includes(item);
+                return (
+                  <label
+                    key={item}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer ${
+                      on ? "border-white/20 bg-white/5" : "border-white/10"
+                    }`}
+                  >
+                    <span className="text-sm text-white">{item}</span>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => toggleDeliverable(item)}
+                      style={{ accentColor: "#f5c518" }}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </Field>
       </Card>
 
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] text-ink-muted leading-relaxed max-w-md">
-          Saving updates only the assets above. Title, logline, synopsis, rights and
-          license terms remain locked.
-        </p>
-        <GradientButton onClick={saveMedia} disabled={saving}>
-          {saving ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              Saving…
-            </>
-          ) : saved ? (
-            "Saved"
-          ) : (
-            <>
-              <Save size={14} />
-              Save media package
-            </>
-          )}
-        </GradientButton>
-      </div>
+      {!readOnly && (
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] text-ink-muted leading-relaxed max-w-md">
+            Saving updates only the assets above. Title, logline, synopsis, rights and
+            license terms remain locked.
+          </p>
+          <GradientButton onClick={saveMedia} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Saving…
+              </>
+            ) : saved ? (
+              "Saved"
+            ) : (
+              <>
+                <Save size={14} />
+                Save media package
+              </>
+            )}
+          </GradientButton>
+        </div>
+      )}
     </div>
   );
 }

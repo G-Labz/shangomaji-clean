@@ -54,7 +54,14 @@ function resolveRoute(pathname: string): RouteConfig {
       label: "Media",
       parent: "/workspace",
       parentLabel: "Studio",
-      primaryAction: { label: "Add Media via Work", href: "/workspace/projects/new" },
+      // Phase 6 Tier 2.5 fix v2 — Media Library is a read-only browser
+      // of assets already attached to existing works. The header CTA
+      // used to send the creator to /workspace/projects/new, which
+      // looked like a "submit a new work" loop. The correct action is
+      // to choose an existing work whose Media Package they want to
+      // open. The list page surfaces "Manage Media Package" / "View
+      // Media Package" inline per work.
+      primaryAction: { label: "Choose Work for Media", href: "/workspace/projects" },
     },
     "/workspace/settings": {
       label: "Settings",
