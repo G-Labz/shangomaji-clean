@@ -53,6 +53,40 @@ function stateMeaning(status: string): string {
   }
 }
 
+// Phase 7.3: at-a-glance Stage · Next Step pair shown on every My Works
+// card. Stage is the lifecycle position in plain language; next is the
+// imperative the creator (or ShangoMaji) needs to take. Returns null
+// when both values are unknown so the card stays quiet.
+function creatorStageAndNext(
+  status: string,
+  licenseStatus?: "executed" | "none"
+): { stage: string; next: string | null } | null {
+  switch (status) {
+    case "draft":
+      return { stage: "Draft",                          next: "Submit for review" };
+    case "pending":
+      return { stage: "Submitted",                      next: "Awaiting ShangoMaji review" };
+    case "in_review":
+      return { stage: "In Review",                      next: "Awaiting decision" };
+    case "approved":
+      return licenseStatus === "executed"
+        ? { stage: "Licensed",                          next: "Awaiting ShangoMaji activation" }
+        : { stage: "Approved",                          next: "Sign distribution license" };
+    case "live":
+      return { stage: "Live",                           next: "Distribution active" };
+    case "removal_requested":
+      return { stage: "Removal under review",           next: "Awaiting decision" };
+    case "archived":
+      return { stage: "Archived",                       next: null };
+    case "rejected":
+      return { stage: "Not selected",                   next: "Revise and resubmit" };
+    case "removed":
+      return { stage: "Removed from distribution",      next: null };
+    default:
+      return null;
+  }
+}
+
 export default function WorkspaceProjects() {
   const [filter, setFilter]     = useState<string>("all");
   const [projects, setProjects] = useState<Project[]>([]);
@@ -301,7 +335,7 @@ export default function WorkspaceProjects() {
           My Works
         </h1>
         <p className="text-ink-faint text-sm mt-1">
-          Track drafts and review status.
+          Submit, track, and manage your catalog.
         </p>
       </div>
 
@@ -384,13 +418,10 @@ export default function WorkspaceProjects() {
                   <div className="flex items-center gap-3 flex-wrap">
                     <p className="text-white font-semibold text-base">{project.title}</p>
                     <StatusBadge status={project.status} />
-                    {project.project_type && <Pill>{project.project_type}</Pill>}
-                    {project.genres?.map((g) => <Pill key={g}>{g}</Pill>)}
-                    {isRemovalRequested && (
-                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
-                        Removal Requested
-                      </span>
-                    )}
+                    {/* Phase 7.3: license substate sits adjacent to the
+                        Approved badge so creators read "Approved · License
+                        required" / "Approved · License executed" at a
+                        glance, without scrolling to the helper section. */}
                     {needsLicense && (
                       <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
                         License required
@@ -401,7 +432,32 @@ export default function WorkspaceProjects() {
                         License executed
                       </span>
                     )}
+                    {project.project_type && <Pill>{project.project_type}</Pill>}
+                    {project.genres?.map((g) => <Pill key={g}>{g}</Pill>)}
+                    {isRemovalRequested && (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
+                        Removal Requested
+                      </span>
+                    )}
                   </div>
+                  {/* Phase 7.3: at-a-glance Stage · Next Step pair. Sits
+                      directly under the badge cluster so a creator reads
+                      stage + action before logline detail. */}
+                  {(() => {
+                    const sn = creatorStageAndNext(project.status, project.license_status);
+                    if (!sn) return null;
+                    return (
+                      <p className="text-xs text-white/85">
+                        <span className="text-ink-faint">Stage:</span> {sn.stage}
+                        {sn.next && (
+                          <>
+                            <span className="text-ink-muted"> · </span>
+                            <span className="text-ink-faint">Next:</span> {sn.next}
+                          </>
+                        )}
+                      </p>
+                    );
+                  })()}
                   {project.logline && (
                     <p className="text-ink-faint text-sm">{project.logline}</p>
                   )}

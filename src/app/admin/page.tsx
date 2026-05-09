@@ -1705,8 +1705,10 @@ export default function AdminPage() {
           {/* Removal Requests banner — compact alert pointing admin at the
               filter where pending removal decisions live. Per-row Approve/
               Deny actions remain inside each row's expanded Actions panel
-              (no duplication). */}
-          {!projectLoading && removalQueue.length > 0 && (
+              (no duplication). Phase 7.3: suppressed when the admin is
+              already filtered to needs_review, since the bucket card is
+              the canonical signal there. */}
+          {!projectLoading && removalQueue.length > 0 && projectFilter !== "needs_review" && (
             <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-start justify-between gap-4 flex-wrap">
               <div className="flex-1 min-w-[220px]">
                 <p className="text-xs uppercase tracking-widest text-amber-300/90 font-semibold">
@@ -1754,6 +1756,18 @@ export default function AdminPage() {
                       <p className="text-neutral-400 text-xs mt-0.5 truncate">
                         {project.creator_email} · {project.logline || "No logline"}
                       </p>
+                      {/* Phase 7.3: next-action hint visible without expansion. */}
+                      {(() => {
+                        const next = adminNextAction(project);
+                        if (!next) return null;
+                        const tone =
+                          classifyBucket(project) === "public_ready"
+                            ? "text-emerald-300/90"
+                            : "text-amber-300/90";
+                        return (
+                          <p className={`text-[11px] mt-1 ${tone}`}>{next}</p>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <span
@@ -3024,6 +3038,24 @@ function deriveLaunchReadiness(counts: Record<BucketKey, number>): LaunchReadine
     counts.needs_processing;
   if (backlog > 0) return { label: "Needs attention", tone: "attention" };
   return { label: "Ready", tone: "ready" };
+}
+
+// Phase 7.3: short imperative the admin sees on the collapsed row, so
+// the next operational step is visible without expanding the panel.
+// Terminal buckets (internal_hold, draft) return null — the row stays
+// quiet rather than echoing a settled state.
+function adminNextAction(p: any): string | null {
+  switch (classifyBucket(p)) {
+    case "needs_review":     return "Next: Review and decide";
+    case "needs_license":    return "Next: Awaiting creator license signature";
+    case "needs_activation": return "Next: Activate distribution";
+    case "needs_bunny":      return "Next: Bunny video ID required";
+    case "needs_processing": return "Next: Submit for processing";
+    case "public_ready":     return "Listed in public catalog";
+    case "internal_hold":    return null;
+    case "draft":            return null;
+    default:                 return null;
+  }
 }
 
 function IdentityRow({ status }: { status: string | null }) {

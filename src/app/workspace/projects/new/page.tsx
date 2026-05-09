@@ -163,7 +163,7 @@ export default function WorkspaceNewProject() {
       const createData = await createRes.json();
 
       if (createRes.status === 422) {
-        const msg = createData?.error || "Submission integrity record is incomplete.";
+        const msg = createData?.error || "Submission required declaration is incomplete.";
         setIntegrityError(msg);
         setErrors((prev) => ({ ...prev, save: msg }));
         setSubmitting(false);
@@ -427,7 +427,7 @@ export default function WorkspaceNewProject() {
         }}
       >
         <p className="text-xs text-ink-faint">
-          Save as draft to continue later, or submit when the integrity record is complete.
+          Save as draft to continue later, or submit when the required declaration is complete.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button

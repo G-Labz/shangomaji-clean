@@ -39,7 +39,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Lock } from "lucide-react";
 import { Card, SectionHeading, GradientButton, StatusBadge } from "../../../components";
 
 interface PageProps {
@@ -239,8 +239,7 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
             <StatusBadge status={project.status} />
           </div>
           <p className="text-sm text-ink-muted leading-relaxed">
-            The media package can be added or updated only after approval. Core work
-            details are locked after review.
+            The media package opens after approval. Core work details remain locked under review.
           </p>
         </Card>
       </div>
@@ -282,10 +281,16 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
         <p className="text-ink-faint text-sm mt-1">
           {project.title}
         </p>
+        {/* Phase 7.3: three-state copy distinguishes live distribution
+            from approved-and-licensed (awaiting activation) from
+            approved-pending-license. The locked boundary is named in
+            every variant so creators see what's editable vs settled. */}
         <p className="text-ink-muted text-xs mt-2 max-w-2xl leading-relaxed">
           {isLive
-            ? "Media package for active distribution. Core work details remain locked."
-            : "Add the assets required for distribution activation. Core work details are locked after review."}
+            ? "Update your release assets at any time. Core work details remain locked under the active license."
+            : licenseExecuted
+            ? "Add your release assets. Core work details remain locked. ShangoMaji will activate distribution after review."
+            : "Add your release assets. Core work details remain locked. Media is required for activation."}
         </p>
       </div>
 
@@ -398,7 +403,7 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
           </div>
         </Field>
 
-        <Field label="Stills" hint="Two or more stills render as a release gallery.">
+        <Field label="Stills" hint="Two or more stills appear as a release gallery on your public title page.">
           {draft.stillsUrls.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
               {draft.stillsUrls.map((url, i) => (
@@ -447,7 +452,7 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
       <Card className="space-y-6">
         <SectionHeading title="Trailer & deliverables" />
 
-        <Field label="Trailer URL" hint="Outbound link only. The public title page renders this as a single “Watch trailer” link.">
+        <Field label="Trailer URL" hint="An outbound link. Your public title page renders this as a single “Watch trailer” button.">
           <input
             value={draft.trailerUrl}
             onChange={(e) => setDraft((d) => ({ ...d, trailerUrl: e.target.value }))}
@@ -455,7 +460,7 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
           />
         </Field>
 
-        <Field label="Deliverables" hint="Track which assets are committed for this work.">
+        <Field label="Deliverables" hint="These assets ship with your release.">
           <div className="space-y-2">
             {DELIVERABLES.map((item) => {
               const on = draft.deliverables.includes(item);
@@ -481,9 +486,12 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
       </Card>
 
       <div className="flex items-center justify-between">
-        <p className="text-[11px] text-ink-muted leading-relaxed max-w-md">
-          Saving updates only the assets above. Title, logline, synopsis, rights and
-          license terms remain locked.
+        <p className="text-[11px] text-ink-muted leading-relaxed max-w-md inline-flex items-start gap-1.5">
+          <Lock size={12} className="mt-[2px] shrink-0 opacity-70" aria-hidden="true" />
+          <span>
+            Saving updates only the assets above. Title, logline, synopsis, rights and
+            license terms remain locked.
+          </span>
         </p>
         <GradientButton onClick={saveMedia} disabled={saving}>
           {saving ? (

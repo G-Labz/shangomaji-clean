@@ -5,22 +5,22 @@ import Link from "next/link";
 const sections = [
   {
     title: "Profile",
-    text: "Manage your creator identity and public page.",
+    text: "Your public creator identity.",
     href: "/workspace/profile",
   },
   {
     title: "Works",
-    text: "Create, edit, and submit your work.",
+    text: "Submit, track, and manage your catalog.",
     href: "/workspace/projects",
   },
   {
     title: "Media",
-    text: "View all assets across your works.",
+    text: "Distribution assets across your works.",
     href: "/workspace/media",
   },
   {
     title: "Settings",
-    text: "Workspace preferences and session.",
+    text: "Account preferences and session.",
     href: "/workspace/settings",
   },
 ];
@@ -39,7 +39,7 @@ export default function WorkspacePage() {
         Creator Studio
       </h1>
       <p style={{ opacity: 0.55, fontSize: 14, marginBottom: 32 }}>
-        Choose a section to continue.
+        Manage your works, distribution assets, and account.
       </p>
 
       <div

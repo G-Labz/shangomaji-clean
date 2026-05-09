@@ -189,7 +189,7 @@ export default function WorkspaceMedia() {
           Media Library
         </h1>
         <p className="text-ink-faint text-sm mt-1">
-          All assets uploaded across your projects.
+          Distribution assets across your works.
         </p>
       </div>
 
@@ -259,8 +259,17 @@ export default function WorkspaceMedia() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((item, i) => {
+      {/* Phase 7.3: split filtered items into public release assets and
+          private sample/screener references. Public release assets render
+          first; the private section below carries an explicit explainer
+          so creators see the privacy boundary visually, not only as a
+          per-card "Private" pill. The existing delete-rule (sample is
+          never inline-deletable here) is unchanged. */}
+      {(() => {
+        const publicItems  = filtered.filter((i) => i.field !== "sample_url");
+        const privateItems = filtered.filter((i) => i.field === "sample_url");
+
+        const renderCard = (item: MediaItem, i: number) => {
           // Phase 6 Tier 2.5 fix v2 — route to the right per-work
           // surface based on status:
           //   - draft / rejected → full editor (existing behavior)
@@ -282,63 +291,89 @@ export default function WorkspaceMedia() {
           const allowDelete = item.field !== "sample_url" && isFullEditState;
 
           return (
-          <Card key={`${item.projectId}-${item.field}-${i}`} className="space-y-3">
-            {item.isLink ? (
-              <div className="h-36 rounded-lg overflow-hidden bg-black/30 border border-white/5 flex items-center justify-center">
-                <div className="text-center">
-                  <AssetIcon type={item.type} />
-                  <p className="text-ink-faint text-xs mt-2">{item.type} link</p>
+            <Card key={`${item.projectId}-${item.field}-${i}`} className="space-y-3">
+              {item.isLink ? (
+                <div className="h-36 rounded-lg overflow-hidden bg-black/30 border border-white/5 flex items-center justify-center">
+                  <div className="text-center">
+                    <AssetIcon type={item.type} />
+                    <p className="text-ink-faint text-xs mt-2">{item.type} link</p>
+                  </div>
                 </div>
+              ) : (
+                <div className="h-36 rounded-lg overflow-hidden bg-black/30 border border-white/5">
+                  <img src={item.url} alt={`${item.type} for ${item.projectTitle}`} className="w-full h-full object-cover" />
+                </div>
+              )}
+
+              {/* Info + project linkage */}
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-white font-semibold text-sm">
+                    {item.type}
+                    {item.field === "sample_url" && (
+                      <span
+                        className="ml-2 text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded border align-middle bg-yellow-500/10 text-yellow-300 border-yellow-500/30"
+                        title="Sample / screener URL is creator/admin private. Not part of the public media package."
+                      >
+                        Private
+                      </span>
+                    )}
+                  </p>
+                  {projectHref ? (
+                    <Link
+                      href={projectHref}
+                      className="text-ink-faint text-xs hover:text-brand-orange transition"
+                    >
+                      {item.projectTitle}
+                    </Link>
+                  ) : (
+                    <span className="text-ink-faint text-xs">{item.projectTitle}</span>
+                  )}
+                </div>
+                <StatusBadge status={item.projectStatus} />
               </div>
-            ) : (
-              <div className="h-36 rounded-lg overflow-hidden bg-black/30 border border-white/5">
-                <img src={item.url} alt={`${item.type} for ${item.projectTitle}`} className="w-full h-full object-cover" />
+
+              {/* Standardized actions: Edit (go to project), Delete */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-ink-faint">
+                  <AssetIcon type={item.type} />
+                  <span>{item.isLink ? "External link" : "Uploaded image"}</span>
+                </div>
+                <ItemActions
+                  editHref={projectHref}
+                  onDelete={allowDelete ? () => handleDeleteMedia(item) : undefined}
+                />
+              </div>
+            </Card>
+          );
+        };
+
+        return (
+          <>
+            {publicItems.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {publicItems.map((item, i) => renderCard(item, i))}
               </div>
             )}
 
-            {/* Info + project linkage */}
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-white font-semibold text-sm">
-                  {item.type}
-                  {item.field === "sample_url" && (
-                    <span
-                      className="ml-2 text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded border align-middle bg-yellow-500/10 text-yellow-300 border-yellow-500/30"
-                      title="Sample / screener URL is creator/admin private. Not part of the public media package."
-                    >
-                      Private
-                    </span>
-                  )}
-                </p>
-                {projectHref ? (
-                  <Link
-                    href={projectHref}
-                    className="text-ink-faint text-xs hover:text-brand-orange transition"
-                  >
-                    {item.projectTitle}
-                  </Link>
-                ) : (
-                  <span className="text-ink-faint text-xs">{item.projectTitle}</span>
-                )}
+            {privateItems.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <div className="border-t border-white/8 pt-5">
+                  <p className="text-[11px] uppercase tracking-widest text-ink-faint">
+                    Private — admin reference only
+                  </p>
+                  <p className="text-xs text-ink-muted mt-1 max-w-2xl leading-relaxed">
+                    Private reference shared with ShangoMaji review only. Not part of your public release.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {privateItems.map((item, i) => renderCard(item, i))}
+                </div>
               </div>
-              <StatusBadge status={item.projectStatus} />
-            </div>
-
-            {/* Standardized actions: Edit (go to project), Delete */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-ink-faint">
-                <AssetIcon type={item.type} />
-                <span>{item.isLink ? "External link" : "Uploaded image"}</span>
-              </div>
-              <ItemActions
-                editHref={projectHref}
-                onDelete={allowDelete ? () => handleDeleteMedia(item) : undefined}
-              />
-            </div>
-          </Card>
-          );
-        })}
-      </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
