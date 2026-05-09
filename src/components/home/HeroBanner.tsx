@@ -134,8 +134,14 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                   title.seasons > 0
                     ? `${title.seasons} Season${title.seasons === 1 ? "" : "s"}`
                     : null;
+                // Phase 6 Tier 2 — runtime guarded by isRealText so a
+                // creator-typed placeholder ("WORKING", "TBD", "—", "0 min")
+                // can never reach the hero badge row even if it slips
+                // past the API boundary.
                 const lengthLabel =
-                  title.type === "movie" && title.runtime ? title.runtime : null;
+                  title.type === "movie" && isRealText(title.runtime)
+                    ? title.runtime.trim()
+                    : null;
                 const formatLabel = seasonsLabel || lengthLabel;
                 if (!showNew && !title.isTrending && !formatLabel) return null;
                 return (

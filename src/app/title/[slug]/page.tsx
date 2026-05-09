@@ -165,7 +165,13 @@ export default function TitlePage({ params }: PageProps) {
                 </span>
               </>
             ) : null}
-            {title.type === "movie" && title.runtime ? (
+            {/* Phase 6 Tier 2 — runtime double-guarded by isRealText so
+                a future placeholder/sentinel value cannot surface
+                ("WORKING", "TBD", "—", "0 min", etc.). Series omits
+                runtime here because mock series carry seasons instead;
+                runtime semantics on series are ambiguous and handled
+                via the seasons line below. */}
+            {title.type === "movie" && isRealText(title.runtime) ? (
               <>
                 <span className="text-ink-faint">·</span>
                 <span className="flex items-center gap-1 text-ink-muted">
@@ -385,18 +391,43 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
             <p className="text-display italic text-ink-muted text-xl mb-5">&ldquo;{title.tagline.trim()}&rdquo;</p>
           )}
 
+          {/* Phase 6 Tier 2 — release metadata row.
+              Reads like a real release header: type · year · runtime ·
+              primary genre. Each field is independently gated so missing
+              values never produce orphaned dots. Runtime is double-guarded
+              by isRealText so DB sentinels (WORKING / TBD / "—") cannot
+              leak through even if a future seed bypasses the API filter. */}
           {(() => {
+            const typeLabel = title.type === "series" ? "Series" : "Movie";
             const hasYear = typeof title.year === "number" && title.year > 0;
+            const runtime = isRealText(title.runtime) ? title.runtime.trim() : null;
             const hasRating = typeof title.rating === "string" && title.rating.trim().length > 0;
-            if (!hasYear && !hasRating) return null;
+            const primaryGenre =
+              Array.isArray(title.genres) && title.genres.length > 0
+                ? String(title.genres[0])
+                : null;
+            const parts: React.ReactNode[] = [
+              <span key="type" className="text-ink-muted">{typeLabel}</span>,
+            ];
+            if (hasYear) parts.push(<span key="year" className="text-ink-muted">{title.year}</span>);
+            if (runtime) parts.push(<span key="runtime" className="text-ink-muted">{runtime}</span>);
+            if (primaryGenre) parts.push(<span key="genre" className="text-ink-muted">{primaryGenre}</span>);
+            if (hasRating) parts.push(
+              <span
+                key="rating"
+                className="border border-white/20 px-1.5 py-0.5 text-xs rounded text-ink-muted"
+              >
+                {title.rating}
+              </span>
+            );
             return (
-              <div className="flex items-center gap-4 flex-wrap text-sm mb-5">
-                {hasYear && <span className="text-ink-muted">{title.year}</span>}
-                {hasRating && (
-                  <span className="border border-white/20 px-1.5 py-0.5 text-xs rounded text-ink-muted">
-                    {title.rating}
+              <div className="flex items-center gap-3 flex-wrap text-sm mb-5">
+                {parts.map((node, i) => (
+                  <span key={i} className="flex items-center gap-3">
+                    {i > 0 && <span className="text-ink-faint">·</span>}
+                    {node}
                   </span>
-                )}
+                ))}
               </div>
             );
           })()}
@@ -485,12 +516,22 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
             </div>
           )}
 
+          {/* Phase 6 Tier 2 — synopsis is intentionally separated from
+              the logline / italic tagline above. The tagline lives in
+              the action area; the long-form synopsis lives here under
+              About so the two reads do not compete. */}
           {isRealText(title.description) && (
             <div className="py-8 border-t border-white/5">
               <h2 className="text-xs uppercase tracking-widest text-ink-faint mb-3">About</h2>
               <p className="text-ink-muted leading-relaxed text-sm md:text-base">{title.description}</p>
             </div>
           )}
+
+          {/* Phase 6 Tier 2 — release stills. Renders only when the
+              creator has supplied 2+ valid still images (single still
+              would feel like a stray asset, not a gallery). No modal,
+              no captions, no carousel. */}
+          <StillsGallery urls={Array.isArray(title.stillsUrls) ? title.stillsUrls : []} />
         </motion.div>
       </div>
     </div>
@@ -542,6 +583,54 @@ function TitlePlayCta({ slug, type: _type }: { slug: string; type: "movie" | "se
       <Play size={16} fill="currentColor" />
       Play
     </Link>
+  );
+}
+
+// Phase 6 Tier 2 — Release stills gallery.
+//
+//   • Renders nothing when fewer than 2 valid stills exist (a single
+//     still does not make a gallery; surfacing it would look like a
+//     stray asset, not a release deliverable).
+//   • No modal/lightbox, no captions, no carousel — restrained
+//     cinematic strip that aligns with the rest of the release page.
+//   • All URLs are passed through `isUsableArtworkUrl` at the API
+//     boundary; this component renders them as standard <img> tags.
+//     Using <img> rather than next/image keeps it simple and avoids
+//     forcing the project's next.config remotePatterns to be widened
+//     for every creator-uploaded host.
+//   • Layout: 2-up on small viewports, 3-up on md+. Visual rhythm
+//     matches the About section above.
+function StillsGallery({ urls }: { urls?: string[] }) {
+  const safe = Array.isArray(urls)
+    ? urls.filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+    : [];
+  if (safe.length < 2) return null;
+  return (
+    <section
+      className="py-8 border-t border-white/5"
+      aria-label="Release stills"
+    >
+      <h2 className="text-xs uppercase tracking-widest text-ink-faint mb-4">
+        Stills
+      </h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {safe.map((url, i) => (
+          <div
+            key={`${url}-${i}`}
+            className="relative aspect-video rounded-xl overflow-hidden bg-surface-elevated"
+            style={{ border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={url}
+              alt=""
+              loading="lazy"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

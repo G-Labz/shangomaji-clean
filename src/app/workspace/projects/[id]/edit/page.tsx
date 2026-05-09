@@ -98,7 +98,9 @@ export default function EditProjectPage({ params }: PageProps) {
           logline:    project.logline || "",
           synopsis:   project.description || "",
           genre:      (project.genres || [])[0] || "",
-          runtime:    "",
+          // Phase 6 Tier 2 — runtime is now persisted, so the edit form
+          // hydrates from the saved value instead of resetting to "".
+          runtime:    project.runtime || "",
           deliverables: project.deliverables || [],
           thumbUrl:   project.cover_image_url || "",
           bannerUrl:  project.banner_url || "",
@@ -162,6 +164,8 @@ export default function EditProjectPage({ params }: PageProps) {
           sample_url:     draft.sampleUrl.trim() || null,
           stills_urls:    draft.stillsUrls,
           deliverables:   draft.deliverables,
+          // Phase 6 Tier 2 — runtime is now editable on drafts.
+          runtime:        draft.runtime.trim() || null,
           ...integrityToPayload(integrity),
         }),
       });
@@ -229,6 +233,8 @@ export default function EditProjectPage({ params }: PageProps) {
           sample_url:     draft.sampleUrl.trim() || null,
           stills_urls:    draft.stillsUrls,
           deliverables:   draft.deliverables,
+          // Phase 6 Tier 2 — runtime persists through Save-and-Submit too.
+          runtime:        draft.runtime.trim() || null,
           ...integrityToPayload(integrity),
         }),
       });
@@ -729,6 +735,17 @@ export default function EditProjectPage({ params }: PageProps) {
               onChange={(e) => set("synopsis")(e.target.value)}
               placeholder="Tell the full story..."
               rows={4}
+            />
+          </Field>
+          {/* Phase 6 Tier 2 — runtime input mirrors the New Project
+              form's Runtime/Episode count field. Same component, same
+              placeholder, same drafts-only edit gate enforced server-side.
+              No new dependencies, no layout overhaul. */}
+          <Field label="Runtime / Episode count" hint="Optional. e.g., 2h 7m, 22 min, 6 x 22min.">
+            <input
+              value={draft.runtime}
+              onChange={(e) => set("runtime")(e.target.value)}
+              placeholder="e.g., 6 x 22min"
             />
           </Field>
           <div className="grid md:grid-cols-2 gap-4">

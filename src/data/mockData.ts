@@ -24,6 +24,12 @@ export interface Title {
   // read it consistently across both the mock branch (always
   // undefined) and the creator-fallback branch.
   trailerUrl?: string;
+  // Phase 6 Tier 2 — optional release stills (creator-supplied images,
+  // pre-filtered to usable URLs at the API boundary). The title page
+  // only renders the stills section when this contains 2+ items.
+  // Mock-catalog rows never set this; it exists so TypeScript can
+  // accept the field across the mock and creator branches uniformly.
+  stillsUrls?: string[];
 }
 
 // All images are locally hosted Firefly AI originals

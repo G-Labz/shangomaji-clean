@@ -110,6 +110,9 @@ export default function WorkspaceNewProject() {
       sample_url: draft.sampleUrl.trim() || null,
       deliverables: draft.deliverables,
       stills_urls: draft.stillsUrls,
+      // Phase 6 Tier 2 — runtime is now persisted. The form already
+      // collected it; we just stopped dropping it on the floor.
+      runtime: draft.runtime.trim() || null,
       ...integrityToPayload(integrity),
     };
   }

@@ -63,6 +63,9 @@ export async function POST(req: NextRequest) {
     trailer_url: original.trailer_url ?? null,
     sample_url: original.sample_url ?? null,
     stills_urls: original.stills_urls ?? [],
+    // Phase 6 Tier 2 — runtime carries through when revising a rejected
+    // project so the creator does not have to retype it on every cycle.
+    runtime: original.runtime ?? null,
     deliverables: original.deliverables ?? [],
     updated_at: now,
     status_changed_at: now,

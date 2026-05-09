@@ -158,6 +158,14 @@ export async function GET(req: NextRequest) {
     socialLinks,
     externalLinks,
     isVerified: row.identity_status === "verified",
+    // Phase 6 Tier 2 — Approved Creator indicator. Reaching this point
+    // in the route means the four-condition reachability gate AND the
+    // accepted-application check have both passed. Surfacing the bit
+    // explicitly lets the public profile render a small institutional
+    // line without re-deriving it client-side. Always `true` for any
+    // creator returned by this endpoint; absent here would mean the
+    // route already 404'd.
+    isApprovedCreator: true,
     isFeatured: false,
     joinedYear: row.published_at
       ? new Date(row.published_at).getFullYear()

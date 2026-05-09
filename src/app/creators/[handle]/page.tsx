@@ -62,6 +62,12 @@ type PublicCreator = {
   };
   externalLinks: ExternalLink[];
   isVerified: boolean;
+  // Phase 6 Tier 2 — true when the creator's application is accepted
+  // AND their profile passes the public reachability gate. The API
+  // only returns reachable creators, so this is effectively always
+  // true here, but it is shaped explicitly so the page can render a
+  // small institutional indicator without re-deriving the bit.
+  isApprovedCreator?: boolean;
   joinedYear: number;
 };
 
@@ -268,6 +274,18 @@ function CreatorProfileContent({ creator }: { creator: PublicCreator }) {
             <p className="text-ink-faint text-[11px] tracking-wider uppercase mt-1">
               @{creator.handle} · ShangoMaji Collective
             </p>
+            {/* Phase 6 Tier 2 — Approved Creator indicator. Restrained,
+                muted, institutional. No checkmark, no badge economy, no
+                follower-style phrasing. Anchored under the handle so it
+                reads as a status of record, not a vanity decoration. */}
+            {creator.isApprovedCreator && (
+              <p
+                className="text-[10px] tracking-[0.18em] uppercase mt-1.5"
+                style={{ color: "rgba(245,197,24,0.55)" }}
+              >
+                Approved Creator
+              </p>
+            )}
             {creator.origin && (
               <p className="text-ink-muted text-sm mt-2">{creator.origin}</p>
             )}
@@ -298,7 +316,13 @@ function CreatorProfileContent({ creator }: { creator: PublicCreator }) {
           </div>
         </motion.div>
 
-        {/* ── Meta Strip ── */}
+        {/* ── Meta Strip ──
+            Phase 6 Tier 2 — work-count copy ("N titles") is removed.
+            Founder explicit: do not add work counts on creator profile.
+            The remaining metadata is institutional: when joined, plus
+            a "New Creator" tag while the portfolio is empty. The body
+            of work itself is rendered below; counting it here would
+            duplicate that signal as a metric. */}
         <motion.div
           className="flex items-center gap-3 py-4 border-b border-white/5 text-xs text-ink-faint tracking-wide"
           initial={{ opacity: 0 }}
@@ -306,24 +330,29 @@ function CreatorProfileContent({ creator }: { creator: PublicCreator }) {
           transition={{ delay: 0.2, duration: 0.4 }}
         >
           <span>Joined {creator.joinedYear}</span>
-          <span className="text-white/10">·</span>
-          {hasTitles ? (
-            <span>
-              {creator.titles.length} title{creator.titles.length !== 1 ? "s" : ""}
-            </span>
-          ) : (
-            <span>New Creator</span>
+          {!hasTitles && (
+            <>
+              <span className="text-white/10">·</span>
+              <span>New Creator</span>
+            </>
           )}
         </motion.div>
 
         {/* ── Featured Work ── */}
-        <motion.div
-          className="py-10 border-b border-white/5"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.5 }}
-        >
-          {featuredTitle ? (
+        {/* Phase 6 Tier 2 — when the creator has no live works, the
+            entire featured-tile block is hidden cleanly. The previous
+            "Coming Soon — This creator is building something." copy
+            implied a promise we cannot keep on the creator's behalf
+            and conflicted with the founder copy standard ("no Coming
+            Soon language"). The meta strip above already reads
+            "New Creator" in this state, which is enough. */}
+        {featuredTitle && (
+          <motion.div
+            className="py-10 border-b border-white/5"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.5 }}
+          >
             <Link href={`/title/${featuredTitle.slug}`} className="group block">
               <div className="relative aspect-video rounded-2xl overflow-hidden bg-surface-elevated">
                 <BackdropArt
@@ -354,19 +383,8 @@ function CreatorProfileContent({ creator }: { creator: PublicCreator }) {
                 </div>
               </div>
             </Link>
-          ) : (
-            <div
-              className="relative aspect-video rounded-2xl overflow-hidden flex flex-col items-center justify-center"
-              style={{
-                background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <p className="text-white font-semibold text-lg">Coming Soon</p>
-              <p className="text-ink-faint text-sm mt-1">This creator is building something.</p>
-            </div>
-          )}
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* ── Other titles ── */}
         {remainingTitles.length > 0 && (

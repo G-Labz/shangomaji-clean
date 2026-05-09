@@ -3,7 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { buildBunnyThumbnailUrl } from "@/lib/bunny";
 import { normalizeArtworkUrl } from "@/lib/artwork";
 import { isWithinNewWindow } from "@/lib/new-badge";
-import { filterSuppressedTaxonomy } from "@/lib/copy-guards";
+import { filterSuppressedTaxonomy, isRealText } from "@/lib/copy-guards";
+import { isUsableArtworkUrl } from "@/lib/artwork";
 
 // Phase 3 — public title metadata is freely browsable, but the playback
 // embed URL is NEVER returned here. Members must obtain a signed/expiring
@@ -51,7 +52,10 @@ export async function GET() {
     // reach a public surface. trailer_url is fine: it is creator-supplied
     // promotional content rendered as a plain outbound link on the title
     // page (no embedded player).
-    .select("id, title, logline, description, genres, project_type, cover_image_url, banner_url, trailer_url, created_at, updated_at")
+    // Phase 6 Tier 2 — runtime + stills_urls are now selected. Both are
+    // creator-authored, non-sensitive, and rendered with strong runtime
+    // guards on the title page. sample_url remains intentionally absent.
+    .select("id, title, logline, description, genres, project_type, cover_image_url, banner_url, trailer_url, runtime, stills_urls, created_at, updated_at")
     .in("id", projectIds);
 
   if (projectsError) {
@@ -154,6 +158,23 @@ export async function GET() {
 
       const bunnyThumb = t.bunny_thumbnail_url || buildBunnyThumbnailUrl(t.bunny_video_id);
 
+      // Phase 6 Tier 2 — runtime is API-side guarded the same way the
+      // title page guards everything else: empty/whitespace/sentinels
+      // ("WORKING", "test", "TBD", "—", …) all collapse to null so the
+      // public renderer never has to decide whether a stored value is
+      // real. Stored value passes through verbatim when real.
+      const runtimeReal = isRealText(p?.runtime) ? p.runtime.trim() : null;
+
+      // Phase 6 Tier 2 — stills are surfaced only when they pass the
+      // same artwork guard used elsewhere (drops empty / placeholder /
+      // legacy-sentinel URLs). Order is preserved. Empty array when no
+      // valid stills exist; the title page renders a gallery only when
+      // length >= 2.
+      const rawStills: unknown = (p as any)?.stills_urls;
+      const stillsUrls: string[] = Array.isArray(rawStills)
+        ? rawStills.filter((u): u is string => isUsableArtworkUrl(u))
+        : [];
+
       return {
         id:          `cp-${t.project_id}`,
         slug:        `cp-${t.project_id}`,
@@ -164,7 +185,11 @@ export async function GET() {
         year:        p ? new Date(p.created_at).getFullYear() : new Date().getFullYear(),
         rating:      "NR",
         score:       0,
-        runtime:     null,
+        // Phase 6 Tier 2 — real runtime now flows out of the API. Null
+        // when missing/invalid; the title page renders the field only
+        // when truthy AND `isRealText`, so any leak through this
+        // boundary still gets a second guard.
+        runtime:     runtimeReal,
         seasons:     null,
         // Phase 5 brand correction — retired taxonomy ("Afrofuturism") is
         // filtered out at the API boundary so it never reaches any client
@@ -192,6 +217,9 @@ export async function GET() {
         // Phase 6 Tier 1 — sampleUrl removed from the public response.
         // Screener URL is private; do not surface it to any client.
         trailerUrl:            p?.trailer_url || null,
+        // Phase 6 Tier 2 — release stills, already filtered to usable
+        // image URLs above. Title page only renders when length >= 2.
+        stillsUrls,
         exclusivityType:       t.exclusivity_type,
         monetizationEnabled:   t.monetization_enabled,
         distributionStart:     t.distribution_start,

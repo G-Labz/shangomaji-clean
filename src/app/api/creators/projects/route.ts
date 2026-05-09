@@ -127,6 +127,12 @@ export async function POST(req: NextRequest) {
     trailer_url: body.trailer_url ?? null,
     sample_url: body.sample_url ?? null,
     stills_urls: body.stills_urls ?? [],
+    // Phase 6 Tier 2 — runtime is now persisted. Stored as the raw
+    // creator-authored label. Empty string normalizes to null so the
+    // public renderer's `isRealText` guard treats it as missing.
+    runtime: typeof body.runtime === "string" && body.runtime.trim()
+      ? body.runtime.trim()
+      : null,
     deliverables: body.deliverables ?? [],
     updated_at: now,
     status_changed_at: now,
@@ -423,11 +429,23 @@ export async function PUT(req: NextRequest) {
     "sample_url",
     "stills_urls",
     "deliverables",
+    // Phase 6 Tier 2 — `runtime` is now editable on drafts. Same
+    // permission boundary as every other creator-authored field
+    // (drafts only; locked for pending/in_review/approved/live/etc.).
+    "runtime",
   ];
 
   for (const field of allowedFields) {
     if (body[field] !== undefined) {
-      updates[field] = body[field];
+      // Phase 6 Tier 2 — runtime normalizes "" / whitespace → null so the
+      // DB never stores a sentinel that the public renderer would later
+      // need to special-case.
+      if (field === "runtime") {
+        const v = body.runtime;
+        updates.runtime = typeof v === "string" && v.trim() ? v.trim() : null;
+      } else {
+        updates[field] = body[field];
+      }
     }
   }
 
