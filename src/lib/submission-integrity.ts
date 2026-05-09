@@ -322,6 +322,11 @@ export function validateAdminReviewComplete(
 // suitable for approval. A complete review with `encumbered`/`disqualified`
 // rights or `fail`/`revision` craft does not approve — it must be routed
 // to revision or rejection by the admin manually.
+//
+// NOTE (Phase 6 Tier 2 v3): this helper still exists for full-record
+// audit reporting (used by admin dashboards / tooling). The *approval
+// gate* (UI + API) no longer calls it. See `validateApprovalDecisions`
+// below for the founder-approved approval validator.
 export function isReviewPassing(input: AdminReviewInput): IntegrityError | null {
   const completeness = validateAdminReviewComplete(input);
   if (completeness) return completeness;
@@ -340,6 +345,87 @@ export function isReviewPassing(input: AdminReviewInput): IntegrityError | null 
       field:   "review_craft_result",
       message:
         `Approval blocked: craft result is "${craft}". Reject or request revision.`,
+    };
+  }
+  return null;
+}
+
+// Phase 6 Tier 2 v3 — Approval-gate validator (founder-approved).
+//
+// Per founder direction the approval decision gates ONLY on the four
+// core review decisions:
+//
+//   1. thesis fit confirmed
+//   2. rights posture selected AND passing (clear | co_owned_clear)
+//   3. craft result selected AND passing (pass)
+//   4. catalog fit selected AND passing (distinct | strategic_fit)
+//
+// The long-form notes (`review_meaningful_presence_rationale`,
+// `review_decision_record`, `review_risk_notes`) remain editable and
+// may still be saved alongside the decision for audit quality, but
+// they DO NOT block approval. Approval is the review decision;
+// licensing and distribution activation are later steps in the
+// existing lifecycle and remain unchanged.
+//
+// Disqualifying decision values continue to block approval — failing
+// review outcomes must route through Reject Submission, not slip
+// through Approve Work.
+//
+// Used by:
+//   - SubmissionReviewPanel.gateState (UI)
+//   - /api/admin/projects PATCH approval gate (server)
+//
+// Both the UI and the server call THIS function. `isReviewPassing` is
+// retained for full-record audit reporting only.
+export function validateApprovalDecisions(
+  input: AdminReviewInput
+): IntegrityError | null {
+  if (!isTrue(input.review_thesis_confirmed)) {
+    return {
+      field:   "review_thesis_confirmed",
+      message: "Confirm the thesis fit decision.",
+    };
+  }
+  const rights = clean(input.review_rights_posture);
+  if (!rights || !(REVIEW_RIGHTS_POSTURE_VALUES as readonly string[]).includes(rights)) {
+    return {
+      field:   "review_rights_posture",
+      message: "Select a rights posture.",
+    };
+  }
+  if (rights === "encumbered" || rights === "disqualified") {
+    return {
+      field:   "review_rights_posture",
+      message:
+        `Approval blocked: rights posture is "${rights}". Reject or route to revision.`,
+    };
+  }
+  const craft = clean(input.review_craft_result);
+  if (!craft || !(REVIEW_CRAFT_RESULT_VALUES as readonly string[]).includes(craft)) {
+    return {
+      field:   "review_craft_result",
+      message: "Select a craft result.",
+    };
+  }
+  if (craft === "fail" || craft === "revision") {
+    return {
+      field:   "review_craft_result",
+      message:
+        `Approval blocked: craft result is "${craft}". Reject or request revision.`,
+    };
+  }
+  const fit = clean(input.review_catalog_fit);
+  if (!fit || !(REVIEW_CATALOG_FIT_VALUES as readonly string[]).includes(fit)) {
+    return {
+      field:   "review_catalog_fit",
+      message: "Select a catalog fit.",
+    };
+  }
+  if (fit === "redundant" || fit === "timing_issue") {
+    return {
+      field:   "review_catalog_fit",
+      message:
+        `Approval blocked: catalog fit is "${fit}". Reject or request revision.`,
     };
   }
   return null;

@@ -24,7 +24,11 @@ import {
   REVIEW_CATALOG_FIT_LABELS,
   validateCreatorIntegrity,
   validateAdminReviewComplete,
-  isReviewPassing,
+  // Phase 6 Tier 2 v3 — approval gate now uses the decisions-only
+  // validator. `validateAdminReviewComplete` is still imported because
+  // the panel still surfaces a "review record complete (notes filled)"
+  // audit indicator separately from the approval gate.
+  validateApprovalDecisions,
   type ReviewRightsPosture,
   type ReviewCraftResult,
   type ReviewCatalogFit,
@@ -85,15 +89,21 @@ export function reviewToPayload(s: AdminReviewState) {
 export function gateState(project: any, review: AdminReviewState) {
   const integrityErr = validateCreatorIntegrity(project as CreatorIntegrityInput);
   const reviewMerged: AdminReviewInput = { ...project, ...reviewToPayload(review) };
-  const completenessErr = validateAdminReviewComplete(reviewMerged);
-  const passingErr      = isReviewPassing(reviewMerged);
 
-  // The review failure surface is "review-not-complete" first; only if the
-  // record is fully complete do we fall through to the rights/craft posture
-  // failure that `isReviewPassing` adds on top.
-  const reviewMessage =
-    completenessErr?.message ??
-    (passingErr && passingErr !== completenessErr ? passingErr.message : null);
+  // Phase 6 Tier 2 v3 — `decisionErr` is the founder-approved approval
+  // gate (thesis fit + passing rights/craft/fit). This is the only
+  // signal that drives `approvalAllowed` and the disabled state of the
+  // Approve Work button.
+  const decisionErr     = validateApprovalDecisions(reviewMerged);
+
+  // `completenessErr` (rationale ≥20, decision record ≥20) is retained
+  // for the panel's "Notes complete" audit indicator. It is NOT a
+  // gating signal anymore — long-form notes never block approval.
+  const completenessErr = validateAdminReviewComplete(reviewMerged);
+
+  // The review failure surface for the gate is the decisions error.
+  // Note completeness shows up separately under `notesComplete`.
+  const reviewMessage = decisionErr?.message ?? null;
 
   // A "legacy" project is one that predates Submission Integrity v1 entirely:
   // none of the three structured creator-integrity selectors were ever
@@ -108,11 +118,18 @@ export function gateState(project: any, review: AdminReviewState) {
   return {
     integrityComplete:        integrityErr === null,
     integrityMessage:         integrityErr?.message ?? null,
+    // Backward-compat: `reviewComplete` and `reviewPassing` keep their
+    // historical meanings (full record completeness; full pass under
+    // the strict validator). They are no longer the approval gate.
     reviewComplete:           completenessErr === null,
-    reviewPassing:            passingErr === null,
+    reviewPassing:            decisionErr === null,
+    notesComplete:            completenessErr === null,
     reviewMessage,
-    approvalAllowed:          integrityErr === null && passingErr === null,
-    approvalBlockedMessage:   passingErr?.message ?? integrityErr?.message ?? null,
+    // Phase 6 Tier 2 v3 — approval is allowed iff creator integrity
+    // passes AND the four core review decisions pass. Long-form notes
+    // are out of the gate entirely.
+    approvalAllowed:          integrityErr === null && decisionErr === null,
+    approvalBlockedMessage:   decisionErr?.message ?? integrityErr?.message ?? null,
     isLegacyMissingIntegrity,
   };
 }

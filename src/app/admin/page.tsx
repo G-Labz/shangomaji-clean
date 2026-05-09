@@ -2278,39 +2278,46 @@ export default function AdminPage() {
                         const showApproveGate =
                           project.status === "pending" || project.status === "in_review";
 
-                        // Phase 6 Tier 2 fix v2 — derive the missing-requirements
-                        // checklist directly from the in-memory review state,
-                        // not from `validateAdminReviewComplete` (which short-
-                        // circuits at the first failure). Each requirement is
-                        // checked independently so the admin sees the full list
-                        // of remaining items, not just the next one.
+                        // Phase 6 Tier 2 fix v3 — checklist surfaces only the
+                        // four core review decisions per founder direction.
+                        // Long-form notes (rationale, decision record, risk
+                        // notes) remain editable in the panel for audit
+                        // quality but DO NOT block approval and are not
+                        // listed here.
                         //
-                        // Numeric thresholds (≥20 chars for rationale + decision
-                        // record, allowed enum values) match `submission-integrity.ts`
-                        // exactly; this list is presentational only and never
-                        // weakens the server-side gate. The PATCH still re-runs
-                        // `isReviewPassing` server-side at admin/projects/route.ts
-                        // and returns 422 on any mismatch.
+                        // Each item is checked independently so the admin
+                        // sees every remaining gap, not just the next
+                        // short-circuited one. Disqualifying decision values
+                        // (encumbered/disqualified rights, fail/revision
+                        // craft, redundant/timing_issue fit) surface as
+                        // "Select a passing X" lines so the admin knows the
+                        // current selection blocks approval and either needs
+                        // a different selection or routing through Reject.
+                        //
+                        // The list is presentational. The server still
+                        // re-runs `validateApprovalDecisions` on PATCH at
+                        // /api/admin/projects and returns 422 on mismatch.
                         const missingApprovalReqs: string[] = [];
                         if (showApproveGate && !gate.isLegacyMissingIntegrity) {
                           const r = reviewState;
                           if (!r.review_thesis_confirmed) {
-                            missingApprovalReqs.push("Confirm thesis check");
+                            missingApprovalReqs.push("Confirm thesis fit");
                           }
-                          if ((r.review_meaningful_presence_rationale?.trim().length ?? 0) < 20) {
-                            missingApprovalReqs.push("Add meaningful presence rationale (≥ 20 characters)");
+                          const rightsPassing =
+                            r.review_rights_posture === "clear" ||
+                            r.review_rights_posture === "co_owned_clear";
+                          if (!rightsPassing) {
+                            missingApprovalReqs.push("Select a passing rights posture (Clear or Co-owned)");
                           }
-                          if (!r.review_rights_posture) {
-                            missingApprovalReqs.push("Select rights posture");
+                          const craftPassing = r.review_craft_result === "pass";
+                          if (!craftPassing) {
+                            missingApprovalReqs.push("Select a passing craft result (Pass)");
                           }
-                          if (!r.review_craft_result) {
-                            missingApprovalReqs.push("Select craft result");
-                          }
-                          if (!r.review_catalog_fit) {
-                            missingApprovalReqs.push("Select catalog fit");
-                          }
-                          if ((r.review_decision_record?.trim().length ?? 0) < 20) {
-                            missingApprovalReqs.push("Add decision record (≥ 20 characters)");
+                          const fitPassing =
+                            r.review_catalog_fit === "distinct" ||
+                            r.review_catalog_fit === "strategic_fit";
+                          if (!fitPassing) {
+                            missingApprovalReqs.push("Select a passing catalog fit (Distinct or Strategic fit)");
                           }
                         }
                         return (
@@ -2326,12 +2333,13 @@ export default function AdminPage() {
                             >
                               Start Review
                             </button>
-                            {/* Phase 6 Tier 2 fix v2 — Approve for Licensing
-                                renders as the SAME button in both states, just
-                                disabled when the gate is locked. The previous
-                                "Approval locked" pill hid the affordance and
-                                left admins searching for an approval action
-                                that wasn't visually present. */}
+                            {/* Phase 6 Tier 2 fix v3 — "Approve Work" (renamed
+                                from "Approve for Licensing"; approval is the
+                                review decision, licensing/distribution is a
+                                later lifecycle step). Single visual identity
+                                for the action: enabled-teal when the four
+                                core review decisions pass, muted-teal when
+                                still locked. */}
                             <button
                               onClick={() => updateProjectStatus(project.id, "approved")}
                               disabled={!gate.approvalAllowed}
@@ -2346,7 +2354,7 @@ export default function AdminPage() {
                                   : "border-teal-500/15 text-teal-500/40 cursor-not-allowed"
                               }`}
                             >
-                              Approve for Licensing
+                              Approve Work
                             </button>
                             <button
                               onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
@@ -2360,10 +2368,9 @@ export default function AdminPage() {
                         {/* in_review: Approve, Reject */}
                         {project.status === "in_review" && rejectingId !== project.id && (
                           <>
-                            {/* Phase 6 Tier 2 fix v2 — same disabled-button
-                                pattern as the pending branch. Single visual
-                                identity for "this is the approval action,
-                                currently unavailable." */}
+                            {/* Phase 6 Tier 2 fix v3 — same "Approve Work"
+                                disabled-when-locked pattern as the pending
+                                branch. */}
                             <button
                               onClick={() => updateProjectStatus(project.id, "approved")}
                               disabled={!gate.approvalAllowed}
@@ -2378,7 +2385,7 @@ export default function AdminPage() {
                                   : "border-teal-500/15 text-teal-500/40 cursor-not-allowed"
                               }`}
                             >
-                              Approve for Licensing
+                              Approve Work
                             </button>
                             <button
                               onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}

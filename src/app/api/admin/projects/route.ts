@@ -3,7 +3,13 @@ import { createClient } from "@supabase/supabase-js";
 import { sendLicenseRequestEmail } from "@/lib/email";
 import {
   validateCreatorIntegrity,
-  isReviewPassing,
+  // Phase 6 Tier 2 v3 — approval gate now uses the decisions-only
+  // validator (thesis fit + passing rights/craft/fit). Long-form notes
+  // (rationale, decision record, risk notes) are out of the gate per
+  // founder direction. `isReviewPassing` is no longer the approval
+  // gate; it remains exported from submission-integrity.ts for future
+  // audit reporting.
+  validateApprovalDecisions,
   pickAdminReviewColumns,
   type CreatorIntegrityInput,
   type AdminReviewInput,
@@ -514,12 +520,18 @@ export async function PATCH(req: NextRequest) {
       ...(existingProject as unknown as AdminReviewInput),
       ...pickAdminReviewColumns(body as AdminReviewInput),
     };
-    const reviewErr = isReviewPassing(mergedReview);
+    // Phase 6 Tier 2 v3 — server-side approval gate now mirrors the
+    // UI: only the four core review decisions (thesis fit + passing
+    // rights/craft/fit) block approval. Long-form notes are saved
+    // when supplied but are not gating fields. Disqualifying decision
+    // values still block approval here — failing review outcomes
+    // must route through Reject, not slip through Approve.
+    const reviewErr = validateApprovalDecisions(mergedReview);
     if (reviewErr) {
       return NextResponse.json(
         {
           error:
-            "Approval requires completed submission integrity and review record. " +
+            "Approval requires the four core review decisions. " +
             reviewErr.message,
           field: reviewErr.field,
           phase: "admin_review",
