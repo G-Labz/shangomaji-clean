@@ -393,36 +393,39 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  // Authority-of-state: drafts get the full edit surface; approved works
-  // get a NARROW media-package surface (Phase 6 Tier 2.5). All other
-  // states remain locked.
+  // Authority-of-state: drafts get the full edit surface; approved AND
+  // live works get a NARROW media-package surface (Phase 6 Tier 2.5).
+  // All other states remain locked.
   //
   // Phase 6 Tier 2.5 — Media Package Attachment Flow.
-  //   The founder approved a controlled path that lets a creator add or
-  //   update the promotional media package on an APPROVED work AFTER
-  //   metadata + integrity + license are settled. This is NOT a re-open
-  //   of the full editor.
+  //   The founder approved a controlled path that lets a creator add
+  //   or update the promotional media package on an APPROVED or LIVE
+  //   work AFTER metadata + integrity + license are settled. This is
+  //   NOT a re-open of the full editor.
   //
   //   Status mapping:
-  //     - draft     → full edit (existing behavior, unchanged)
-  //     - approved  → media-only (cover_image_url, banner_url,
-  //                   stills_urls, trailer_url, deliverables only)
-  //     - all else  → locked (existing behavior, unchanged)
+  //     - draft           → full edit (existing behavior, unchanged)
+  //     - approved | live → media-only (cover_image_url, banner_url,
+  //                         stills_urls, trailer_url, deliverables only)
+  //     - all else        → locked (existing behavior, unchanged)
   //
-  //   Live works are deliberately NOT in the media-update set per
-  //   founder direction ("Live: Media changes are not direct-edit in
-  //   this phase"). The admin still controls Bunny binding on live via
-  //   the existing /api/admin/projects path.
+  //   Phase 6 Tier 2.5 Final Correction — `live` joins `approved` in
+  //   the media-only whitelist per founder direction (pre-launch
+  //   workflow needs creators to finish packaging live test works).
+  //   The same five-key allow-list applies; the integrity-merge skip
+  //   below catches every non-media column for both states.
+  //
+  //   Bunny binding (`bunny_video_id`, `media_ready`) remains admin-only
+  //   on the live status; only the creator-side promotional assets are
+  //   editable here.
   const isDraftEdit          = existing.status === "draft";
-  const isMediaPackageEdit   = existing.status === "approved";
+  const isMediaPackageEdit   = existing.status === "approved" || existing.status === "live";
   if (!isDraftEdit && !isMediaPackageEdit) {
     const message =
       existing.status === "rejected"
         ? "Rejected works are locked and cannot be edited. Use Revise to create a new draft."
         : existing.status === "pending" || existing.status === "in_review"
         ? "This work has been submitted for review. Editing is locked."
-        : existing.status === "live"
-        ? "This work is under active distribution. Editing is closed."
         : existing.status === "archived"
         ? "This work has been archived. Editing is closed."
         : existing.status === "removal_requested"

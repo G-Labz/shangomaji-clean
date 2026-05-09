@@ -440,31 +440,25 @@ export default function WorkspaceProjects() {
                     </button>
                   )}
                   {/* Phase 6 Tier 2.5 — Approved works (license required +
-                      license executed sub-states) get a controlled media
-                      package action. This is NOT an "Edit Work" button —
-                      core metadata stays locked at the API level. The
-                      route renders only the promotional asset surface
-                      (poster / banner / stills / trailer / deliverables).
+                      license executed sub-states) AND Live works both
+                      get a controlled media package action. This is NOT
+                      an "Edit Work" button — core metadata stays locked
+                      at the API level. The route renders only the
+                      promotional asset surface (poster / banner / stills
+                      / trailer / deliverables).
 
-                      Phase 6 Tier 2.5 fix v2 — Live works also get a
-                      visible media affordance, but as "View Media
-                      Package" (read-only). Founder rule: live media
-                      changes are not direct-edit in this phase. The
-                      page itself enforces read-only when status === live. */}
-                  {isApproved && (
+                      Phase 6 Tier 2.5 Final Correction — Live now uses
+                      the same "Manage Media Package" label and the same
+                      editable surface as Approved. Founder direction:
+                      pre-launch packaging requires creators to update
+                      media on live test works. Server PUT applies the
+                      same five-key whitelist to both states. */}
+                  {(isApproved || isLive) && (
                     <Link
                       href={`/workspace/projects/${project.id}/media`}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition"
                     >
                       Manage Media Package
-                    </Link>
-                  )}
-                  {isLive && (
-                    <Link
-                      href={`/workspace/projects/${project.id}/media`}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition"
-                    >
-                      View Media Package
                     </Link>
                   )}
                   <ItemActions
