@@ -1733,7 +1733,28 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  {expandedProject === project.id && (
+                  {expandedProject === project.id && (() => {
+                    // Phase 6 Tier 2 fix — hoist the per-project review/gate
+                    // computation so the Review Record & License section header AND
+                    // the Actions-row diagnostic share the same values. Previously
+                    // computed only inside the Actions-row IIFE (lines below),
+                    // which left the section header unable to see whether it was
+                    // currently the approval blocker.
+                    const reviewState =
+                      reviewByProject[project.id] ?? reviewFromProject(project);
+                    const gate = gateState(project, reviewState);
+                    // Auto-open the Review Record & License section only when
+                    // the work is awaiting an approval decision AND the gate is
+                    // currently blocking. Excludes legacy projects (the legacy
+                    // copy directs to reject + resubmit; the inputs in this
+                    // section cannot fix the block) and excludes any non-decision
+                    // state (rejected/approved/live/etc.) where the panel is
+                    // informational, not actionable.
+                    const reviewGateOpen =
+                      (project.status === "pending" || project.status === "in_review") &&
+                      !gate.approvalAllowed &&
+                      !gate.isLegacyMissingIntegrity;
+                    return (
                     <div className="px-5 pb-5 border-t border-white/5 pt-4 space-y-3">
                       {/* ── 1. AUTHORITY BLOCK (always open) ── */}
                       {project.status === "removed" && (
@@ -1814,16 +1835,24 @@ export default function AdminPage() {
                         </div>
                       )}
 
-                      {/* ── 2. LICENSE & INTEGRITY (collapsible, default closed) ── */}
+                      {/* ── 2. REVIEW RECORD & LICENSE ──
+                          Phase 6 Tier 2 fix — section renamed from "License &
+                          Integrity" so the header communicates that this is
+                          where the approval gate is unlocked. Auto-opens (and
+                          renders amber-emphasized via emphasis="authority")
+                          when the work is awaiting an approval decision and
+                          the gate is currently blocking — see the hoisted
+                          `reviewGateOpen` flag at the top of this card. */}
                       {(project.status === "pending" ||
                         project.status === "in_review" ||
                         project.status === "approved" ||
                         project.status === "live" ||
                         project.status === "rejected") && (
                         <ExpandableSection
-                          title="License & Integrity"
+                          title="Review Record & License"
                           summary={licenseSummary(project)}
-                          defaultOpen={false}
+                          defaultOpen={reviewGateOpen}
+                          emphasis={reviewGateOpen ? "authority" : undefined}
                         >
                           <SubmissionReviewPanel
                             project={project}
@@ -2242,9 +2271,10 @@ export default function AdminPage() {
 
                       {/* ── 6. ACTIONS ROW (always last, always open) ── */}
                       {(() => {
-                        const reviewState =
-                          reviewByProject[project.id] ?? reviewFromProject(project);
-                        const gate = gateState(project, reviewState);
+                        // Phase 6 Tier 2 fix — `reviewState` and `gate` are now
+                        // hoisted to the per-project scope above so the section
+                        // header and this row share the same values. Only the
+                        // row-local visibility flag is computed here.
                         const showApproveGate =
                           project.status === "pending" || project.status === "in_review";
                         return (
@@ -2331,8 +2361,14 @@ export default function AdminPage() {
                                 )}
                                 {gate.reviewMessage && (
                                   <>
+                                    {/* Phase 6 Tier 2 fix — diagnostic now
+                                        names the section the admin must open
+                                        to unlock approval. The section above
+                                        is auto-opened when this branch fires,
+                                        but admins who manually collapsed it
+                                        still have a breadcrumb back to it. */}
                                     <p className="text-[11px] text-neutral-300 leading-relaxed">
-                                      Approval is locked because the review record is not passing. Rejection remains available.
+                                      Open the <strong className="text-white">Review Record &amp; License</strong> section above to complete the review record. Approval unlocks once the required fields pass. Rejection remains available.
                                     </p>
                                     <p className="text-[11px] text-neutral-400 leading-relaxed">
                                       Review record: {gate.reviewMessage}
@@ -2499,7 +2535,8 @@ export default function AdminPage() {
                         );
                       })()}
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -2584,8 +2621,8 @@ function ExpandableSection({
   );
 }
 
-// Pure derivation. One-line description of the License & Integrity section
-// when collapsed.
+// Pure derivation. One-line description of the Review Record & License
+// section when collapsed.
 function licenseSummary(p: any): string {
   if (p.status === "approved" || p.status === "live") {
     if (p.license) {
