@@ -2277,6 +2277,42 @@ export default function AdminPage() {
                         // row-local visibility flag is computed here.
                         const showApproveGate =
                           project.status === "pending" || project.status === "in_review";
+
+                        // Phase 6 Tier 2 fix v2 — derive the missing-requirements
+                        // checklist directly from the in-memory review state,
+                        // not from `validateAdminReviewComplete` (which short-
+                        // circuits at the first failure). Each requirement is
+                        // checked independently so the admin sees the full list
+                        // of remaining items, not just the next one.
+                        //
+                        // Numeric thresholds (≥20 chars for rationale + decision
+                        // record, allowed enum values) match `submission-integrity.ts`
+                        // exactly; this list is presentational only and never
+                        // weakens the server-side gate. The PATCH still re-runs
+                        // `isReviewPassing` server-side at admin/projects/route.ts
+                        // and returns 422 on any mismatch.
+                        const missingApprovalReqs: string[] = [];
+                        if (showApproveGate && !gate.isLegacyMissingIntegrity) {
+                          const r = reviewState;
+                          if (!r.review_thesis_confirmed) {
+                            missingApprovalReqs.push("Confirm thesis check");
+                          }
+                          if ((r.review_meaningful_presence_rationale?.trim().length ?? 0) < 20) {
+                            missingApprovalReqs.push("Add meaningful presence rationale (≥ 20 characters)");
+                          }
+                          if (!r.review_rights_posture) {
+                            missingApprovalReqs.push("Select rights posture");
+                          }
+                          if (!r.review_craft_result) {
+                            missingApprovalReqs.push("Select craft result");
+                          }
+                          if (!r.review_catalog_fit) {
+                            missingApprovalReqs.push("Select catalog fit");
+                          }
+                          if ((r.review_decision_record?.trim().length ?? 0) < 20) {
+                            missingApprovalReqs.push("Add decision record (≥ 20 characters)");
+                          }
+                        }
                         return (
                       <div className="mt-5 pt-4 border-t border-white/5 flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-neutral-500 mr-2">Actions:</span>
@@ -2290,21 +2326,28 @@ export default function AdminPage() {
                             >
                               Start Review
                             </button>
-                            {gate.approvalAllowed ? (
-                              <button
-                                onClick={() => updateProjectStatus(project.id, "approved")}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition"
-                              >
-                                Approve for Licensing
-                              </button>
-                            ) : (
-                              <span
-                                title={gate.approvalBlockedMessage ?? undefined}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
-                              >
-                                Approval locked
-                              </span>
-                            )}
+                            {/* Phase 6 Tier 2 fix v2 — Approve for Licensing
+                                renders as the SAME button in both states, just
+                                disabled when the gate is locked. The previous
+                                "Approval locked" pill hid the affordance and
+                                left admins searching for an approval action
+                                that wasn't visually present. */}
+                            <button
+                              onClick={() => updateProjectStatus(project.id, "approved")}
+                              disabled={!gate.approvalAllowed}
+                              title={
+                                gate.approvalAllowed
+                                  ? undefined
+                                  : gate.approvalBlockedMessage ?? "Approval is locked until the review record is complete."
+                              }
+                              className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
+                                gate.approvalAllowed
+                                  ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
+                                  : "border-teal-500/15 text-teal-500/40 cursor-not-allowed"
+                              }`}
+                            >
+                              Approve for Licensing
+                            </button>
                             <button
                               onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
                               className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
@@ -2317,21 +2360,26 @@ export default function AdminPage() {
                         {/* in_review: Approve, Reject */}
                         {project.status === "in_review" && rejectingId !== project.id && (
                           <>
-                            {gate.approvalAllowed ? (
-                              <button
-                                onClick={() => updateProjectStatus(project.id, "approved")}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-teal-500/30 text-teal-400 hover:bg-teal-500/10 transition"
-                              >
-                                Approve for Licensing
-                              </button>
-                            ) : (
-                              <span
-                                title={gate.approvalBlockedMessage ?? undefined}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
-                              >
-                                Approval locked
-                              </span>
-                            )}
+                            {/* Phase 6 Tier 2 fix v2 — same disabled-button
+                                pattern as the pending branch. Single visual
+                                identity for "this is the approval action,
+                                currently unavailable." */}
+                            <button
+                              onClick={() => updateProjectStatus(project.id, "approved")}
+                              disabled={!gate.approvalAllowed}
+                              title={
+                                gate.approvalAllowed
+                                  ? undefined
+                                  : gate.approvalBlockedMessage ?? "Approval is locked until the review record is complete."
+                              }
+                              className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
+                                gate.approvalAllowed
+                                  ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
+                                  : "border-teal-500/15 text-teal-500/40 cursor-not-allowed"
+                              }`}
+                            >
+                              Approve for Licensing
+                            </button>
                             <button
                               onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
                               className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
@@ -2359,18 +2407,38 @@ export default function AdminPage() {
                                     Creator integrity: {gate.integrityMessage}
                                   </p>
                                 )}
+                                {/* Phase 6 Tier 2 fix v2 — primary guidance is
+                                    a checklist of remaining requirements. Each
+                                    item is independently checked against the
+                                    in-memory review state, so the admin sees
+                                    every remaining gap (not just the next
+                                    short-circuited one). The section-name
+                                    breadcrumb and the existing single-line
+                                    `gate.reviewMessage` are kept as secondary
+                                    hints below the checklist. */}
+                                {missingApprovalReqs.length > 0 && (
+                                  <div className="mt-1">
+                                    <p className="text-[11px] text-neutral-300 leading-relaxed font-medium">
+                                      Approval requires:
+                                    </p>
+                                    <ul className="mt-1 ml-4 list-disc space-y-0.5">
+                                      {missingApprovalReqs.map((req) => (
+                                        <li
+                                          key={req}
+                                          className="text-[11px] text-neutral-300 leading-relaxed"
+                                        >
+                                          {req}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
                                 {gate.reviewMessage && (
                                   <>
-                                    {/* Phase 6 Tier 2 fix — diagnostic now
-                                        names the section the admin must open
-                                        to unlock approval. The section above
-                                        is auto-opened when this branch fires,
-                                        but admins who manually collapsed it
-                                        still have a breadcrumb back to it. */}
-                                    <p className="text-[11px] text-neutral-300 leading-relaxed">
-                                      Open the <strong className="text-white">Review Record &amp; License</strong> section above to complete the review record. Approval unlocks once the required fields pass. Rejection remains available.
+                                    <p className="text-[11px] text-neutral-500 leading-relaxed mt-1">
+                                      Open the <strong className="text-white/80">Review Record &amp; License</strong> section above to complete these requirements. Rejection remains available.
                                     </p>
-                                    <p className="text-[11px] text-neutral-400 leading-relaxed">
+                                    <p className="text-[11px] text-neutral-500 leading-relaxed">
                                       Review record: {gate.reviewMessage}
                                     </p>
                                   </>
@@ -2414,10 +2482,17 @@ export default function AdminPage() {
                           </button>
                         )}
 
-                        {/* pending / in_review / approved: Archive to Internal Hold */}
-                        {(project.status === "pending" ||
-                          project.status === "in_review" ||
-                          project.status === "approved") && (
+                        {/* approved: Archive to Internal Hold.
+                            Phase 6 Tier 2 fix v2 — pending and in_review were
+                            removed from this branch. Founder-confirmed bug:
+                            Archive surfaced as a primary action on review
+                            cards, conflating "internal hold" with a review
+                            outcome. Reject is the correct in-review exit;
+                            archive belongs to library/lifecycle contexts
+                            (approved waiting on license, or live). The
+                            existing `live` Archive button above and the
+                            `rejected` Archive option below are unchanged. */}
+                        {project.status === "approved" && (
                           <button
                             onClick={() => {
                               setArchiveHoldTarget({ id: project.id, title: project.title || "" });
