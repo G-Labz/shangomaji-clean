@@ -1835,6 +1835,15 @@ export default function AdminPage() {
                         </div>
                       )}
 
+                      {/* ── PUBLIC VISIBILITY DIAGNOSTIC (Phase 7.1) ──
+                          Read-only one-line strip that mirrors the
+                          /api/public/titles gate exactly. Always rendered
+                          at the top of the expanded panel so operators
+                          see why a Live or Approved work is or isn't on
+                          the public catalog without expanding any
+                          collapsible. No buttons, no mutations. */}
+                      <PublicVisibilityRow project={project} />
+
                       {/* ── 2. REVIEW RECORD & LICENSE ──
                           Phase 6 Tier 2 fix — section renamed from "License &
                           Integrity" so the header communicates that this is
@@ -2765,6 +2774,103 @@ function licenseSummary(p: any): string {
   }
   if (p.status === "rejected") return "Rejected — no license";
   return "—";
+}
+
+// Phase 7.1 — Public Visibility Diagnostic (read-only).
+//
+// Mirrors the public-titles gate exactly as enforced by
+// /api/public/titles. Every "held" reason maps to a specific row
+// condition that currently excludes the work from the public catalog.
+// The diagnostic does not infer anything beyond what the public read
+// path actually checks, and it never mutates state.
+//
+// Public-titles gate (per src/app/api/public/titles/route.ts):
+//   1. A `titles` row exists for this project.
+//   2. titles.status = 'active'.
+//   3. titles.media_ready = true.
+//   4. titles.bunny_video_id IS NOT NULL.
+//   5. process.env.BUNNY_STREAM_LIBRARY_ID is set on the server
+//      (drops every row when missing — flagged as a server caveat
+//      rather than a per-row block since it's not safely knowable
+//      client-side from the admin page).
+//
+// Lifecycle states map cleanly to "Held — <reason>" prefixes for
+// non-public works. Approved-but-not-yet-activated is split between
+// the license-required and license-executed sub-states because both
+// founder and operators read those as different "next step" prompts.
+type PublicVisibilityTone = "ready" | "held" | "rejected" | "neutral";
+type PublicVisibilityDiagnostic = {
+  label:  string;
+  tone:   PublicVisibilityTone;
+};
+
+function getPublicVisibilityDiagnostic(p: any): PublicVisibilityDiagnostic {
+  const status = p?.status as string | undefined;
+  // Terminal / non-decision states first — these explicitly cannot
+  // appear publicly regardless of media binding.
+  if (status === "removed") {
+    return { label: "Removed",                                  tone: "rejected" };
+  }
+  if (status === "rejected") {
+    return { label: "Rejected",                                 tone: "rejected" };
+  }
+  if (status === "archived") {
+    return { label: "Internal hold",                            tone: "neutral" };
+  }
+  if (status === "removal_requested") {
+    return { label: "Held — removal under review",              tone: "held" };
+  }
+  if (status === "draft") {
+    return { label: "Held — awaiting submission",               tone: "held" };
+  }
+  if (status === "pending" || status === "in_review") {
+    return { label: "Held — awaiting approval",                 tone: "held" };
+  }
+  if (status === "approved") {
+    // Approved is a two-step: license execution, then admin
+    // Activate Distribution. Surface the next step honestly.
+    if (!p?.license) {
+      return { label: "Held — license not executed",            tone: "held" };
+    }
+    return { label: "Held — distribution not activated",        tone: "held" };
+  }
+  if (status === "live") {
+    // Live works flow through the actual public-titles gate.
+    if (p?.title_status && p.title_status !== "active") {
+      return { label: "Held — title row inactive",              tone: "held" };
+    }
+    if (!p?.bunny_video_id) {
+      return { label: "Held — Bunny video missing",             tone: "held" };
+    }
+    if (p?.media_ready !== true) {
+      return { label: "Held — media not ready",                 tone: "held" };
+    }
+    return { label: "Ready — visible in public catalog",        tone: "ready" };
+  }
+  // Unknown status — never claim visibility.
+  return { label: "Held — unknown state",                       tone: "held" };
+}
+
+function PublicVisibilityRow({ project }: { project: any }) {
+  const d = getPublicVisibilityDiagnostic(project);
+  const cls =
+    d.tone === "ready"
+      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+      : d.tone === "rejected"
+      ? "bg-red-500/15 text-red-300 border-red-500/40"
+      : d.tone === "held"
+      ? "bg-yellow-500/15 text-yellow-300 border-yellow-500/30"
+      : "bg-white/5 text-neutral-300 border-white/15";
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[11px] uppercase tracking-widest text-neutral-500">
+        Public visibility:
+      </span>
+      <span className={`text-[11px] px-2 py-0.5 rounded border ${cls}`}>
+        {d.label}
+      </span>
+    </div>
+  );
 }
 
 function IdentityRow({ status }: { status: string | null }) {
