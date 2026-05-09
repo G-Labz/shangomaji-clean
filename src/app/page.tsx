@@ -31,7 +31,11 @@ export default function HomePage() {
   useEffect(() => {
     async function loadCreatorTitles() {
       try {
-        const res = await fetch("/api/public/titles");
+        // Phase 6 Tier 2.5 Final Sync Fix — `cache: "no-store"` so the
+        // browser never serves a stale snapshot of the public catalog
+        // (creator media-package updates must surface on the next
+        // refresh, not after a cache TTL).
+        const res = await fetch("/api/public/titles", { cache: "no-store" });
         const data = await res.json();
 
         if (!res.ok) {

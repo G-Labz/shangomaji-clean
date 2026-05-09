@@ -4,6 +4,14 @@ import { buildBunnyThumbnailUrl } from "@/lib/bunny";
 import { normalizeArtworkUrl } from "@/lib/artwork";
 import { filterSuppressedTaxonomy } from "@/lib/copy-guards";
 
+// Phase 6 Tier 2.5 Final Sync Fix — force-dynamic so that creator
+// media-package updates surface on the public creator profile
+// (poster / banner / stills attached to the creator's titles list)
+// without being held back by Next.js Route Handler caching. Same
+// rationale as /api/public/titles — see that route for the read-path
+// trace.
+export const dynamic = "force-dynamic";
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!

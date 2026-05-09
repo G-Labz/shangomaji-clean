@@ -82,7 +82,10 @@ export default function CreatorProfilePage({ params }: PageProps) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/public/creator?handle=${encodeURIComponent(handle)}`)
+    // Phase 6 Tier 2.5 Final Sync Fix — `cache: "no-store"` so creator
+    // media updates also propagate to the public creator profile's
+    // titles list on next refresh.
+    fetch(`/api/public/creator?handle=${encodeURIComponent(handle)}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         if (cancelled) return;

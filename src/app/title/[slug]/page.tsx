@@ -330,7 +330,10 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/public/titles")
+    // Phase 6 Tier 2.5 Final Sync Fix — `cache: "no-store"` so a fresh
+    // refresh of the title detail page always sees the latest creator
+    // media-package fields (poster / banner / stills / trailer).
+    fetch("/api/public/titles", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         const found = (data.titles ?? []).find((t: any) => t.slug === slug);

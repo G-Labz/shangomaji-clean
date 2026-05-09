@@ -6,6 +6,23 @@ import { isWithinNewWindow } from "@/lib/new-badge";
 import { filterSuppressedTaxonomy, isRealText } from "@/lib/copy-guards";
 import { isUsableArtworkUrl } from "@/lib/artwork";
 
+// Phase 6 Tier 2.5 Final Sync Fix — force-dynamic so that creator
+// media-package updates (poster / banner / stills / trailer on
+// creator_projects) propagate to Home / Browse / title detail
+// immediately on the next request. Without this, Next.js App
+// Router treats the GET handler as static-cacheable (no cookies,
+// no headers, no dynamic functions), and the cached response
+// holds the snapshot from before the creator's update.
+//
+// The titles table itself does NOT carry any media columns
+// (cover_image_url, banner_url, stills_urls, trailer_url all live
+// exclusively on creator_projects — see migration 007 for the
+// titles schema and migration 010 for the only fields ever added
+// later, which were Bunny-binding only). So the read path is
+// already correct: this directive is the only thing the public
+// surfaces need to see fresh creator-side artwork.
+export const dynamic = "force-dynamic";
+
 // Phase 3 — public title metadata is freely browsable, but the playback
 // embed URL is NEVER returned here. Members must obtain a signed/expiring
 // playback URL via /api/playback/session, which enforces auth, Member
