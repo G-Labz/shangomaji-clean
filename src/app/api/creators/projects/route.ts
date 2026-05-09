@@ -393,17 +393,34 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  // Authority-of-state: only drafts are editable by the creator. All other
-  // states are owned by ShangoMaji's review/distribution lifecycle and the
-  // creator must not be able to mutate field values once submitted.
-  if (existing.status !== "draft") {
+  // Authority-of-state: drafts get the full edit surface; approved works
+  // get a NARROW media-package surface (Phase 6 Tier 2.5). All other
+  // states remain locked.
+  //
+  // Phase 6 Tier 2.5 — Media Package Attachment Flow.
+  //   The founder approved a controlled path that lets a creator add or
+  //   update the promotional media package on an APPROVED work AFTER
+  //   metadata + integrity + license are settled. This is NOT a re-open
+  //   of the full editor.
+  //
+  //   Status mapping:
+  //     - draft     → full edit (existing behavior, unchanged)
+  //     - approved  → media-only (cover_image_url, banner_url,
+  //                   stills_urls, trailer_url, deliverables only)
+  //     - all else  → locked (existing behavior, unchanged)
+  //
+  //   Live works are deliberately NOT in the media-update set per
+  //   founder direction ("Live: Media changes are not direct-edit in
+  //   this phase"). The admin still controls Bunny binding on live via
+  //   the existing /api/admin/projects path.
+  const isDraftEdit          = existing.status === "draft";
+  const isMediaPackageEdit   = existing.status === "approved";
+  if (!isDraftEdit && !isMediaPackageEdit) {
     const message =
       existing.status === "rejected"
         ? "Rejected works are locked and cannot be edited. Use Revise to create a new draft."
         : existing.status === "pending" || existing.status === "in_review"
         ? "This work has been submitted for review. Editing is locked."
-        : existing.status === "approved"
-        ? "This work has been approved. Editing is closed; the next step is license execution."
         : existing.status === "live"
         ? "This work is under active distribution. Editing is closed."
         : existing.status === "archived"
@@ -417,7 +434,24 @@ export async function PUT(req: NextRequest) {
   }
 
   const updates: Record<string, any> = { updated_at: new Date().toISOString() };
-  const allowedFields = [
+
+  // Phase 6 Tier 2.5 — narrow media-package whitelist. Strictly the
+  // promotional/deliverable assets a creator may add or refresh after
+  // approval. EXCLUDES: title, description, project_type, genres,
+  // logline, runtime, sample_url, all submission-integrity columns,
+  // and any review/license columns. Sample/screener URL is intentionally
+  // absent — it remains a private creator → admin asset; updating it
+  // post-approval is not part of this flow.
+  const mediaPackageFields = [
+    "cover_image_url",
+    "banner_url",
+    "trailer_url",
+    "stills_urls",
+    "deliverables",
+  ];
+
+  // Draft path keeps the existing full-edit field set.
+  const draftFields = [
     "title",
     "description",
     "project_type",
@@ -435,6 +469,8 @@ export async function PUT(req: NextRequest) {
     "runtime",
   ];
 
+  const allowedFields = isMediaPackageEdit ? mediaPackageFields : draftFields;
+
   for (const field of allowedFields) {
     if (body[field] !== undefined) {
       // Phase 6 Tier 2 — runtime normalizes "" / whitespace → null so the
@@ -449,10 +485,18 @@ export async function PUT(req: NextRequest) {
     }
   }
 
-  // Drafts may carry partial submission-integrity fields (creator works
-  // through the form across sessions). Validation runs on the submit gate,
-  // not the save gate.
-  Object.assign(updates, pickCreatorIntegrityColumns(body as CreatorIntegrityInput));
+  // Phase 6 Tier 2.5 — submission-integrity merging only happens on the
+  // draft path. Approved works do NOT accept any integrity-column writes
+  // through this endpoint, even if the client sends them. This keeps the
+  // approved gate honest: the integrity record was the basis for the
+  // admin's approval decision and must not silently mutate after the
+  // fact.
+  if (!isMediaPackageEdit) {
+    // Drafts may carry partial submission-integrity fields (creator works
+    // through the form across sessions). Validation runs on the submit gate,
+    // not the save gate.
+    Object.assign(updates, pickCreatorIntegrityColumns(body as CreatorIntegrityInput));
+  }
 
   const { error: updateError } = await supabase
     .from("creator_projects")

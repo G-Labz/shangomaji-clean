@@ -439,6 +439,20 @@ export default function WorkspaceProjects() {
                       {isSubmittingThis ? "Submitting…" : "Submit for Review"}
                     </button>
                   )}
+                  {/* Phase 6 Tier 2.5 — Approved works (license required +
+                      license executed sub-states) get a controlled media
+                      package action. This is NOT an "Edit Work" button —
+                      core metadata stays locked at the API level. The
+                      route renders only the promotional asset surface
+                      (poster / banner / stills / trailer / deliverables). */}
+                  {isApproved && (
+                    <Link
+                      href={`/workspace/projects/${project.id}/media`}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition"
+                    >
+                      Manage Media Package
+                    </Link>
+                  )}
                   <ItemActions
                     /* Edit is allowed only for draft (free editing) and
                        rejected (the edit page is already read-only there

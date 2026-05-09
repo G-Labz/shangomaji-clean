@@ -2474,6 +2474,52 @@ export default function AdminPage() {
                           )
                         )}
 
+                        {/* Phase 6 Tier 2.5 — Media package readiness inline.
+                            Surfaces what the creator has uploaded (poster /
+                            banner / stills / trailer) on approved rows so
+                            the admin can see whether the work is visually
+                            ready before clicking Activate Distribution. The
+                            existing activation gate (executed license)
+                            stays unchanged; this is information, not a new
+                            blocker. Public visibility is still gated
+                            independently by titles.media_ready + Bunny
+                            video binding (admin Media section on live). */}
+                        {project.status === "approved" && (() => {
+                          const checks: Array<{ label: string; ok: boolean }> = [
+                            { label: "Poster",  ok: !!(project.cover_image_url && String(project.cover_image_url).trim()) },
+                            { label: "Banner",  ok: !!(project.banner_url      && String(project.banner_url).trim()) },
+                            { label: "Stills",  ok: Array.isArray(project.stills_urls) && project.stills_urls.length >= 2 },
+                            { label: "Trailer", ok: !!(project.trailer_url     && String(project.trailer_url).trim()) },
+                          ];
+                          const missing = checks.filter((c) => !c.ok).map((c) => c.label);
+                          const ready   = missing.length === 0;
+                          return (
+                            <div className="basis-full flex flex-wrap items-center gap-2 mt-1">
+                              <span className="text-[11px] uppercase tracking-widest text-neutral-500">
+                                Media package:
+                              </span>
+                              {ready ? (
+                                <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
+                                  Ready
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/15 text-yellow-300 border-yellow-500/30">
+                                    Incomplete
+                                  </span>
+                                  <span className="text-[11px] text-neutral-400">
+                                    Missing: {missing.join(", ")}
+                                  </span>
+                                </>
+                              )}
+                              <span className="text-[11px] text-neutral-500">
+                                · Public visibility additionally requires the Bunny
+                                video binding + processing on Live.
+                              </span>
+                            </div>
+                          );
+                        })()}
+
                         {/* live: Archive to Internal Hold (typed-confirmation gate) */}
                         {project.status === "live" && (
                           <button
