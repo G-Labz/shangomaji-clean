@@ -17,6 +17,13 @@ export interface Title {
   creatorHandle?: string;  // links to /creators/[handle]
   creatorName?: string;    // display name on cards
   isTrending?: boolean; isNew?: boolean; progress?: number;
+  // Phase 6 Tier 1 — optional outbound trailer URL surfaced on the
+  // title page as a plain "Watch trailer ↗" link. The public titles
+  // API already returns trailerUrl from creator submissions; this
+  // field exists on the in-memory Title type so the title page can
+  // read it consistently across both the mock branch (always
+  // undefined) and the creator-fallback branch.
+  trailerUrl?: string;
 }
 
 // All images are locally hosted Firefly AI originals

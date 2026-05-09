@@ -205,6 +205,12 @@ export default function TitlePage({ params }: PageProps) {
               <Share2 size={16} />
             </button>
           </div>
+
+          {/* Phase 6 Tier 1 — trailer outbound link.
+              Renders only when a real, creator-supplied trailer URL is
+              present. Plain anchor, opens in a new tab — Tier 1 does
+              not build a trailer player. */}
+          <TrailerLink url={title.trailerUrl} />
         </motion.div>
 
         {/* ── Creator presence banner ── */}
@@ -420,6 +426,11 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
             )}
           </div>
 
+          {/* Phase 6 Tier 1 — trailer outbound link on the creator
+              fallback branch. Same rules as above: rendered only if
+              the creator submitted a real trailer URL. */}
+          <TrailerLink url={title.trailerUrl} />
+
           {title.creatorName ? (
             <motion.div
               className="py-5 border-t border-white/5"
@@ -531,6 +542,27 @@ function TitlePlayCta({ slug, type: _type }: { slug: string; type: "movie" | "se
       <Play size={16} fill="currentColor" />
       Play
     </Link>
+  );
+}
+
+// Phase 6 Tier 1 — Trailer outbound link.
+//   • Renders nothing when no trailer URL exists.
+//   • Plain anchor with target="_blank" + rel="noopener noreferrer".
+//   • No embedded player, no preview thumbnail, no API call.
+//   • Guarded by isRealText so DB-typed sentinels never surface.
+function TrailerLink({ url }: { url?: string | null }) {
+  if (!isRealText(url)) return null;
+  return (
+    <div className="mb-8 -mt-2">
+      <a
+        href={url.trim()}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-white transition-colors"
+      >
+        Watch trailer ↗
+      </a>
+    </div>
   );
 }
 

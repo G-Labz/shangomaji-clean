@@ -6,6 +6,11 @@ import { FilterBar } from "@/components/browse/FilterBar";
 import { TitleCard } from "@/components/cards/TitleCard";
 import { titles, allGenres } from "@/data/mockData";
 import type { Genre, Title } from "@/data/mockData";
+
+// Phase 6 Tier 1 — sort controls are hidden when the live catalog is
+// smaller than this threshold. Sorting six items by score / year / A-Z
+// is theatre, not utility.
+const SORT_VISIBLE_THRESHOLD = 6;
 import { PageTitle } from "@/components/util/PageTitle";
 
 type SortKey = "score" | "year" | "title";
@@ -61,11 +66,38 @@ export default function BrowsePage() {
     loadCreatorTitles();
   }, []);
 
+  // The "live catalog" — every title currently available to render on
+  // Browse, regardless of active filters. Used both as the input to the
+  // filter pipeline AND as the source-of-truth for honest UI gates
+  // (genre chips, sort visibility) so we never expose an affordance
+  // that leads to a zero-title lane.
+  const liveCatalog = useMemo(
+    () => [...titles, ...creatorTitles],
+    [creatorTitles]
+  );
+
+  // Phase 6 Tier 1 — derive visible genre chips from the live catalog.
+  // A chip is shown only when at least one live title carries that
+  // genre. Chips that would lead to an empty lane never render.
+  const visibleGenres = useMemo<Genre[]>(() => {
+    const present = new Set<string>();
+    for (const t of liveCatalog) {
+      for (const g of t.genres) present.add(g);
+    }
+    return allGenres.filter((g) => present.has(g));
+  }, [liveCatalog]);
+
+  // If the active genre disappears from the live catalog (e.g. the only
+  // title in that lane was removed), silently snap back to "All" so the
+  // grid never renders an empty state for an invisible chip.
+  useEffect(() => {
+    if (activeGenre !== "All" && !visibleGenres.includes(activeGenre)) {
+      setActiveGenre("All");
+    }
+  }, [activeGenre, visibleGenres]);
+
   const filtered = useMemo(() => {
-    // Include all activated creator titles — the public titles API is the gate,
-    // not the presence of a custom poster. Titles without custom covers will
-    // render with the placeholder image, which is acceptable.
-    let list = [...titles, ...creatorTitles];
+    let list = [...liveCatalog];
 
     if (activeGenre !== "All") {
       list = list.filter((t) => t.genres.includes(activeGenre));
@@ -82,7 +114,9 @@ export default function BrowsePage() {
     });
 
     return list;
-  }, [activeGenre, activeType, sortBy, creatorTitles]);
+  }, [activeGenre, activeType, sortBy, liveCatalog]);
+
+  const showSort = liveCatalog.length >= SORT_VISIBLE_THRESHOLD;
 
   return (
     <div className="min-h-screen pt-16">
@@ -97,15 +131,15 @@ export default function BrowsePage() {
         >
           Browse
         </motion.h1>
+        {/* Phase 6 Tier 1 — the public catalog count string ("N titles
+            available") is hidden. Counts on a small live catalog read
+            as a deficiency report, not a feature. */}
         <motion.div
           className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.4 }}
         >
-          <p className="text-white/40 text-base">
-            {filtered.length} title{filtered.length !== 1 ? "s" : ""} available
-          </p>
           {creatorTitlesError ? (
             <p className="text-xs" style={{ color: "rgba(255,100,80,0.55)" }}>
               Creator titles could not be loaded.
@@ -118,15 +152,17 @@ export default function BrowsePage() {
         </motion.div>
       </div>
 
-      {/* Filter bar */}
+      {/* Filter bar — only chips that map to live titles render.
+          Sort controls hide entirely when the live catalog is small. */}
       <FilterBar
-        genres={allGenres}
+        genres={visibleGenres}
         activeGenre={activeGenre}
         onGenreChange={setActiveGenre}
         activeType={activeType}
         onTypeChange={setActiveType}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        showSort={showSort}
       />
 
       {/* Grid */}

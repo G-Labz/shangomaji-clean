@@ -16,6 +16,10 @@ export function HeroBanner({ titles }: HeroBannerProps) {
   const [direction, setDirection] = useState(1);
 
   useEffect(() => {
+    // Phase 6 Tier 1 — auto-rotate only when there is more than one
+    // title. A single-title hero is static; cycling re-runs the
+    // AnimatePresence transition on the same item for no reason.
+    if (titles.length <= 1) return;
     const timer = setInterval(() => {
       setDirection(1);
       setCurrent((c) => (c + 1) % titles.length);
@@ -268,36 +272,42 @@ export function HeroBanner({ titles }: HeroBannerProps) {
         </div>
       </div>
 
-      {/* Arrow controls */}
-      <div className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 z-10 flex-col gap-3 hidden md:flex">
-        <button onClick={() => go((current - 1 + titles.length) % titles.length)}
-          className="p-2 rounded-lg text-white transition-all duration-200"
-          style={{ background: "rgba(229,62,42,0.12)", border: "1px solid rgba(229,62,42,0.2)" }}>
-          <ChevronLeft size={18} />
-        </button>
-        <button onClick={() => go((current + 1) % titles.length)}
-          className="p-2 rounded-lg text-white transition-all duration-200"
-          style={{ background: "rgba(229,62,42,0.12)", border: "1px solid rgba(229,62,42,0.2)" }}>
-          <ChevronRight size={18} />
-        </button>
-      </div>
+      {/* Phase 6 Tier 1 — arrow controls and dot indicators only render
+          when there is more than one title to navigate between. A
+          single-title hero shows no carousel chrome (one item is not a
+          carousel). */}
+      {titles.length > 1 && (
+        <>
+          <div className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 z-10 flex-col gap-3 hidden md:flex">
+            <button onClick={() => go((current - 1 + titles.length) % titles.length)}
+              className="p-2 rounded-lg text-white transition-all duration-200"
+              style={{ background: "rgba(229,62,42,0.12)", border: "1px solid rgba(229,62,42,0.2)" }}>
+              <ChevronLeft size={18} />
+            </button>
+            <button onClick={() => go((current + 1) % titles.length)}
+              className="p-2 rounded-lg text-white transition-all duration-200"
+              style={{ background: "rgba(229,62,42,0.12)", border: "1px solid rgba(229,62,42,0.2)" }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
 
-      {/* Dot indicators */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex gap-2">
-        {titles.map((_, i) => (
-          <button key={i} onClick={() => go(i)}
-            className="rounded-full transition-all duration-300"
-            style={i === current ? {
-              width: "32px", height: "6px",
-              background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-              boxShadow: "0 0 12px rgba(245,197,24,0.4)",
-            } : {
-              width: "6px", height: "6px",
-              background: "rgba(255,255,255,0.20)",
-            }}
-          />
-        ))}
-      </div>
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+            {titles.map((_, i) => (
+              <button key={i} onClick={() => go(i)}
+                className="rounded-full transition-all duration-300"
+                style={i === current ? {
+                  width: "32px", height: "6px",
+                  background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                  boxShadow: "0 0 12px rgba(245,197,24,0.4)",
+                } : {
+                  width: "6px", height: "6px",
+                  background: "rgba(255,255,255,0.20)",
+                }}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Bottom brand divider */}
       <div className="absolute bottom-0 left-0 right-0 brand-divider" />

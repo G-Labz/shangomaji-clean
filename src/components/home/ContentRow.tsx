@@ -16,7 +16,11 @@ interface ContentRowProps {
 export function ContentRow({ label, titles, variant = "poster", showProgress = false }: ContentRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  // Phase 6 Tier 1 — initial right-scroll affordance must reflect
+  // whether there is anything to scroll to. A single-title row has no
+  // overflow, so the right chevron and edge gradient stay hidden until
+  // the onScroll handler reconfirms there is real overflow content.
+  const [canScrollRight, setCanScrollRight] = useState(titles.length > 1);
 
   const scroll = (dir: "left" | "right") => {
     const el = scrollRef.current;
@@ -39,7 +43,9 @@ export function ContentRow({ label, titles, variant = "poster", showProgress = f
       viewport={{ once: true, margin: "-60px" }}
       transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
     >
-      {/* Row header */}
+      {/* Row header — Phase 6 Tier 1 hides the "View all" affordance
+          when the row holds at most one title. There is nothing more
+          to view, so the call-to-action would lie about catalog depth. */}
       <div className="flex items-center justify-between px-6 md:px-10 mb-5">
         <div className="flex items-center gap-3">
           {/* Brand accent dot */}
@@ -47,9 +53,11 @@ export function ContentRow({ label, titles, variant = "poster", showProgress = f
             style={{ background: "linear-gradient(180deg, #e53e2a, #f5c518)" }} />
           <h2 className="text-white font-semibold text-lg tracking-tight">{label}</h2>
         </div>
-        <span className="brand-text text-xs font-mono uppercase tracking-widest opacity-60">
-          View all ↗
-        </span>
+        {titles.length > 1 && (
+          <span className="brand-text text-xs font-mono uppercase tracking-widest opacity-60">
+            View all ↗
+          </span>
+        )}
       </div>
 
       {/* Scroll container */}

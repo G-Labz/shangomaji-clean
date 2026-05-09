@@ -46,7 +46,12 @@ export async function GET() {
 
   const { data: projectRows, error: projectsError } = await supabase
     .from("creator_projects")
-    .select("id, title, logline, description, genres, project_type, cover_image_url, banner_url, sample_url, trailer_url, created_at, updated_at")
+    // Phase 6 Tier 1 — sample_url is intentionally NOT selected.
+    // Screener URLs are private creator/admin material and must never
+    // reach a public surface. trailer_url is fine: it is creator-supplied
+    // promotional content rendered as a plain outbound link on the title
+    // page (no embedded player).
+    .select("id, title, logline, description, genres, project_type, cover_image_url, banner_url, trailer_url, created_at, updated_at")
     .in("id", projectIds);
 
   if (projectsError) {
@@ -184,7 +189,8 @@ export async function GET() {
         // Otherwise the title page renders the name as static text with no
         // link, instead of a broken link to a nonexistent /creators/{handle}.
         creatorHandle:         reachableHandle,
-        sampleUrl:             p?.sample_url || null,
+        // Phase 6 Tier 1 — sampleUrl removed from the public response.
+        // Screener URL is private; do not surface it to any client.
         trailerUrl:            p?.trailer_url || null,
         exclusivityType:       t.exclusivity_type,
         monetizationEnabled:   t.monetization_enabled,

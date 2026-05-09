@@ -22,6 +22,13 @@ interface FilterBarProps {
   onTypeChange: (t: "all" | "movie" | "series") => void;
   sortBy: "score" | "year" | "title";
   onSortChange: (s: "score" | "year" | "title") => void;
+  /**
+   * Phase 6 Tier 1 — when false, the sort cluster is hidden. Set by the
+   * caller when the live catalog is too small for sort controls to mean
+   * anything (avoids "Top Rated / Newest / A-Z" over a 1-row catalog).
+   * Default true preserves prior behavior for any non-Browse caller.
+   */
+  showSort?: boolean;
 }
 
 const TYPE_OPTIONS = [
@@ -102,6 +109,7 @@ export function FilterBar({
   onTypeChange,
   sortBy,
   onSortChange,
+  showSort = true,
 }: FilterBarProps) {
   return (
     <div className="sticky top-16 z-30 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/5 py-4">
@@ -131,30 +139,34 @@ export function FilterBar({
             ))}
           </div>
 
-          {/* Sort */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-ink-faint uppercase tracking-widest">Sort</span>
-            <div className="flex gap-1 bg-surface-raised rounded-xl p-1">
-              {SORT_OPTIONS.map(({ label, value }) => (
-                <button
-                  key={value}
-                  onClick={() => onSortChange(value)}
-                  className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200 ${
-                    sortBy === value ? "text-white" : "text-ink-muted"
-                  }`}
-                >
-                  {label}
-                  {sortBy === value && (
-                    <motion.span
-                      layoutId="sort-pill"
-                      className="absolute inset-0 bg-white/10 rounded-lg"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                </button>
-              ))}
+          {/* Sort — Phase 6 Tier 1 hides this entire cluster when the
+              live catalog is below the visibility threshold. No "Sort"
+              label, no pill bar, no layout gap. */}
+          {showSort && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-ink-faint uppercase tracking-widest">Sort</span>
+              <div className="flex gap-1 bg-surface-raised rounded-xl p-1">
+                {SORT_OPTIONS.map(({ label, value }) => (
+                  <button
+                    key={value}
+                    onClick={() => onSortChange(value)}
+                    className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-200 ${
+                      sortBy === value ? "text-white" : "text-ink-muted"
+                    }`}
+                  >
+                    {label}
+                    {sortBy === value && (
+                      <motion.span
+                        layoutId="sort-pill"
+                        className="absolute inset-0 bg-white/10 rounded-lg"
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Genre chips with tooltips */}
