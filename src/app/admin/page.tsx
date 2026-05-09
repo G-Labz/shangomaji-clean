@@ -44,12 +44,12 @@ export default function AdminPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [view, setView]             = useState<"applications" | "projects">("applications");
   const [projectList, setProjectList]   = useState<any[]>([]);
-  // Works tab navigation by operational intent (not raw DB status):
-  //   active  = live + approved          (the engaged set)
-  //   review  = pending + in_review + removal_requested  (decisions pending)
-  //   library = rejected + archived + removed            (archive/history)
-  //   all     = secondary debug view, available via a quieter control
-  const [projectFilter, setProjectFilter] = useState<"active" | "review" | "library" | "all">("active");
+  // Works tab navigation by Mission Control bucket (Phase 7.2). Buckets
+  // describe operational next-step rather than raw DB status, and are
+  // derived from the same fields the public visibility diagnostic reads
+  // (see classifyBucket below). Default to "all" so the founder sees
+  // everything on load and drills in via cards/chips.
+  const [projectFilter, setProjectFilter] = useState<BucketKey | "all">("all");
   const [projectLoading, setProjectLoading] = useState(false);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
@@ -653,37 +653,37 @@ export default function AdminPage() {
     }
   }
 
-  // Mode → set of raw statuses. The chip row navigates by mode; row badges
-  // continue to display raw status via projectStatusColor / statusDisplay.
-  const MODE_STATUSES: Record<"active" | "review" | "library", string[]> = {
-    active:  ["live", "approved"],
-    review:  ["pending", "in_review", "removal_requested"],
-    library: ["rejected", "archived", "removed"],
-  };
+  // Phase 7.2: bucket counts power the readiness cards, the chip row,
+  // and the launch readiness pill — derived once from classifyBucket so
+  // every Mission Control surface stays consistent with the per-row
+  // public visibility diagnostic.
+  const bucketCounts = projectList.reduce<Record<BucketKey, number>>(
+    (acc, p) => {
+      const k = classifyBucket(p);
+      acc[k] = (acc[k] ?? 0) + 1;
+      return acc;
+    },
+    { ...EMPTY_BUCKET_COUNTS }
+  );
+  const totalProjects = projectList.length;
 
   const filteredProjects =
     projectFilter === "all"
       ? projectList
-      : projectList.filter((p) => MODE_STATUSES[projectFilter].includes(p.status));
+      : projectList.filter((p) => classifyBucket(p) === projectFilter);
 
-  const projectCounts = {
-    all:               projectList.length,
-    pending:           projectList.filter((p) => p.status === "pending").length,
-    in_review:         projectList.filter((p) => p.status === "in_review").length,
-    approved:          projectList.filter((p) => p.status === "approved").length,
-    rejected:          projectList.filter((p) => p.status === "rejected").length,
-    live:              projectList.filter((p) => p.status === "live").length,
-    archived:          projectList.filter((p) => p.status === "archived").length,
-    removal_requested: projectList.filter((p) => p.status === "removal_requested").length,
-    removed:           projectList.filter((p) => p.status === "removed").length,
-  };
+  const launchReadiness = deriveLaunchReadiness(bucketCounts);
 
-  // Group totals derived from per-status counts so chip badges stay accurate.
-  const modeCounts = {
-    active:  projectCounts.live + projectCounts.approved,
-    review:  projectCounts.pending + projectCounts.in_review + projectCounts.removal_requested,
-    library: projectCounts.rejected + projectCounts.archived + projectCounts.removed,
-    all:     projectCounts.all,
+  const EMPTY_COPY: Record<BucketKey | "all", string> = {
+    all:              "No works in this state.",
+    needs_review:     "No works awaiting review.",
+    needs_license:    "No public blockers in this category.",
+    needs_activation: "No public blockers in this category.",
+    needs_bunny:      "No public blockers in this category.",
+    needs_processing: "No public blockers in this category.",
+    public_ready:     "No works in this state.",
+    internal_hold:    "No works in this state.",
+    draft:            "No works in this state.",
   };
 
   const removalQueue = projectList.filter((p) => p.status === "removal_requested");
@@ -1615,27 +1615,78 @@ export default function AdminPage() {
       {/* ── Projects tab ── */}
       {view === "projects" && (
         <>
-          {/* Primary navigation by operational intent. "All" is a quieter,
-              secondary control (right-aligned text link) so admins navigate
-              by mode, not raw DB status. */}
+          {/* Phase 7.2 Mission Control. Launch readiness pill + bucket
+              cards summarise what the system needs next; cards and chips
+              share the same axis so each is a navigation affordance. */}
+          {!projectLoading && totalProjects > 0 && (
+            <>
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <span className="text-[11px] uppercase tracking-widest text-neutral-500">
+                  Launch readiness:
+                </span>
+                <span
+                  className={`text-[11px] px-2 py-0.5 rounded border ${
+                    launchReadiness.tone === "ready"
+                      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      : launchReadiness.tone === "attention"
+                      ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                      : "bg-white/5 text-neutral-300 border-white/15"
+                  }`}
+                >
+                  {launchReadiness.label}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
+                {BUCKET_ORDER.map((key) => {
+                  const tone   = BUCKET_TONES[key];
+                  const count  = bucketCounts[key];
+                  const active = projectFilter === key;
+                  const toneCls =
+                    tone === "amber"
+                      ? "border-amber-500/30 bg-amber-500/5"
+                      : tone === "emerald"
+                      ? "border-emerald-500/30 bg-emerald-500/5"
+                      : "border-white/10 bg-white/[0.02]";
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setProjectFilter(key)}
+                      className={`text-left rounded-lg border px-3 py-2 transition ${toneCls} ${
+                        active
+                          ? "ring-1 ring-white/30"
+                          : "hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="text-[10px] uppercase tracking-widest text-neutral-500 leading-tight">
+                        {BUCKET_LABELS[key]}
+                      </div>
+                      <div className="text-lg font-semibold text-white mt-1">
+                        {count}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Operational filter chips mirror the readiness cards — same
+              bucket keys, smaller surface for repeat navigation. The
+              "Showing all"/"View all" link on the right preserves the
+              quieter secondary toggle from the prior layout. */}
           <div className="flex items-center gap-2 mb-6 flex-wrap">
-            {(
-              [
-                { key: "active",  label: "Active"  },
-                { key: "review",  label: "Review"  },
-                { key: "library", label: "Library" },
-              ] as const
-            ).map((m) => (
+            {BUCKET_ORDER.map((key) => (
               <button
-                key={m.key}
-                onClick={() => setProjectFilter(m.key)}
+                key={key}
+                onClick={() => setProjectFilter(key)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                  projectFilter === m.key
+                  projectFilter === key
                     ? "bg-white/10 text-white"
                     : "text-neutral-500 hover:text-white hover:bg-white/5"
                 }`}
               >
-                {m.label} ({modeCounts[m.key]})
+                {BUCKET_LABELS[key]} ({bucketCounts[key]})
               </button>
             ))}
             <div className="flex-1" />
@@ -1647,7 +1698,7 @@ export default function AdminPage() {
                   : "text-neutral-500 hover:text-white"
               }`}
             >
-              {projectFilter === "all" ? "Showing all" : "View all"} ({modeCounts.all})
+              {projectFilter === "all" ? "Showing all" : "View all"} ({totalProjects})
             </button>
           </div>
 
@@ -1666,7 +1717,7 @@ export default function AdminPage() {
                 </p>
               </div>
               <button
-                onClick={() => setProjectFilter("review")}
+                onClick={() => setProjectFilter("needs_review")}
                 className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition shrink-0"
               >
                 View Removal Requested
@@ -1677,7 +1728,7 @@ export default function AdminPage() {
           {projectLoading && <p className="text-neutral-500 text-sm">Loading projects...</p>}
 
           {!projectLoading && filteredProjects.length === 0 && (
-            <p className="text-neutral-500 text-sm">No projects found.</p>
+            <p className="text-neutral-500 text-sm">{EMPTY_COPY[projectFilter]}</p>
           )}
 
           {!projectLoading && filteredProjects.length > 0 && (
@@ -2871,6 +2922,108 @@ function PublicVisibilityRow({ project }: { project: any }) {
       </span>
     </div>
   );
+}
+
+// ── Phase 7.2: Mission Control bucket classification ─────────────────
+//
+// Operational buckets describe what a work *needs next* from admin —
+// they are derived strictly from the same fields the public visibility
+// diagnostic reads, so the readiness cards/chips cannot drift from the
+// per-row badge. Live works delegate to getPublicVisibilityDiagnostic
+// to decide between needs_bunny / needs_processing / public_ready.
+type BucketKey =
+  | "needs_review"
+  | "needs_license"
+  | "needs_activation"
+  | "needs_bunny"
+  | "needs_processing"
+  | "public_ready"
+  | "internal_hold"
+  | "draft";
+
+function classifyBucket(p: any): BucketKey {
+  const status = p?.status as string | undefined;
+
+  if (status === "pending" || status === "in_review" || status === "removal_requested") {
+    return "needs_review";
+  }
+  if (status === "approved") {
+    return p?.license ? "needs_activation" : "needs_license";
+  }
+  if (status === "live") {
+    const d = getPublicVisibilityDiagnostic(p);
+    if (d.tone === "ready") return "public_ready";
+    if (p?.title_status && p.title_status !== "active") return "internal_hold";
+    if (!p?.bunny_video_id) return "needs_bunny";
+    if (p?.media_ready !== true) return "needs_processing";
+    return "internal_hold";
+  }
+  if (status === "archived" || status === "rejected" || status === "removed") {
+    return "internal_hold";
+  }
+  if (status === "draft") return "draft";
+  return "internal_hold";
+}
+
+const BUCKET_ORDER: BucketKey[] = [
+  "needs_review",
+  "needs_license",
+  "needs_activation",
+  "needs_bunny",
+  "needs_processing",
+  "public_ready",
+  "internal_hold",
+];
+
+const BUCKET_LABELS: Record<BucketKey, string> = {
+  needs_review:     "Needs Review",
+  needs_license:    "Needs License",
+  needs_activation: "Needs Activation",
+  needs_bunny:      "Needs Bunny",
+  needs_processing: "Needs Processing",
+  public_ready:     "Public Ready",
+  internal_hold:    "Internal Hold / Removed",
+  draft:            "Draft",
+};
+
+type BucketTone = "amber" | "emerald" | "neutral";
+const BUCKET_TONES: Record<BucketKey, BucketTone> = {
+  needs_review:     "amber",
+  needs_license:    "amber",
+  needs_activation: "amber",
+  needs_bunny:      "amber",
+  needs_processing: "amber",
+  public_ready:     "emerald",
+  internal_hold:    "neutral",
+  draft:            "neutral",
+};
+
+const EMPTY_BUCKET_COUNTS: Record<BucketKey, number> = {
+  needs_review:     0,
+  needs_license:    0,
+  needs_activation: 0,
+  needs_bunny:      0,
+  needs_processing: 0,
+  public_ready:     0,
+  internal_hold:    0,
+  draft:            0,
+};
+
+type LaunchReadinessTone = "ready" | "attention" | "neutral";
+type LaunchReadiness = { label: string; tone: LaunchReadinessTone };
+
+function deriveLaunchReadiness(counts: Record<BucketKey, number>): LaunchReadiness {
+  if (counts.public_ready === 0) {
+    return { label: "No public-ready titles", tone: "neutral" };
+  }
+  const backlog =
+    counts.needs_review +
+    counts.needs_license +
+    counts.needs_activation +
+    counts.needs_bunny +
+    counts.needs_processing;
+  if (backlog > 0) return { label: "Needs attention", tone: "attention" };
+  return { label: "Ready", tone: "ready" };
 }
 
 function IdentityRow({ status }: { status: string | null }) {
