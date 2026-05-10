@@ -53,6 +53,17 @@ export default function AdminPage() {
   const [projectLoading, setProjectLoading] = useState(false);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
+  // Phase 7.3 — Mission Control architecture: command-detail selection.
+  // The desktop layout renders the queue on the left and a single command
+  // detail panel on the right. These IDs track which record the right
+  // panel currently shows. Selection is purely client-side and never
+  // mutates server data; if the selected ID falls out of the filtered
+  // list (e.g., the admin changes filter) the derivation below picks the
+  // first available row so the panel never blanks unexpectedly while
+  // there are still records to inspect.
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [selectedWorkId,        setSelectedWorkId]        = useState<string | null>(null);
+
   // Lifecycle control busy flags (per-project, per-action)
   const [restoreBusy, setRestoreBusy] = useState<string | null>(null);
   const [reopenBusy,  setReopenBusy]  = useState<string | null>(null);
@@ -672,6 +683,19 @@ export default function AdminPage() {
       ? projectList
       : projectList.filter((p) => classifyBucket(p) === projectFilter);
 
+  // Phase 7.3 — derive the effective work selection. The user's explicit
+  // selectedWorkId is honored when present in the filtered list; otherwise
+  // fall back to the first row so the command detail panel does not blank
+  // out unexpectedly while there are still records to inspect.
+  const effectiveSelectedWorkId =
+    selectedWorkId && filteredProjects.find((p: any) => p.id === selectedWorkId)
+      ? selectedWorkId
+      : filteredProjects[0]?.id ?? null;
+  const selectedWork =
+    effectiveSelectedWorkId
+      ? filteredProjects.find((p: any) => p.id === effectiveSelectedWorkId) ?? null
+      : null;
+
   const launchReadiness = deriveLaunchReadiness(bucketCounts);
 
   const EMPTY_COPY: Record<BucketKey | "all", string> = {
@@ -716,6 +740,16 @@ export default function AdminPage() {
     filter === "all"
       ? visibleByToggle
       : visibleByToggle.filter((a) => a.status === filter);
+
+  // Phase 7.3 — same derivation pattern for the applications selection.
+  const effectiveSelectedApplicationId =
+    selectedApplicationId && filtered.find((a) => a.id === selectedApplicationId)
+      ? selectedApplicationId
+      : filtered[0]?.id ?? null;
+  const selectedApplication =
+    effectiveSelectedApplicationId
+      ? filtered.find((a) => a.id === effectiveSelectedApplicationId) ?? null
+      : null;
 
   const counts = {
     all:      visibleByToggle.length,
@@ -774,9 +808,1046 @@ export default function AdminPage() {
     );
   }
 
+  // ── Phase 7.3 — Command-detail render helpers ──
+  //
+  // The Mission Control architecture renders the same detail content in
+  // two places: inline-under-row on mobile (lg:hidden) and in the right
+  // command panel on desktop (hidden lg:block). Both call sites pass the
+  // selected record into one of these helpers so the detail markup stays
+  // single-source. They are declared inside AdminPage so they close over
+  // the page state and handlers; behavior is preserved exactly — no API,
+  // schema, lifecycle, gate, license, or media logic moves.
+  function renderApplicationDetail(app: Application) {
+    return (
+      <div className="space-y-4">
+        {/* HEADER — applicant identity (priority 1) */}
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
+            Selected Application
+          </p>
+          <h2
+            className="text-xl font-semibold text-white leading-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {app.name || "—"}
+          </h2>
+          <p className="text-xs text-neutral-400 break-words">
+            {app.handle ? `@${app.handle}` : "no handle"}
+            {app.email ? ` · ${app.email}` : ""}
+          </p>
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <span
+              className={`text-[11px] px-2 py-0.5 rounded border ${
+                statusColor[app.status] || "text-neutral-400"
+              }`}
+            >
+              {app.status}
+            </span>
+            <span className="text-neutral-600 text-[11px]">
+              Submitted {new Date(app.submitted_at).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+
+        {/* SUBMISSION (priority 2) */}
+        <div className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 mb-2 font-medium">
+            Submission
+          </p>
+          <div className="grid grid-cols-1 gap-3 text-sm">
+            <Field label="Project Title" value={app.project_title} full />
+            <Field label="Project Type" value={app.project_type} />
+            <Field label="Genres" value={app.genres?.join(", ")} />
+            <Field label="Logline" value={app.logline} full />
+            <Field label="Sample URL" value={app.sample_url} link />
+            <Field label="Influences" value={app.influences} full />
+            <Field label="Why ShangoMaji" value={app.why_shangomaji} full />
+            <Field label="What They Need" value={app.what_you_need} full />
+          </div>
+        </div>
+
+        {/* CONTACT */}
+        <div className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 mb-2 font-medium">
+            Contact
+          </p>
+          <div className="grid grid-cols-1 gap-3 text-sm">
+            <Field label="Email" value={app.email} />
+            <Field label="Origin" value={app.origin} />
+            <Field
+              label="Instagram"
+              value={app.instagram ? `instagram.com/${app.instagram}` : undefined}
+              link
+            />
+            <Field
+              label="X / Twitter"
+              value={app.twitter ? `x.com/${app.twitter}` : undefined}
+              link
+            />
+            <Field
+              label="YouTube"
+              value={app.youtube ? `youtube.com/${app.youtube}` : undefined}
+              link
+            />
+            <Field label="Website" value={app.website} link />
+          </div>
+        </div>
+
+        {/* AUTHORITY-OF-STATE COPY (status 3, informational) */}
+        <div className="space-y-2">
+          {app.status === "accepted" && (
+            <p className="text-xs text-emerald-300/90">
+              Decision finalized — creator onboarded.
+            </p>
+          )}
+          {app.status === "rejected" && (
+            <p className="text-xs text-red-300/80">
+              Application closed.
+            </p>
+          )}
+          {app.status === "archived" && (
+            <p className="text-xs text-neutral-400">
+              Archived. Terminal state.
+            </p>
+          )}
+        </div>
+
+        {/* DECISION CONTROLS (priority 4) + delete (priority 5) */}
+        <div className="pt-4 border-t border-white/5 flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-neutral-500 mr-2">Set status:</span>
+          {(["pending", "accepted", "rejected"] as const).map((s) => {
+            const allowed =
+              app.status === "pending" &&
+              (s === "accepted" || s === "rejected");
+            const isCurrent = app.status === s;
+            const disabled = !allowed && !isCurrent;
+            return (
+              <button
+                key={s}
+                onClick={() => !disabled && updateStatus(app.id, s)}
+                disabled={disabled}
+                className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
+                  isCurrent
+                    ? statusColor[s]
+                    : disabled
+                    ? "border-white/5 text-neutral-700 cursor-not-allowed"
+                    : "border-white/10 text-neutral-500 hover:text-white hover:border-white/20"
+                }`}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            );
+          })}
+          {(app.status === "accepted" || app.status === "rejected") && (
+            <button
+              onClick={() => updateStatus(app.id, "archived")}
+              className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition"
+            >
+              Archive
+            </button>
+          )}
+          <div className="flex-1" />
+          <button
+            onClick={() => deleteApplication(app.id)}
+            className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/20 text-red-400/60 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderProjectDetail(project: any) {
+    const reviewState = reviewByProject[project.id] ?? reviewFromProject(project);
+    const gate        = gateState(project, reviewState);
+    const reviewGateOpen =
+      (project.status === "pending" || project.status === "in_review") &&
+      !gate.approvalAllowed &&
+      !gate.isLegacyMissingIntegrity;
+    const showApproveGate =
+      project.status === "pending" || project.status === "in_review";
+
+    const missingApprovalReqs: string[] = [];
+    if (showApproveGate && !gate.isLegacyMissingIntegrity) {
+      const r = reviewState;
+      if (!r.review_thesis_confirmed) {
+        missingApprovalReqs.push("Confirm thesis fit");
+      }
+      const rightsPassing =
+        r.review_rights_posture === "clear" ||
+        r.review_rights_posture === "co_owned_clear";
+      if (!rightsPassing) {
+        missingApprovalReqs.push("Select a passing rights posture (Clear or Co-owned)");
+      }
+      const craftPassing = r.review_craft_result === "pass";
+      if (!craftPassing) {
+        missingApprovalReqs.push("Select a passing craft result (Pass)");
+      }
+      const fitPassing =
+        r.review_catalog_fit === "distinct" ||
+        r.review_catalog_fit === "strategic_fit";
+      if (!fitPassing) {
+        missingApprovalReqs.push("Select a passing catalog fit (Distinct or Strategic fit)");
+      }
+    }
+
+    const next        = adminNextAction(project);
+    const nextEmerald = classifyBucket(project) === "public_ready";
+
+    return (
+      <div className="space-y-3">
+        {/* HEADER — title / creator / status (priority 1) */}
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
+            Selected Work
+          </p>
+          <h2
+            className="text-xl font-semibold text-white leading-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {project.title || "Untitled"}
+          </h2>
+          <p className="text-xs text-neutral-400 break-words">
+            {project.creator_email}
+            {project.project_type ? ` · ${project.project_type}` : ""}
+          </p>
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <span
+              className={`text-[11px] px-2 py-0.5 rounded border ${
+                projectStatusColor[project.status] || "text-neutral-400"
+              }`}
+            >
+              {statusDisplay(project.status)}
+            </span>
+            <span className="text-neutral-600 text-[11px]">
+              Updated {new Date(project.updated_at).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+
+        {/* PUBLIC VISIBILITY (priority 2) */}
+        <PublicVisibilityRow project={project} />
+
+        {/* NEXT REQUIRED ACTION (priority 3, prominent) */}
+        {next && (
+          <div
+            className={`rounded-lg border px-3 py-2 ${
+              nextEmerald
+                ? "border-emerald-500/30 bg-emerald-500/5"
+                : "border-amber-500/30 bg-amber-500/5"
+            }`}
+          >
+            <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium mb-0.5">
+              Next required action
+            </p>
+            <p
+              className={`text-sm leading-snug ${
+                nextEmerald ? "text-emerald-200" : "text-amber-200"
+              }`}
+            >
+              {next}
+            </p>
+          </div>
+        )}
+
+        {/* AUTHORITY BLOCKS (status-specific copy) */}
+        {project.status === "removed" && (
+          <div className="rounded-lg border border-red-500/40 bg-red-900/10 p-4">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-red-300/90 font-semibold mb-2">
+              Distribution Status
+            </p>
+            <h3 className="text-white text-base font-semibold mb-2">
+              Permanently Removed
+            </h3>
+            <p className="text-xs text-neutral-300 leading-relaxed">
+              This work is no longer eligible for restoration or public distribution.
+              The removal decision is final.
+            </p>
+          </div>
+        )}
+
+        {project.status === "removal_requested" && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300/90 font-semibold mb-2">
+              Removal Review
+            </p>
+            <h3 className="text-white text-base font-semibold mb-2">
+              Removal request under review
+            </h3>
+            <p className="text-xs text-neutral-300 leading-relaxed">
+              The work remains live while ShangoMaji reviews the request.
+              Approval permanently removes it from distribution. Denial returns it
+              to active distribution.
+            </p>
+          </div>
+        )}
+
+        {(project.rejection_reason ||
+          project.removal_request_reason ||
+          project.removal_reason ||
+          project.removal_requested_at ||
+          project.removal_resolution ||
+          project.previous_status_before_archive) && (
+          <div className="grid grid-cols-1 gap-3 text-sm rounded-lg border border-white/8 bg-white/[0.02] p-4">
+            {project.rejection_reason && (
+              <Field label="Rejection Reason" value={project.rejection_reason} full />
+            )}
+            {(project.removal_request_reason || project.removal_reason) && (
+              <Field
+                label="Removal Request Reason"
+                value={project.removal_request_reason || project.removal_reason}
+                full
+              />
+            )}
+            {project.removal_requested_at && (
+              <Field
+                label="Removal Requested"
+                value={new Date(project.removal_requested_at).toUTCString()}
+              />
+            )}
+            {project.removal_resolution && (
+              <Field
+                label="Removal Resolution"
+                value={`${project.removal_resolution}${
+                  project.removal_resolved_at
+                    ? ` · ${new Date(project.removal_resolved_at).toUTCString()}`
+                    : ""
+                }${
+                  project.removal_resolution_reason
+                    ? ` — ${project.removal_resolution_reason}`
+                    : ""
+                }`}
+                full
+              />
+            )}
+            {project.previous_status_before_archive && (
+              <Field
+                label="Pre-archive State"
+                value={statusDisplay(project.previous_status_before_archive)}
+              />
+            )}
+          </div>
+        )}
+
+        {/* REVIEW RECORD & LICENSE (priority 4) */}
+        {(project.status === "pending" ||
+          project.status === "in_review" ||
+          project.status === "approved" ||
+          project.status === "live" ||
+          project.status === "rejected") && (
+          <ExpandableSection
+            title="Review Record & License"
+            summary={licenseSummary(project)}
+            defaultOpen={reviewGateOpen}
+            emphasis={reviewGateOpen ? "authority" : undefined}
+          >
+            <SubmissionReviewPanel
+              project={project}
+              review={reviewByProject[project.id] ?? reviewFromProject(project)}
+              onChange={(nextR) => setReviewFor(project.id, nextR)}
+              onSaveReview={() => saveReviewNotes(project.id)}
+              saving={reviewBusy === project.id}
+              saved={reviewSavedFor === project.id}
+              hideForLegacyStates
+            />
+
+            {(project.status === "approved" || project.status === "live") && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <p className="text-xs uppercase tracking-widest text-neutral-500">
+                    Standard Distribution License v1
+                  </p>
+                  {project.license ? (
+                    <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                      {project.status === "approved"
+                        ? "Executed — ready for activation"
+                        : "Executed"}
+                    </span>
+                  ) : project.status === "live" ? (
+                    <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
+                      License missing (legacy)
+                    </span>
+                  ) : (
+                    <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                      Not signed — activation blocked
+                    </span>
+                  )}
+                </div>
+
+                {project.license && project.status === "approved" && (
+                  <>
+                    <p className="text-[11px] text-emerald-300/90 leading-relaxed">
+                      License is on file. Distribution can be activated now.
+                      Media binding (Bunny video ID) becomes available after activation.
+                    </p>
+                    <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                      Identity is self-certified and not independently verified.
+                    </p>
+                  </>
+                )}
+
+                <IdentityRow status={project.identity_status ?? null} />
+                {project.license?.identity_certification_version && (
+                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                    Certification copy at signing:{" "}
+                    <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
+                      {project.license.identity_certification_version}
+                    </code>
+                  </p>
+                )}
+
+                {project.license ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <Field label="Signer" value={project.license.signer_legal_name} />
+                    <Field label="Signer Email" value={project.license.signer_email} />
+                    <Field label="Term" value={`${project.license.term_years} year(s)`} />
+                    <Field
+                      label="Signed"
+                      value={
+                        project.license.signed_at
+                          ? new Date(project.license.signed_at).toUTCString()
+                          : ""
+                      }
+                    />
+                    <Field
+                      label="Term Start"
+                      value={
+                        project.license.term_start
+                          ? new Date(project.license.term_start).toUTCString()
+                          : "Pending activation"
+                      }
+                    />
+                    <Field
+                      label="Term End"
+                      value={
+                        project.license.term_end
+                          ? new Date(project.license.term_end).toUTCString()
+                          : "Pending activation"
+                      }
+                    />
+                    <div className="md:col-span-2">
+                      <a
+                        href={
+                          project.license.pdf_url ??
+                          `/api/licenses/${project.license.id}/receipt`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
+                      >
+                        {project.license.pdf_url ? "View Receipt" : "View HTML Receipt"}
+                      </a>
+                      {!project.license.pdf_url && (
+                        <span className="text-neutral-500 text-[11px] ml-2">
+                          (HTML receipt)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : project.status === "live" ? (
+                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                    This title was activated before the license layer existed. New activations
+                    now require an executed license. No automatic backfill is performed.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-neutral-500 leading-relaxed">
+                      The creator must execute the license before distribution can be activated.
+                      A license-required email is sent at approval and the workspace surfaces
+                      the same link. If the email failed, hand the URL below to the creator.
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">
+                        /license/{project.id}
+                      </code>
+                      <button
+                        onClick={() => {
+                          const url =
+                            typeof window !== "undefined"
+                              ? `${window.location.origin}/license/${project.id}`
+                              : `/license/${project.id}`;
+                          navigator.clipboard?.writeText(url);
+                        }}
+                        className="px-2 py-1 rounded text-[11px] font-medium border border-white/15 text-white hover:bg-white/10 transition"
+                      >
+                        Copy creator URL
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </ExpandableSection>
+        )}
+
+        {/* MEDIA (priority 5) — live only */}
+        {project.status === "live" && (
+          <ExpandableSection
+            title="Media"
+            summary={
+              project.media_ready ? "Submitted for processing" : "Not submitted"
+            }
+            defaultOpen={!project.media_ready}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs uppercase tracking-widest text-neutral-500">
+                  Bunny Stream
+                </p>
+                <span
+                  className={`text-[11px] px-2 py-0.5 rounded border ${
+                    project.media_ready
+                      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                      : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                  }`}
+                >
+                  {project.media_ready ? "Submitted for processing" : "Not submitted"}
+                </span>
+              </div>
+
+              {(() => {
+                const effectiveVideoId = (
+                  mediaInputs[project.id] !== undefined
+                    ? mediaInputs[project.id]
+                    : project.bunny_video_id || ""
+                ).trim();
+                const hasVideoId       = effectiveVideoId.length > 0;
+                const submitDisabled   = !hasVideoId || project.media_ready;
+
+                return (
+                  <>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <input
+                        type="text"
+                        placeholder="Bunny video ID"
+                        defaultValue={project.bunny_video_id || ""}
+                        disabled={project.media_ready}
+                        onChange={(e) =>
+                          setMediaInputs((s) => ({ ...s, [project.id]: e.target.value }))
+                        }
+                        className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40 disabled:opacity-50"
+                      />
+                      <button
+                        onClick={() => saveBunnyId(project.id, effectiveVideoId)}
+                        disabled={mediaBusy === project.id || project.media_ready}
+                        className="px-3 py-2 rounded text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
+                        title={
+                          project.media_ready
+                            ? "Processing is locked. Reset processing status before changing the binding."
+                            : undefined
+                        }
+                      >
+                        {mediaBusy === project.id ? "Saving…" : "Save ID"}
+                      </button>
+                      {!project.media_ready && (
+                        <button
+                          onClick={() => {
+                            if (submitDisabled) return;
+                            submitMediaForProcessing(project.id, effectiveVideoId);
+                          }}
+                          disabled={mediaBusy === project.id || submitDisabled}
+                          title={
+                            !hasVideoId
+                              ? "Save a Bunny Stream Video ID before submitting for processing."
+                              : undefined
+                          }
+                          className="px-3 py-2 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Submit for processing
+                        </button>
+                      )}
+                      {project.media_ready && (
+                        <button
+                          onClick={() => {
+                            setResetTarget({
+                              id:    project.id,
+                              title: project.title || "",
+                            });
+                            setResetReason("");
+                            setResetError("");
+                          }}
+                          disabled={mediaBusy === project.id}
+                          className="px-3 py-2 rounded text-xs font-medium border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-50"
+                        >
+                          Reset processing status
+                        </button>
+                      )}
+                    </div>
+
+                    {project.media_ready ? (
+                      <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                        Processing is locked. Reset only if the media binding was entered
+                        incorrectly or processing must restart.
+                      </p>
+                    ) : !hasVideoId ? (
+                      <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                        Paste the Bunny Stream Video ID, save it, then submit for internal
+                        processing. Final catalog readiness is controlled by ShangoMaji.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-neutral-500 leading-relaxed">
+                        Save the Bunny Stream Video ID, then submit for internal processing.
+                        Final catalog readiness is controlled by ShangoMaji.
+                      </p>
+                    )}
+
+                    <MediaProcessingHistory
+                      history={project.media_processing_history}
+                    />
+                  </>
+                );
+              })()}
+            </div>
+          </ExpandableSection>
+        )}
+
+        {/* SUPPORTING DETAILS (priority 6) */}
+        <ExpandableSection
+          title="Supporting Details"
+          summary={
+            [project.project_type, ...(project.genres ?? [])]
+              .filter(Boolean)
+              .slice(0, 3)
+              .join(" · ") || undefined
+          }
+          defaultOpen={false}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <Field label="Creator Email" value={project.creator_email} />
+            <Field label="Type" value={project.project_type} />
+            <Field label="Genres" value={project.genres?.join(", ")} />
+            <Field label="Logline" value={project.logline} full />
+            <Field label="Description" value={project.description} full />
+            <Field label="Cover Image" value={project.cover_image_url} link />
+            <Field label="Sample URL" value={project.sample_url} link />
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-xs uppercase tracking-widest text-neutral-500">
+                Public Profile
+              </p>
+              {project.profile_quarantined ? (
+                <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/15 text-red-300 border-red-500/30">
+                  Quarantined (placeholder)
+                </span>
+              ) : project.profile_force_unpublished ? (
+                <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/15 text-yellow-300 border-yellow-500/30">
+                  Force-unpublished
+                </span>
+              ) : project.profile_published ? (
+                <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
+                  Published
+                </span>
+              ) : (
+                <span className="text-[11px] px-2 py-0.5 rounded border bg-white/5 text-neutral-400 border-white/10">
+                  Not published
+                </span>
+              )}
+            </div>
+
+            {project.profile_handle ? (
+              <p className="text-[11px] text-neutral-500 break-all">
+                Handle:{" "}
+                <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5">
+                  @{project.profile_handle}
+                </code>
+                {project.profile_published &&
+                 !project.profile_force_unpublished &&
+                 !project.profile_quarantined && (
+                  <>
+                    {" "}·{" "}
+                    <a
+                      href={`/creators/${project.profile_handle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-orange-400 hover:text-orange-300 underline underline-offset-2"
+                    >
+                      View public profile
+                    </a>
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="text-[11px] text-neutral-500">
+                No handle set — creator has not configured a public profile yet.
+              </p>
+            )}
+
+            <div className="flex items-center gap-2 flex-wrap pt-1">
+              {!project.profile_quarantined && !project.profile_force_unpublished && (
+                <button
+                  onClick={() => {
+                    setForceUnpublishTarget({
+                      email:  project.creator_email,
+                      title:  project.title || "",
+                      handle: project.profile_handle ?? null,
+                    });
+                    setForceUnpublishReason("");
+                    setForceUnpublishError("");
+                  }}
+                  className="px-3 py-1.5 rounded text-xs font-medium border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition"
+                >
+                  Force Unpublish Profile
+                </button>
+              )}
+              {project.profile_force_unpublished && (
+                <button
+                  onClick={() => adminRestoreProfile(project.creator_email)}
+                  disabled={restoreProfileBusy === project.creator_email}
+                  className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-50"
+                >
+                  {restoreProfileBusy === project.creator_email
+                    ? "Restoring…"
+                    : "Restore Profile (Admin)"}
+                </button>
+              )}
+              {project.profile_quarantined && (
+                <span className="text-[11px] text-red-300/80">
+                  Quarantined rows must be reviewed via SQL before any further action.
+                </span>
+              )}
+            </div>
+          </div>
+        </ExpandableSection>
+
+        {/* STATE HISTORY (priority 7) */}
+        {Array.isArray(project.state_history) && project.state_history.length > 0 && (
+          <ExpandableSection
+            title="State History"
+            summary={`${project.state_history.length} event${
+              project.state_history.length === 1 ? "" : "s"
+            }`}
+            defaultOpen={false}
+          >
+            <StateHistory entries={project.state_history} bare />
+          </ExpandableSection>
+        )}
+
+        {/* Rejection input */}
+        {rejectingId === project.id && (
+          <div className="space-y-2">
+            <p className="text-xs text-neutral-400">Rejection reason (required):</p>
+            <textarea
+              value={rejectionInput}
+              onChange={(e) => setRejectionInput(e.target.value)}
+              placeholder="Explain why this project is being rejected…"
+              rows={2}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-red-500/40 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => confirmReject(project.id)}
+                disabled={rejectBusy}
+                className="px-4 py-1.5 rounded text-xs font-medium border border-red-500/40 text-red-400 hover:bg-red-500/10 transition disabled:opacity-50"
+              >
+                {rejectBusy ? "Rejecting…" : "Confirm Reject"}
+              </button>
+              <button
+                onClick={() => { setRejectingId(null); setRejectionInput(""); }}
+                className="px-4 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-500 hover:text-white transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ACTIONS ROW (priority 8) */}
+        <div className="pt-4 border-t border-white/5 flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-neutral-500 mr-2">Actions:</span>
+
+          {project.status === "pending" && rejectingId !== project.id && (
+            <>
+              <button
+                onClick={() => updateProjectStatus(project.id, "in_review")}
+                className="px-3 py-1.5 rounded text-xs font-medium border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition"
+              >
+                Start Review
+              </button>
+              <button
+                onClick={() => updateProjectStatus(project.id, "approved")}
+                disabled={!gate.approvalAllowed}
+                title={
+                  gate.approvalAllowed
+                    ? undefined
+                    : gate.approvalBlockedMessage ?? "Approval is locked until the review record is complete."
+                }
+                className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
+                  gate.approvalAllowed
+                    ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
+                    : "border-teal-500/15 text-teal-500/40 cursor-not-allowed"
+                }`}
+              >
+                Approve Work
+              </button>
+              <button
+                onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
+                className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
+              >
+                Reject Submission
+              </button>
+            </>
+          )}
+
+          {project.status === "in_review" && rejectingId !== project.id && (
+            <>
+              <button
+                onClick={() => updateProjectStatus(project.id, "approved")}
+                disabled={!gate.approvalAllowed}
+                title={
+                  gate.approvalAllowed
+                    ? undefined
+                    : gate.approvalBlockedMessage ?? "Approval is locked until the review record is complete."
+                }
+                className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
+                  gate.approvalAllowed
+                    ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
+                    : "border-teal-500/15 text-teal-500/40 cursor-not-allowed"
+                }`}
+              >
+                Approve Work
+              </button>
+              <button
+                onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
+                className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
+              >
+                Reject Submission
+              </button>
+            </>
+          )}
+
+          {showApproveGate && !gate.approvalAllowed && (
+            <div className="basis-full flex flex-col gap-0.5 mt-1">
+              {gate.isLegacyMissingIntegrity ? (
+                <p className="text-[11px] text-yellow-300/90 leading-relaxed">
+                  This work predates Submission Integrity v1. It must be rejected and resubmitted through the new integrity gate.
+                </p>
+              ) : (
+                <>
+                  {gate.integrityMessage && (
+                    <p className="text-[11px] text-yellow-300/80 leading-relaxed">
+                      Creator integrity: {gate.integrityMessage}
+                    </p>
+                  )}
+                  {missingApprovalReqs.length > 0 && (
+                    <div className="mt-1">
+                      <p className="text-[11px] text-neutral-300 leading-relaxed font-medium">
+                        Approval requires:
+                      </p>
+                      <ul className="mt-1 ml-4 list-disc space-y-0.5">
+                        {missingApprovalReqs.map((req) => (
+                          <li
+                            key={req}
+                            className="text-[11px] text-neutral-300 leading-relaxed"
+                          >
+                            {req}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {gate.reviewMessage && (
+                    <>
+                      <p className="text-[11px] text-neutral-500 leading-relaxed mt-1">
+                        Open the <strong className="text-white/80">Review Record &amp; License</strong> section above to complete these requirements. Rejection remains available.
+                      </p>
+                      <p className="text-[11px] text-neutral-500 leading-relaxed">
+                        Review record: {gate.reviewMessage}
+                      </p>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {project.status === "approved" && (
+            project.license ? (
+              <button
+                onClick={() => updateProjectStatus(project.id, "live")}
+                className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition"
+              >
+                Activate Distribution
+              </button>
+            ) : (
+              <span
+                title="An executed license is required before distribution can be activated."
+                className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
+              >
+                Activate Distribution — license required
+              </span>
+            )
+          )}
+
+          {project.status === "approved" && (() => {
+            const checks: Array<{ label: string; ok: boolean }> = [
+              { label: "Poster",  ok: !!(project.cover_image_url && String(project.cover_image_url).trim()) },
+              { label: "Banner",  ok: !!(project.banner_url      && String(project.banner_url).trim()) },
+              { label: "Stills",  ok: Array.isArray(project.stills_urls) && project.stills_urls.length >= 2 },
+              { label: "Trailer", ok: !!(project.trailer_url     && String(project.trailer_url).trim()) },
+            ];
+            const missing = checks.filter((c) => !c.ok).map((c) => c.label);
+            const ready   = missing.length === 0;
+            return (
+              <div className="basis-full flex flex-wrap items-center gap-2 mt-1">
+                <span className="text-[11px] uppercase tracking-widest text-neutral-500">
+                  Media package:
+                </span>
+                {ready ? (
+                  <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
+                    Ready
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/15 text-yellow-300 border-yellow-500/30">
+                      Incomplete
+                    </span>
+                    <span className="text-[11px] text-neutral-400">
+                      Missing: {missing.join(", ")}
+                    </span>
+                  </>
+                )}
+                <span className="text-[11px] text-neutral-500">
+                  · Public visibility additionally requires the Bunny
+                  video binding + processing on Live.
+                </span>
+              </div>
+            );
+          })()}
+
+          {project.status === "live" && (
+            <button
+              onClick={() => {
+                setArchiveTarget({ id: project.id, title: project.title || "" });
+                setArchiveConfirm("");
+                setArchiveError("");
+              }}
+              title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
+              className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
+            >
+              Archive to Internal Hold
+            </button>
+          )}
+
+          {project.status === "approved" && (
+            <button
+              onClick={() => {
+                setArchiveHoldTarget({ id: project.id, title: project.title || "" });
+                setArchiveHoldError("");
+              }}
+              title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
+              className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
+            >
+              Archive to Internal Hold
+            </button>
+          )}
+
+          {project.status === "rejected" && rejectingId !== project.id && (
+            <>
+              <button
+                onClick={() => reopenForReview(project.id)}
+                disabled={reopenBusy === project.id}
+                className="px-3 py-1.5 rounded text-xs font-medium border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition disabled:opacity-50"
+              >
+                {reopenBusy === project.id ? "Reopening…" : "Reopen for Review"}
+              </button>
+              <button
+                onClick={() => {
+                  setArchiveHoldTarget({ id: project.id, title: project.title || "" });
+                  setArchiveHoldError("");
+                }}
+                title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
+                className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
+              >
+                Archive to Internal Hold
+              </button>
+            </>
+          )}
+
+          {project.status === "archived" && (
+            (() => {
+              const target = project.previous_status_before_archive;
+              const canRestore = !!target;
+              return canRestore ? (
+                <button
+                  onClick={() => restoreFromArchive(project.id)}
+                  disabled={restoreBusy === project.id}
+                  title={`Restores to ${statusDisplay(target)} state.`}
+                  className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-50"
+                >
+                  {restoreBusy === project.id
+                    ? "Restoring…"
+                    : "Restore from Internal Hold"}
+                </button>
+              ) : (
+                <span
+                  title="Cannot restore because no previous state is recorded."
+                  className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
+                >
+                  Restore unavailable — no prior state recorded
+                </span>
+              );
+            })()
+          )}
+
+          {project.status === "removed" && (
+            <span className="text-xs text-red-300/80">
+              Removed — terminal state.
+            </span>
+          )}
+
+          {project.status === "removal_requested" && (
+            <div className="basis-full flex flex-col gap-2">
+              <div className="flex items-start gap-3 flex-wrap">
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    onClick={() => {
+                      setApproveRemovalTarget({ id: project.id, title: project.title || "" });
+                      setApproveRemovalReason("");
+                      setApproveRemovalError("");
+                    }}
+                    disabled={removalBusy === project.id}
+                    className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
+                  >
+                    {removalBusy === project.id ? "Working…" : "Approve Removal"}
+                  </button>
+                  <span className="text-[10px] text-neutral-500 px-1">
+                    Permanently remove from distribution.
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    onClick={() => {
+                      setDenyRemovalTarget({ id: project.id, title: project.title || "" });
+                      setDenyRemovalReason("");
+                      setDenyRemovalError("");
+                    }}
+                    disabled={removalBusy === project.id}
+                    className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
+                  >
+                    Deny Removal
+                  </button>
+                  <span className="text-[10px] text-neutral-500 px-1">
+                    Return to active distribution.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ── Dashboard ──
+  // Phase 7.3 — Mission Control architecture. Wide command canvas (max
+  // 1440px) replacing the narrow max-w-6xl wrapper so the desktop layout
+  // can run a real queue + command-detail two-column board on the Works
+  // and Applications tabs without horizontal cramping.
   return (
-    <div className="min-h-screen px-4 pt-24 pb-12 max-w-6xl mx-auto">
+    <div className="min-h-screen px-4 sm:px-6 lg:px-10 pt-24 pb-12 max-w-[1440px] mx-auto">
       {/* Archive confirmation gate */}
       {archiveTarget && (
         <div
@@ -1459,154 +2530,109 @@ export default function AdminPage() {
             </label>
           </div>
 
+          {/* Phase 7.3 — Mission Control architecture: queue + command
+              detail. The two-column desktop layout puts the operational
+              queue on the left and a single command detail panel on the
+              right (selectedApplication). Below the lg breakpoint the
+              right panel collapses out and each row reverts to inline
+              expansion via the existing `expanded` toggle so mobile
+              admins keep a usable view. Selection is purely client-side
+              and the existing handlers / payloads are unchanged. */}
           {filtered.length === 0 ? (
-            <p className="text-neutral-500 text-sm">No applications found.</p>
+            <div className="rounded-xl border border-dashed border-white/10 px-6 py-10 text-center">
+              <p className="text-neutral-500 text-sm">No applications found.</p>
+            </div>
           ) : (
-            <div className="space-y-3">
-              {filtered.map((app) => (
-                <div
-                  key={app.id}
-                  className="border border-white/8 rounded-lg bg-white/[0.02] overflow-hidden"
-                >
-                  <div
-                    className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.03] transition"
-                    onClick={() => setExpanded(expanded === app.id ? null : app.id)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
-                        <span className="text-white font-medium text-sm">{app.name || "—"}</span>
-                        {app.handle && (
-                          <span className="text-neutral-500 text-xs">@{app.handle}</span>
-                        )}
-                      </div>
-                      <p className="text-neutral-400 text-xs mt-0.5 truncate">
-                        {app.project_title || "No project title"} · {app.project_type || "—"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded border ${
-                          statusColor[app.status] || "text-neutral-400"
-                        }`}
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-6">
+              {/* LEFT — operational queue */}
+              <div className="space-y-2">
+                {filtered.map((app) => {
+                  const isSelected = effectiveSelectedApplicationId === app.id;
+                  const isExpanded = expanded === app.id;
+                  return (
+                    <div
+                      key={app.id}
+                      className={`rounded-lg border overflow-hidden transition ${
+                        isSelected
+                          ? "border-orange-500/40 bg-orange-500/[0.05] lg:bg-orange-500/[0.04]"
+                          : "border-white/8 bg-white/[0.02] hover:border-white/15"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedApplicationId(app.id);
+                          setExpanded(isExpanded ? null : app.id);
+                        }}
+                        className="w-full text-left flex items-center gap-3 px-4 py-3"
                       >
-                        {app.status}
-                      </span>
-                      <span className="text-neutral-600 text-xs">
-                        {new Date(app.submitted_at).toLocaleDateString()}
-                      </span>
-                      <svg
-                        className={`w-4 h-4 text-neutral-500 transition-transform ${
-                          expanded === app.id ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-
-                  {expanded === app.id && (
-                    <div className="px-5 pb-5 border-t border-white/5 pt-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <Field label="Email" value={app.email} />
-                        <Field label="Origin" value={app.origin} />
-                        <Field label="Project Type" value={app.project_type} />
-                        <Field label="Genres" value={app.genres?.join(", ")} />
-                        <Field label="Logline" value={app.logline} full />
-                        <Field label="Sample URL" value={app.sample_url} link />
-                        <Field label="Influences" value={app.influences} full />
-                        <Field label="Why ShangoMaji" value={app.why_shangomaji} full />
-                        <Field label="What They Need" value={app.what_you_need} full />
-                        <Field
-                          label="Instagram"
-                          value={app.instagram ? `instagram.com/${app.instagram}` : undefined}
-                          link
-                        />
-                        <Field
-                          label="X / Twitter"
-                          value={app.twitter ? `x.com/${app.twitter}` : undefined}
-                          link
-                        />
-                        <Field
-                          label="YouTube"
-                          value={app.youtube ? `youtube.com/${app.youtube}` : undefined}
-                          link
-                        />
-                        <Field label="Website" value={app.website} link />
-                      </div>
-
-                      <div className="mt-5 pt-4 border-t border-white/5 space-y-3">
-                        {/* Authority-of-state messaging. Decisions are final. */}
-                        {app.status === "accepted" && (
-                          <p className="text-xs text-emerald-300/90">
-                            Decision finalized — creator onboarded.
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-white font-medium text-sm truncate">
+                              {app.name || "—"}
+                            </span>
+                            {app.handle && (
+                              <span className="text-neutral-500 text-[11px]">@{app.handle}</span>
+                            )}
+                          </div>
+                          <p className="text-neutral-400 text-[11px] mt-0.5 truncate">
+                            {app.project_title || "No project title"} · {app.project_type || "—"}
                           </p>
-                        )}
-                        {app.status === "rejected" && (
-                          <p className="text-xs text-red-300/80">
-                            Application closed.
-                          </p>
-                        )}
-                        {app.status === "archived" && (
-                          <p className="text-xs text-neutral-400">
-                            Archived. Terminal state.
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-neutral-500 mr-2">Set status:</span>
-                          {(["pending", "accepted", "rejected"] as const).map((s) => {
-                            const allowed =
-                              app.status === "pending" &&
-                              (s === "accepted" || s === "rejected");
-                            const isCurrent = app.status === s;
-                            const disabled = !allowed && !isCurrent;
-                            return (
-                              <button
-                                key={s}
-                                onClick={() => !disabled && updateStatus(app.id, s)}
-                                disabled={disabled}
-                                className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
-                                  isCurrent
-                                    ? statusColor[s]
-                                    : disabled
-                                    ? "border-white/5 text-neutral-700 cursor-not-allowed"
-                                    : "border-white/10 text-neutral-500 hover:text-white hover:border-white/20"
-                                }`}
-                              >
-                                {s.charAt(0).toUpperCase() + s.slice(1)}
-                              </button>
-                            );
-                          })}
-                          {/* Archive: non-destructive close from accepted/rejected. */}
-                          {(app.status === "accepted" || app.status === "rejected") && (
-                            <button
-                              onClick={() => updateStatus(app.id, "archived")}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition"
-                            >
-                              Archive
-                            </button>
-                          )}
-                          <div className="flex-1" />
-                          <button
-                            onClick={() => deleteApplication(app.id)}
-                            className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/20 text-red-400/60 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition"
-                          >
-                            Delete
-                          </button>
                         </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded border ${
+                              statusColor[app.status] || "text-neutral-400"
+                            }`}
+                          >
+                            {app.status}
+                          </span>
+                          <span className="text-neutral-600 text-[10px]">
+                            {new Date(app.submitted_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <svg
+                          className={`lg:hidden w-4 h-4 text-neutral-500 transition-transform shrink-0 ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+
+                      {/* Mobile inline expansion (hidden on desktop) */}
+                      <div className="lg:hidden">
+                        {isExpanded && (
+                          <div className="px-5 pb-5 border-t border-white/5 pt-4">
+                            {renderApplicationDetail(app)}
+                          </div>
+                        )}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* RIGHT — command detail (desktop only) */}
+              <aside className="hidden lg:block">
+                <div className="lg:sticky lg:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-6 max-h-[calc(100vh-7rem)] overflow-y-auto">
+                  {selectedApplication ? (
+                    renderApplicationDetail(selectedApplication)
+                  ) : (
+                    <p className="text-neutral-500 text-sm text-center py-12">
+                      Select an application to inspect.
+                    </p>
                   )}
                 </div>
-              ))}
+              </aside>
             </div>
           )}
         </>
@@ -1729,1018 +2755,121 @@ export default function AdminPage() {
 
           {projectLoading && <p className="text-neutral-500 text-sm">Loading projects...</p>}
 
+          {/* Phase 7.3 — Mission Control architecture: queue + command
+              detail. The two-column desktop layout puts the operational
+              queue on the left and a single Work Command Detail panel on
+              the right (selectedWork). Below the lg breakpoint the right
+              panel collapses out and each row reverts to inline
+              expansion via the existing `expandedProject` toggle. All
+              admin handlers, payloads, and lifecycle logic are
+              unchanged. */}
           {!projectLoading && filteredProjects.length === 0 && (
-            <p className="text-neutral-500 text-sm">{EMPTY_COPY[projectFilter]}</p>
+            <div className="rounded-xl border border-dashed border-white/10 px-6 py-10 text-center">
+              <p className="text-neutral-500 text-sm">{EMPTY_COPY[projectFilter]}</p>
+            </div>
           )}
 
           {!projectLoading && filteredProjects.length > 0 && (
-            <div className="space-y-3">
-              {filteredProjects.map((project) => (
-                <div
-                  key={project.id}
-                  className="border border-white/8 rounded-lg bg-white/[0.02] overflow-hidden"
-                >
-                  <div
-                    className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.03] transition"
-                    onClick={() =>
-                      setExpandedProject(expandedProject === project.id ? null : project.id)
-                    }
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
-                        <span className="text-white font-medium text-sm">{project.title}</span>
-                        {project.project_type && (
-                          <span className="text-neutral-500 text-xs">{project.project_type}</span>
-                        )}
-                      </div>
-                      <p className="text-neutral-400 text-xs mt-0.5 truncate">
-                        {project.creator_email} · {project.logline || "No logline"}
-                      </p>
-                      {/* Phase 7.3: next-action hint visible without expansion. */}
-                      {(() => {
-                        const next = adminNextAction(project);
-                        if (!next) return null;
-                        const tone =
-                          classifyBucket(project) === "public_ready"
-                            ? "text-emerald-300/90"
-                            : "text-amber-300/90";
-                        return (
-                          <p className={`text-[11px] mt-1 ${tone}`}>{next}</p>
-                        );
-                      })()}
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded border ${
-                          projectStatusColor[project.status] || "text-neutral-400"
-                        }`}
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-6">
+              {/* LEFT — operational queue */}
+              <div className="space-y-2">
+                {filteredProjects.map((project) => {
+                  const isSelected = effectiveSelectedWorkId === project.id;
+                  const isExpanded = expandedProject === project.id;
+                  const next       = adminNextAction(project);
+                  const nextTone   =
+                    classifyBucket(project) === "public_ready"
+                      ? "text-emerald-300/90"
+                      : "text-amber-300/90";
+                  return (
+                    <div
+                      key={project.id}
+                      className={`rounded-lg border overflow-hidden transition ${
+                        isSelected
+                          ? "border-orange-500/40 bg-orange-500/[0.05] lg:bg-orange-500/[0.04]"
+                          : "border-white/8 bg-white/[0.02] hover:border-white/15"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedWorkId(project.id);
+                          setExpandedProject(isExpanded ? null : project.id);
+                        }}
+                        className="w-full text-left flex items-center gap-3 px-4 py-3"
                       >
-                        {statusDisplay(project.status)}
-                      </span>
-                      <span className="text-neutral-600 text-xs">
-                        {new Date(project.updated_at).toLocaleDateString()}
-                      </span>
-                      <svg
-                        className={`w-4 h-4 text-neutral-500 transition-transform ${
-                          expandedProject === project.id ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-
-                  {expandedProject === project.id && (() => {
-                    // Phase 6 Tier 2 fix — hoist the per-project review/gate
-                    // computation so the Review Record & License section header AND
-                    // the Actions-row diagnostic share the same values. Previously
-                    // computed only inside the Actions-row IIFE (lines below),
-                    // which left the section header unable to see whether it was
-                    // currently the approval blocker.
-                    const reviewState =
-                      reviewByProject[project.id] ?? reviewFromProject(project);
-                    const gate = gateState(project, reviewState);
-                    // Auto-open the Review Record & License section only when
-                    // the work is awaiting an approval decision AND the gate is
-                    // currently blocking. Excludes legacy projects (the legacy
-                    // copy directs to reject + resubmit; the inputs in this
-                    // section cannot fix the block) and excludes any non-decision
-                    // state (rejected/approved/live/etc.) where the panel is
-                    // informational, not actionable.
-                    const reviewGateOpen =
-                      (project.status === "pending" || project.status === "in_review") &&
-                      !gate.approvalAllowed &&
-                      !gate.isLegacyMissingIntegrity;
-                    return (
-                    <div className="px-5 pb-5 border-t border-white/5 pt-4 space-y-3">
-                      {/* ── 1. AUTHORITY BLOCK (always open) ── */}
-                      {project.status === "removed" && (
-                        <div className="rounded-lg border border-red-500/40 bg-red-900/10 p-4">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-red-300/90 font-semibold mb-2">
-                            Distribution Status
-                          </p>
-                          <h3 className="text-white text-base font-semibold mb-2">
-                            Permanently Removed
-                          </h3>
-                          <p className="text-xs text-neutral-300 leading-relaxed">
-                            This work is no longer eligible for restoration or public distribution.
-                            The removal decision is final.
-                          </p>
-                        </div>
-                      )}
-
-                      {project.status === "removal_requested" && (
-                        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300/90 font-semibold mb-2">
-                            Removal Review
-                          </p>
-                          <h3 className="text-white text-base font-semibold mb-2">
-                            Removal request under review
-                          </h3>
-                          <p className="text-xs text-neutral-300 leading-relaxed">
-                            The work remains live while ShangoMaji reviews the request.
-                            Approval permanently removes it from distribution. Denial returns it
-                            to active distribution.
-                          </p>
-                        </div>
-                      )}
-
-                      {(project.rejection_reason ||
-                        project.removal_request_reason ||
-                        project.removal_reason ||
-                        project.removal_requested_at ||
-                        project.removal_resolution ||
-                        project.previous_status_before_archive) && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm rounded-lg border border-white/8 bg-white/[0.02] p-4">
-                          {project.rejection_reason && (
-                            <Field label="Rejection Reason" value={project.rejection_reason} full />
-                          )}
-                          {(project.removal_request_reason || project.removal_reason) && (
-                            <Field
-                              label="Removal Request Reason"
-                              value={project.removal_request_reason || project.removal_reason}
-                              full
-                            />
-                          )}
-                          {project.removal_requested_at && (
-                            <Field
-                              label="Removal Requested"
-                              value={new Date(project.removal_requested_at).toUTCString()}
-                            />
-                          )}
-                          {project.removal_resolution && (
-                            <Field
-                              label="Removal Resolution"
-                              value={`${project.removal_resolution}${
-                                project.removal_resolved_at
-                                  ? ` · ${new Date(project.removal_resolved_at).toUTCString()}`
-                                  : ""
-                              }${
-                                project.removal_resolution_reason
-                                  ? ` — ${project.removal_resolution_reason}`
-                                  : ""
-                              }`}
-                              full
-                            />
-                          )}
-                          {project.previous_status_before_archive && (
-                            <Field
-                              label="Pre-archive State"
-                              value={statusDisplay(project.previous_status_before_archive)}
-                            />
-                          )}
-                        </div>
-                      )}
-
-                      {/* ── PUBLIC VISIBILITY DIAGNOSTIC (Phase 7.1) ──
-                          Read-only one-line strip that mirrors the
-                          /api/public/titles gate exactly. Always rendered
-                          at the top of the expanded panel so operators
-                          see why a Live or Approved work is or isn't on
-                          the public catalog without expanding any
-                          collapsible. No buttons, no mutations. */}
-                      <PublicVisibilityRow project={project} />
-
-                      {/* ── 2. REVIEW RECORD & LICENSE ──
-                          Phase 6 Tier 2 fix — section renamed from "License &
-                          Integrity" so the header communicates that this is
-                          where the approval gate is unlocked. Auto-opens (and
-                          renders amber-emphasized via emphasis="authority")
-                          when the work is awaiting an approval decision and
-                          the gate is currently blocking — see the hoisted
-                          `reviewGateOpen` flag at the top of this card. */}
-                      {(project.status === "pending" ||
-                        project.status === "in_review" ||
-                        project.status === "approved" ||
-                        project.status === "live" ||
-                        project.status === "rejected") && (
-                        <ExpandableSection
-                          title="Review Record & License"
-                          summary={licenseSummary(project)}
-                          defaultOpen={reviewGateOpen}
-                          emphasis={reviewGateOpen ? "authority" : undefined}
-                        >
-                          <SubmissionReviewPanel
-                            project={project}
-                            review={reviewByProject[project.id] ?? reviewFromProject(project)}
-                            onChange={(next) => setReviewFor(project.id, next)}
-                            onSaveReview={() => saveReviewNotes(project.id)}
-                            saving={reviewBusy === project.id}
-                            saved={reviewSavedFor === project.id}
-                            hideForLegacyStates
-                          />
-
-                          {(project.status === "approved" || project.status === "live") && (
-                            <div className="mt-4 space-y-3">
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <p className="text-xs uppercase tracking-widest text-neutral-500">
-                                  Standard Distribution License v1
-                                </p>
-                                {project.license ? (
-                                  <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                                    {project.status === "approved"
-                                      ? "Executed — ready for activation"
-                                      : "Executed"}
-                                  </span>
-                                ) : project.status === "live" ? (
-                                  <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
-                                    License missing (legacy)
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                                    Not signed — activation blocked
-                                  </span>
-                                )}
-                              </div>
-
-                              {project.license && project.status === "approved" && (
-                                <>
-                                  <p className="text-[11px] text-emerald-300/90 leading-relaxed">
-                                    License is on file. Distribution can be activated now.
-                                    Media binding (Bunny video ID) becomes available after activation.
-                                  </p>
-                                  {/* Identity Enforcement v1: subtle activation-awareness note.
-                                      Does NOT block activation. */}
-                                  <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                    Identity is self-certified and not independently verified.
-                                  </p>
-                                </>
-                              )}
-
-                              <IdentityRow status={project.identity_status ?? null} />
-                              {project.license?.identity_certification_version && (
-                                <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                  Certification copy at signing:{" "}
-                                  <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
-                                    {project.license.identity_certification_version}
-                                  </code>
-                                </p>
-                              )}
-
-                              {project.license ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                                  <Field label="Signer" value={project.license.signer_legal_name} />
-                                  <Field label="Signer Email" value={project.license.signer_email} />
-                                  <Field label="Term" value={`${project.license.term_years} year(s)`} />
-                                  <Field
-                                    label="Signed"
-                                    value={
-                                      project.license.signed_at
-                                        ? new Date(project.license.signed_at).toUTCString()
-                                        : ""
-                                    }
-                                  />
-                                  <Field
-                                    label="Term Start"
-                                    value={
-                                      project.license.term_start
-                                        ? new Date(project.license.term_start).toUTCString()
-                                        : "Pending activation"
-                                    }
-                                  />
-                                  <Field
-                                    label="Term End"
-                                    value={
-                                      project.license.term_end
-                                        ? new Date(project.license.term_end).toUTCString()
-                                        : "Pending activation"
-                                    }
-                                  />
-                                  <div className="md:col-span-2">
-                                    <a
-                                      href={
-                                        project.license.pdf_url ??
-                                        `/api/licenses/${project.license.id}/receipt`
-                                      }
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
-                                    >
-                                      {project.license.pdf_url ? "View Receipt" : "View HTML Receipt"}
-                                    </a>
-                                    {!project.license.pdf_url && (
-                                      <span className="text-neutral-500 text-[11px] ml-2">
-                                        (HTML receipt)
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : project.status === "live" ? (
-                                <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                  This title was activated before the license layer existed. New activations
-                                  now require an executed license. No automatic backfill is performed.
-                                </p>
-                              ) : (
-                                <div className="space-y-2">
-                                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                    The creator must execute the license before distribution can be activated.
-                                    A license-required email is sent at approval and the workspace surfaces
-                                    the same link. If the email failed, hand the URL below to the creator.
-                                  </p>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">
-                                      /license/{project.id}
-                                    </code>
-                                    <button
-                                      onClick={() => {
-                                        const url =
-                                          typeof window !== "undefined"
-                                            ? `${window.location.origin}/license/${project.id}`
-                                            : `/license/${project.id}`;
-                                        navigator.clipboard?.writeText(url);
-                                      }}
-                                      className="px-2 py-1 rounded text-[11px] font-medium border border-white/15 text-white hover:bg-white/10 transition"
-                                    >
-                                      Copy creator URL
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </ExpandableSection>
-                      )}
-
-                      {/* ── 3. MEDIA (state-conditional; not rendered for removed/archived) ── */}
-                      {project.status === "live" && (
-                        <ExpandableSection
-                          title="Media"
-                          summary={
-                            project.media_ready ? "Submitted for processing" : "Not submitted"
-                          }
-                          defaultOpen={!project.media_ready}
-                        >
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <p className="text-xs uppercase tracking-widest text-neutral-500">
-                                Bunny Stream
-                              </p>
-                              <span
-                                className={`text-[11px] px-2 py-0.5 rounded border ${
-                                  project.media_ready
-                                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                                    : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                                }`}
-                              >
-                                {project.media_ready ? "Submitted for processing" : "Not submitted"}
-                              </span>
-                            </div>
-
-                            {(() => {
-                              const effectiveVideoId = (
-                                mediaInputs[project.id] !== undefined
-                                  ? mediaInputs[project.id]
-                                  : project.bunny_video_id || ""
-                              ).trim();
-                              const hasVideoId       = effectiveVideoId.length > 0;
-                              const submitDisabled   = !hasVideoId || project.media_ready;
-
-                              return (
-                                <>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <input
-                                      type="text"
-                                      placeholder="Bunny video ID"
-                                      defaultValue={project.bunny_video_id || ""}
-                                      disabled={project.media_ready}
-                                      onChange={(e) =>
-                                        setMediaInputs((s) => ({ ...s, [project.id]: e.target.value }))
-                                      }
-                                      className="flex-1 min-w-[220px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-orange-500/40 disabled:opacity-50"
-                                    />
-                                    <button
-                                      onClick={() => saveBunnyId(project.id, effectiveVideoId)}
-                                      disabled={mediaBusy === project.id || project.media_ready}
-                                      className="px-3 py-2 rounded text-xs font-medium border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
-                                      title={
-                                        project.media_ready
-                                          ? "Processing is locked. Reset processing status before changing the binding."
-                                          : undefined
-                                      }
-                                    >
-                                      {mediaBusy === project.id ? "Saving…" : "Save ID"}
-                                    </button>
-                                    {!project.media_ready && (
-                                      <button
-                                        onClick={() => {
-                                          if (submitDisabled) return;
-                                          submitMediaForProcessing(project.id, effectiveVideoId);
-                                        }}
-                                        disabled={mediaBusy === project.id || submitDisabled}
-                                        title={
-                                          !hasVideoId
-                                            ? "Save a Bunny Stream Video ID before submitting for processing."
-                                            : undefined
-                                        }
-                                        className="px-3 py-2 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                                      >
-                                        Submit for processing
-                                      </button>
-                                    )}
-                                    {project.media_ready && (
-                                      <button
-                                        onClick={() => {
-                                          setResetTarget({
-                                            id:    project.id,
-                                            title: project.title || "",
-                                          });
-                                          setResetReason("");
-                                          setResetError("");
-                                        }}
-                                        disabled={mediaBusy === project.id}
-                                        className="px-3 py-2 rounded text-xs font-medium border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition disabled:opacity-50"
-                                      >
-                                        Reset processing status
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  {project.media_ready ? (
-                                    <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                      Processing is locked. Reset only if the media binding was entered
-                                      incorrectly or processing must restart.
-                                    </p>
-                                  ) : !hasVideoId ? (
-                                    <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                      Paste the Bunny Stream Video ID, save it, then submit for internal
-                                      processing. Final catalog readiness is controlled by ShangoMaji.
-                                    </p>
-                                  ) : (
-                                    <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                      Save the Bunny Stream Video ID, then submit for internal processing.
-                                      Final catalog readiness is controlled by ShangoMaji.
-                                    </p>
-                                  )}
-
-                                  <MediaProcessingHistory
-                                    history={project.media_processing_history}
-                                  />
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </ExpandableSection>
-                      )}
-
-                      {/* ── 4. SUPPORTING DETAILS (collapsible, default closed) ── */}
-                      <ExpandableSection
-                        title="Supporting Details"
-                        summary={
-                          [project.project_type, ...(project.genres ?? [])]
-                            .filter(Boolean)
-                            .slice(0, 3)
-                            .join(" · ") || undefined
-                        }
-                        defaultOpen={false}
-                      >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          <Field label="Creator Email" value={project.creator_email} />
-                          <Field label="Type" value={project.project_type} />
-                          <Field label="Genres" value={project.genres?.join(", ")} />
-                          <Field label="Logline" value={project.logline} full />
-                          <Field label="Description" value={project.description} full />
-                          <Field label="Cover Image" value={project.cover_image_url} link />
-                          <Field label="Sample URL" value={project.sample_url} link />
-                        </div>
-
-                        {/* Phase 1 — Public Profile status + force-unpublish */}
-                        <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <p className="text-xs uppercase tracking-widest text-neutral-500">
-                              Public Profile
-                            </p>
-                            {project.profile_quarantined ? (
-                              <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/15 text-red-300 border-red-500/30">
-                                Quarantined (placeholder)
-                              </span>
-                            ) : project.profile_force_unpublished ? (
-                              <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/15 text-yellow-300 border-yellow-500/30">
-                                Force-unpublished
-                              </span>
-                            ) : project.profile_published ? (
-                              <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
-                                Published
-                              </span>
-                            ) : (
-                              <span className="text-[11px] px-2 py-0.5 rounded border bg-white/5 text-neutral-400 border-white/10">
-                                Not published
-                              </span>
-                            )}
-                          </div>
-
-                          {project.profile_handle ? (
-                            <p className="text-[11px] text-neutral-500 break-all">
-                              Handle:{" "}
-                              <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5">
-                                @{project.profile_handle}
-                              </code>
-                              {project.profile_published &&
-                               !project.profile_force_unpublished &&
-                               !project.profile_quarantined && (
-                                <>
-                                  {" "}·{" "}
-                                  <a
-                                    href={`/creators/${project.profile_handle}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-orange-400 hover:text-orange-300 underline underline-offset-2"
-                                  >
-                                    View public profile
-                                  </a>
-                                </>
-                              )}
-                            </p>
-                          ) : (
-                            <p className="text-[11px] text-neutral-500">
-                              No handle set — creator has not configured a public profile yet.
-                            </p>
-                          )}
-
-                          <div className="flex items-center gap-2 flex-wrap pt-1">
-                            {!project.profile_quarantined && !project.profile_force_unpublished && (
-                              <button
-                                onClick={() => {
-                                  setForceUnpublishTarget({
-                                    email:  project.creator_email,
-                                    title:  project.title || "",
-                                    handle: project.profile_handle ?? null,
-                                  });
-                                  setForceUnpublishReason("");
-                                  setForceUnpublishError("");
-                                }}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10 transition"
-                              >
-                                Force Unpublish Profile
-                              </button>
-                            )}
-                            {project.profile_force_unpublished && (
-                              <button
-                                onClick={() => adminRestoreProfile(project.creator_email)}
-                                disabled={restoreProfileBusy === project.creator_email}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-50"
-                              >
-                                {restoreProfileBusy === project.creator_email
-                                  ? "Restoring…"
-                                  : "Restore Profile (Admin)"}
-                              </button>
-                            )}
-                            {project.profile_quarantined && (
-                              <span className="text-[11px] text-red-300/80">
-                                Quarantined rows must be reviewed via SQL before any further action.
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </ExpandableSection>
-
-                      {/* ── 5. STATE HISTORY (collapsible, default closed) ── */}
-                      {Array.isArray(project.state_history) && project.state_history.length > 0 && (
-                        <ExpandableSection
-                          title="State History"
-                          summary={`${project.state_history.length} event${
-                            project.state_history.length === 1 ? "" : "s"
-                          }`}
-                          defaultOpen={false}
-                        >
-                          <StateHistory entries={project.state_history} bare />
-                        </ExpandableSection>
-                      )}
-
-                      {/* Rejection input */}
-                      {rejectingId === project.id && (
-                        <div className="mt-4 space-y-2">
-                          <p className="text-xs text-neutral-400">Rejection reason (required):</p>
-                          <textarea
-                            value={rejectionInput}
-                            onChange={(e) => setRejectionInput(e.target.value)}
-                            placeholder="Explain why this project is being rejected…"
-                            rows={2}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-neutral-600 focus:outline-none focus:border-red-500/40 resize-none"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => confirmReject(project.id)}
-                              disabled={rejectBusy}
-                              className="px-4 py-1.5 rounded text-xs font-medium border border-red-500/40 text-red-400 hover:bg-red-500/10 transition disabled:opacity-50"
-                            >
-                              {rejectBusy ? "Rejecting…" : "Confirm Reject"}
-                            </button>
-                            <button
-                              onClick={() => { setRejectingId(null); setRejectionInput(""); }}
-                              className="px-4 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-500 hover:text-white transition"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ── 6. ACTIONS ROW (always last, always open) ── */}
-                      {(() => {
-                        // Phase 6 Tier 2 fix — `reviewState` and `gate` are now
-                        // hoisted to the per-project scope above so the section
-                        // header and this row share the same values. Only the
-                        // row-local visibility flag is computed here.
-                        const showApproveGate =
-                          project.status === "pending" || project.status === "in_review";
-
-                        // Phase 6 Tier 2 fix v3 — checklist surfaces only the
-                        // four core review decisions per founder direction.
-                        // Long-form notes (rationale, decision record, risk
-                        // notes) remain editable in the panel for audit
-                        // quality but DO NOT block approval and are not
-                        // listed here.
-                        //
-                        // Each item is checked independently so the admin
-                        // sees every remaining gap, not just the next
-                        // short-circuited one. Disqualifying decision values
-                        // (encumbered/disqualified rights, fail/revision
-                        // craft, redundant/timing_issue fit) surface as
-                        // "Select a passing X" lines so the admin knows the
-                        // current selection blocks approval and either needs
-                        // a different selection or routing through Reject.
-                        //
-                        // The list is presentational. The server still
-                        // re-runs `validateApprovalDecisions` on PATCH at
-                        // /api/admin/projects and returns 422 on mismatch.
-                        const missingApprovalReqs: string[] = [];
-                        if (showApproveGate && !gate.isLegacyMissingIntegrity) {
-                          const r = reviewState;
-                          if (!r.review_thesis_confirmed) {
-                            missingApprovalReqs.push("Confirm thesis fit");
-                          }
-                          const rightsPassing =
-                            r.review_rights_posture === "clear" ||
-                            r.review_rights_posture === "co_owned_clear";
-                          if (!rightsPassing) {
-                            missingApprovalReqs.push("Select a passing rights posture (Clear or Co-owned)");
-                          }
-                          const craftPassing = r.review_craft_result === "pass";
-                          if (!craftPassing) {
-                            missingApprovalReqs.push("Select a passing craft result (Pass)");
-                          }
-                          const fitPassing =
-                            r.review_catalog_fit === "distinct" ||
-                            r.review_catalog_fit === "strategic_fit";
-                          if (!fitPassing) {
-                            missingApprovalReqs.push("Select a passing catalog fit (Distinct or Strategic fit)");
-                          }
-                        }
-                        return (
-                      <div className="mt-5 pt-4 border-t border-white/5 flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-neutral-500 mr-2">Actions:</span>
-
-                        {/* pending: Start Review, Approve, Reject */}
-                        {project.status === "pending" && rejectingId !== project.id && (
-                          <>
-                            <button
-                              onClick={() => updateProjectStatus(project.id, "in_review")}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition"
-                            >
-                              Start Review
-                            </button>
-                            {/* Phase 6 Tier 2 fix v3 — "Approve Work" (renamed
-                                from "Approve for Licensing"; approval is the
-                                review decision, licensing/distribution is a
-                                later lifecycle step). Single visual identity
-                                for the action: enabled-teal when the four
-                                core review decisions pass, muted-teal when
-                                still locked. */}
-                            <button
-                              onClick={() => updateProjectStatus(project.id, "approved")}
-                              disabled={!gate.approvalAllowed}
-                              title={
-                                gate.approvalAllowed
-                                  ? undefined
-                                  : gate.approvalBlockedMessage ?? "Approval is locked until the review record is complete."
-                              }
-                              className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
-                                gate.approvalAllowed
-                                  ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
-                                  : "border-teal-500/15 text-teal-500/40 cursor-not-allowed"
-                              }`}
-                            >
-                              Approve Work
-                            </button>
-                            <button
-                              onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
-                            >
-                              Reject Submission
-                            </button>
-                          </>
-                        )}
-
-                        {/* in_review: Approve, Reject */}
-                        {project.status === "in_review" && rejectingId !== project.id && (
-                          <>
-                            {/* Phase 6 Tier 2 fix v3 — same "Approve Work"
-                                disabled-when-locked pattern as the pending
-                                branch. */}
-                            <button
-                              onClick={() => updateProjectStatus(project.id, "approved")}
-                              disabled={!gate.approvalAllowed}
-                              title={
-                                gate.approvalAllowed
-                                  ? undefined
-                                  : gate.approvalBlockedMessage ?? "Approval is locked until the review record is complete."
-                              }
-                              className={`px-3 py-1.5 rounded text-xs font-medium border transition ${
-                                gate.approvalAllowed
-                                  ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10"
-                                  : "border-teal-500/15 text-teal-500/40 cursor-not-allowed"
-                              }`}
-                            >
-                              Approve Work
-                            </button>
-                            <button
-                              onClick={() => { setRejectingId(project.id); setRejectionInput(""); }}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
-                            >
-                              Reject Submission
-                            </button>
-                          </>
-                        )}
-
-                        {/* Inline approval-blocker diagnostics — show both axes
-                            (creator integrity and review record) when both fail,
-                            or the dedicated legacy copy when the work predates
-                            Submission Integrity v1. Visible always, not only on
-                            tooltip hover. */}
-                        {showApproveGate && !gate.approvalAllowed && (
-                          <div className="basis-full flex flex-col gap-0.5 mt-1">
-                            {gate.isLegacyMissingIntegrity ? (
-                              <p className="text-[11px] text-yellow-300/90 leading-relaxed">
-                                This work predates Submission Integrity v1. It must be rejected and resubmitted through the new integrity gate.
-                              </p>
-                            ) : (
-                              <>
-                                {gate.integrityMessage && (
-                                  <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                                    Creator integrity: {gate.integrityMessage}
-                                  </p>
-                                )}
-                                {/* Phase 6 Tier 2 fix v2 — primary guidance is
-                                    a checklist of remaining requirements. Each
-                                    item is independently checked against the
-                                    in-memory review state, so the admin sees
-                                    every remaining gap (not just the next
-                                    short-circuited one). The section-name
-                                    breadcrumb and the existing single-line
-                                    `gate.reviewMessage` are kept as secondary
-                                    hints below the checklist. */}
-                                {missingApprovalReqs.length > 0 && (
-                                  <div className="mt-1">
-                                    <p className="text-[11px] text-neutral-300 leading-relaxed font-medium">
-                                      Approval requires:
-                                    </p>
-                                    <ul className="mt-1 ml-4 list-disc space-y-0.5">
-                                      {missingApprovalReqs.map((req) => (
-                                        <li
-                                          key={req}
-                                          className="text-[11px] text-neutral-300 leading-relaxed"
-                                        >
-                                          {req}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-                                {gate.reviewMessage && (
-                                  <>
-                                    <p className="text-[11px] text-neutral-500 leading-relaxed mt-1">
-                                      Open the <strong className="text-white/80">Review Record &amp; License</strong> section above to complete these requirements. Rejection remains available.
-                                    </p>
-                                    <p className="text-[11px] text-neutral-500 leading-relaxed">
-                                      Review record: {gate.reviewMessage}
-                                    </p>
-                                  </>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        )}
-
-                        {/* approved: Activate Distribution (requires executed license) */}
-                        {project.status === "approved" && (
-                          project.license ? (
-                            <button
-                              onClick={() => updateProjectStatus(project.id, "live")}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition"
-                            >
-                              Activate Distribution
-                            </button>
-                          ) : (
-                            <span
-                              title="An executed license is required before distribution can be activated."
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
-                            >
-                              Activate Distribution — license required
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-white font-medium text-sm truncate">
+                              {project.title}
                             </span>
-                          )
-                        )}
-
-                        {/* Phase 6 Tier 2.5 — Media package readiness inline.
-                            Surfaces what the creator has uploaded (poster /
-                            banner / stills / trailer) on approved rows so
-                            the admin can see whether the work is visually
-                            ready before clicking Activate Distribution. The
-                            existing activation gate (executed license)
-                            stays unchanged; this is information, not a new
-                            blocker. Public visibility is still gated
-                            independently by titles.media_ready + Bunny
-                            video binding (admin Media section on live). */}
-                        {project.status === "approved" && (() => {
-                          const checks: Array<{ label: string; ok: boolean }> = [
-                            { label: "Poster",  ok: !!(project.cover_image_url && String(project.cover_image_url).trim()) },
-                            { label: "Banner",  ok: !!(project.banner_url      && String(project.banner_url).trim()) },
-                            { label: "Stills",  ok: Array.isArray(project.stills_urls) && project.stills_urls.length >= 2 },
-                            { label: "Trailer", ok: !!(project.trailer_url     && String(project.trailer_url).trim()) },
-                          ];
-                          const missing = checks.filter((c) => !c.ok).map((c) => c.label);
-                          const ready   = missing.length === 0;
-                          return (
-                            <div className="basis-full flex flex-wrap items-center gap-2 mt-1">
-                              <span className="text-[11px] uppercase tracking-widest text-neutral-500">
-                                Media package:
+                            {project.project_type && (
+                              <span className="text-neutral-500 text-[11px]">
+                                {project.project_type}
                               </span>
-                              {ready ? (
-                                <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
-                                  Ready
-                                </span>
-                              ) : (
-                                <>
-                                  <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/15 text-yellow-300 border-yellow-500/30">
-                                    Incomplete
-                                  </span>
-                                  <span className="text-[11px] text-neutral-400">
-                                    Missing: {missing.join(", ")}
-                                  </span>
-                                </>
-                              )}
-                              <span className="text-[11px] text-neutral-500">
-                                · Public visibility additionally requires the Bunny
-                                video binding + processing on Live.
-                              </span>
-                            </div>
-                          );
-                        })()}
-
-                        {/* live: Archive to Internal Hold (typed-confirmation gate) */}
-                        {project.status === "live" && (
-                          <button
-                            onClick={() => {
-                              setArchiveTarget({ id: project.id, title: project.title || "" });
-                              setArchiveConfirm("");
-                              setArchiveError("");
-                            }}
-                            title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
-                            className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
+                            )}
+                          </div>
+                          <p className="text-neutral-400 text-[11px] mt-0.5 truncate">
+                            {project.creator_email}
+                          </p>
+                          {next && (
+                            <p className={`text-[11px] mt-1 ${nextTone}`}>{next}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded border ${
+                              projectStatusColor[project.status] || "text-neutral-400"
+                            }`}
                           >
-                            Archive to Internal Hold
-                          </button>
-                        )}
-
-                        {/* approved: Archive to Internal Hold.
-                            Phase 6 Tier 2 fix v2 — pending and in_review were
-                            removed from this branch. Founder-confirmed bug:
-                            Archive surfaced as a primary action on review
-                            cards, conflating "internal hold" with a review
-                            outcome. Reject is the correct in-review exit;
-                            archive belongs to library/lifecycle contexts
-                            (approved waiting on license, or live). The
-                            existing `live` Archive button above and the
-                            `rejected` Archive option below are unchanged. */}
-                        {project.status === "approved" && (
-                          <button
-                            onClick={() => {
-                              setArchiveHoldTarget({ id: project.id, title: project.title || "" });
-                              setArchiveHoldError("");
-                            }}
-                            title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
-                            className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
-                          >
-                            Archive to Internal Hold
-                          </button>
-                        )}
-
-                        {/* rejected: Reopen for Review + Archive to Internal Hold */}
-                        {project.status === "rejected" && rejectingId !== project.id && (
-                          <>
-                            <button
-                              onClick={() => reopenForReview(project.id)}
-                              disabled={reopenBusy === project.id}
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition disabled:opacity-50"
-                            >
-                              {reopenBusy === project.id ? "Reopening…" : "Reopen for Review"}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setArchiveHoldTarget({ id: project.id, title: project.title || "" });
-                                setArchiveHoldError("");
-                              }}
-                              title="Archive is an internal reversible hold. It is not approval, not rejection, and not a review outcome."
-                              className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-400 hover:text-white hover:border-white/30 transition"
-                            >
-                              Archive to Internal Hold
-                            </button>
-                          </>
-                        )}
-
-                        {/* archived: Restore */}
-                        {project.status === "archived" && (
-                          (() => {
-                            const target = project.previous_status_before_archive;
-                            const canRestore = !!target;
-                            return canRestore ? (
-                              <button
-                                onClick={() => restoreFromArchive(project.id)}
-                                disabled={restoreBusy === project.id}
-                                title={`Restores to ${statusDisplay(target)} state.`}
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-50"
-                              >
-                                {restoreBusy === project.id
-                                  ? "Restoring…"
-                                  : "Restore from Internal Hold"}
-                              </button>
-                            ) : (
-                              <span
-                                title="Cannot restore because no previous state is recorded."
-                                className="px-3 py-1.5 rounded text-xs font-medium border border-white/10 text-neutral-600 cursor-not-allowed"
-                              >
-                                Restore unavailable — no prior state recorded
-                              </span>
-                            );
-                          })()
-                        )}
-
-                        {/* removed: terminal — no actions allowed. The block at
-                            the top of the expanded panel carries the full
-                            DISTRIBUTION STATUS authority copy; this row is the
-                            inline action-strip stub. */}
-                        {project.status === "removed" && (
-                          <span className="text-xs text-red-300/80">
-                            Removed — terminal state.
+                            {statusDisplay(project.status)}
                           </span>
-                        )}
+                          <span className="text-neutral-600 text-[10px]">
+                            {new Date(project.updated_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <svg
+                          className={`lg:hidden w-4 h-4 text-neutral-500 transition-transform shrink-0 ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
 
-                        {/* removal_requested: Approve Removal / Deny Removal — both
-                            open styled modals with required reason. No native
-                            prompt(), no inline forms. */}
-                        {project.status === "removal_requested" && (
-                          <div className="basis-full flex flex-col gap-2">
-                            <div className="flex items-start gap-3 flex-wrap">
-                              <div className="flex flex-col gap-0.5">
-                                <button
-                                  onClick={() => {
-                                    setApproveRemovalTarget({ id: project.id, title: project.title || "" });
-                                    setApproveRemovalReason("");
-                                    setApproveRemovalError("");
-                                  }}
-                                  disabled={removalBusy === project.id}
-                                  className="px-3 py-1.5 rounded text-xs font-medium border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition disabled:opacity-50"
-                                >
-                                  {removalBusy === project.id ? "Working…" : "Approve Removal"}
-                                </button>
-                                <span className="text-[10px] text-neutral-500 px-1">
-                                  Permanently remove from distribution.
-                                </span>
-                              </div>
-                              <div className="flex flex-col gap-0.5">
-                                <button
-                                  onClick={() => {
-                                    setDenyRemovalTarget({ id: project.id, title: project.title || "" });
-                                    setDenyRemovalReason("");
-                                    setDenyRemovalError("");
-                                  }}
-                                  disabled={removalBusy === project.id}
-                                  className="px-3 py-1.5 rounded text-xs font-medium border border-white/20 text-neutral-300 hover:bg-white/5 transition disabled:opacity-50"
-                                >
-                                  Deny Removal
-                                </button>
-                                <span className="text-[10px] text-neutral-500 px-1">
-                                  Return to active distribution.
-                                </span>
-                              </div>
-                            </div>
+                      {/* Mobile inline expansion (hidden on desktop) */}
+                      <div className="lg:hidden">
+                        {isExpanded && (
+                          <div className="px-5 pb-5 border-t border-white/5 pt-4">
+                            {renderProjectDetail(project)}
                           </div>
                         )}
                       </div>
-                        );
-                      })()}
                     </div>
-                    );
-                  })()}
+                  );
+                })}
+              </div>
+
+              {/* RIGHT — command detail (desktop only) */}
+              <aside className="hidden lg:block">
+                <div className="lg:sticky lg:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-6 max-h-[calc(100vh-7rem)] overflow-y-auto">
+                  {selectedWork ? (
+                    renderProjectDetail(selectedWork)
+                  ) : (
+                    <p className="text-neutral-500 text-sm text-center py-12">
+                      Select a work to inspect.
+                    </p>
+                  )}
                 </div>
-              ))}
+              </aside>
             </div>
           )}
         </>
