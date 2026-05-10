@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { CSSProperties } from "react";
 import { createClient } from "@/lib/supabase-browser";
+import { ReadinessChip } from "../components";
 
 type ExternalLink = { label: string; url: string };
 
@@ -59,21 +60,17 @@ export default function ProfilePage() {
   const [publishBusy, setPublishBusy]                   = useState(false);
 
   // Phase 1 publish-safety patch — confirmation modal state for unpublish.
-  // Publishing remains one-click; unpublishing requires explicit confirmation
-  // because it removes the profile from the public roster and 404s the
-  // public page.
   const [showUnpublishModal, setShowUnpublishModal] = useState(false);
   const [unpublishError, setUnpublishError]         = useState("");
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
-  // Completion — string fields only; external_links contributes via website
   const filledCount = COMPLETION_FIELDS.filter((f) => {
     const v = form[f.key];
     return typeof v === "string" && v.trim() !== "";
   }).length;
   const completionPct = Math.round((filledCount / COMPLETION_FIELDS.length) * 100);
-  const firstMissing = COMPLETION_FIELDS.find((f) => {
+  const missingFields = COMPLETION_FIELDS.filter((f) => {
     const v = form[f.key];
     return typeof v === "string" && v.trim() === "";
   });
@@ -82,6 +79,16 @@ export default function ProfilePage() {
   const handleValid = !!cleanHandle && HANDLE_RE.test(cleanHandle);
   const canPublish  =
     !placeholderQuarantined && !forceUnpublished && handleValid && !!form.displayName.trim();
+
+  const publishDisabledReason = placeholderQuarantined
+    ? "Profile is under review."
+    : forceUnpublished
+    ? "Profile has been unpublished by ShangoMaji."
+    : !handleValid
+    ? "Set a valid handle (3–32 lowercase letters, digits, or hyphens)."
+    : !form.displayName.trim()
+    ? "Set a display name before publishing."
+    : undefined;
 
   useEffect(() => {
     async function init() {
@@ -182,14 +189,6 @@ export default function ProfilePage() {
     }
   }
 
-  // Publish / Unpublish — sends only the publish flag. Save the rest of the
-  // form first via Save Profile, then publish; the API rejects publishing if
-  // a handle isn't set or the row has been force-unpublished by an admin.
-  // Republish does NOT require profile edits — the existing display name,
-  // handle, bio, avatar, and banner are preserved as-is on the row.
-  //
-  // Throws on failure so callers (the unpublish modal in particular) can
-  // surface the message in their own error slot instead of the global save bar.
   async function handleTogglePublish(next: boolean) {
     setPublishBusy(true);
     setError("");
@@ -203,10 +202,6 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Publish update failed");
       setIsPublished(next);
-      // Re-fetch the canonical profile so admin-only fields (force_unpublished,
-      // placeholder_quarantined) and audit columns stay in sync with the DB
-      // immediately after publish/unpublish, instead of waiting for the next
-      // page navigation.
       await loadProfile();
       setSavedMessage(next ? "Profile published." : "Profile unpublished.");
       savedTimer.current = setTimeout(() => setSavedMessage(""), 2500);
@@ -219,9 +214,6 @@ export default function ProfilePage() {
     }
   }
 
-  // Unpublish — confirmation-gated wrapper. The publish strip's "Unpublish"
-  // button opens this modal; the modal calls handleTogglePublish(false) only
-  // after the creator confirms.
   async function handleConfirmUnpublish() {
     setUnpublishError("");
     try {
@@ -254,6 +246,26 @@ export default function ProfilePage() {
     );
   }
 
+  async function uploadAsset(file: File, kind: "avatar" | "banner") {
+    const setter = kind === "avatar" ? setUploadingAvatar : setUploadingBanner;
+    const targetKey: keyof ProfileForm = kind === "avatar" ? "avatarUrl" : "bannerUrl";
+    setter(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("asset_type", kind);
+      const res = await fetch("/api/creators/upload/asset", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Upload failed");
+      setForm((prev) => ({ ...prev, [targetKey]: data.url }));
+    } catch (err: any) {
+      setError(err.message || "Upload failed");
+    } finally {
+      setter(false);
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ textAlign: "center", paddingTop: 80 }}>
@@ -263,765 +275,767 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ maxWidth: 800, paddingBottom: 100 }}>
-
-        {/* ── Unpublish confirmation modal ── */}
-        {showUnpublishModal && (
+    <>
+      {/* ── Unpublish confirmation modal — fixed-position overlay,
+            unaffected by parent layout. ── */}
+      {showUnpublishModal && (
+        <div
+          onClick={() => {
+            if (publishBusy) return;
+            setShowUnpublishModal(false);
+            setUnpublishError("");
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 80,
+            background: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
           <div
-            onClick={() => {
-              if (publishBusy) return;
-              setShowUnpublishModal(false);
-              setUnpublishError("");
-            }}
+            onClick={(e) => e.stopPropagation()}
             style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 80,
-              background: "rgba(0,0,0,0.75)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1rem",
+              width: "100%",
+              maxWidth: 460,
+              padding: "28px 24px 22px",
+              borderRadius: 16,
+              background: "#141010",
+              border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
-            <div
-              onClick={(e) => e.stopPropagation()}
+            <p
               style={{
-                width: "100%",
-                maxWidth: 460,
-                padding: "28px 24px 22px",
-                borderRadius: 16,
-                background: "#141010",
-                border: "1px solid rgba(255,255,255,0.1)",
+                fontSize: 11,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color: "rgba(245,197,24,0.85)",
+                margin: 0,
+                marginBottom: 8,
               }}
             >
-              <p
-                style={{
-                  fontSize: 11,
-                  letterSpacing: "0.22em",
-                  textTransform: "uppercase",
-                  color: "rgba(245,197,24,0.85)",
-                  margin: 0,
-                  marginBottom: 8,
-                }}
-              >
-                Public Profile
-              </p>
-              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "white" }}>
-                Unpublish this profile?
-              </h3>
-
-              <p style={{ margin: "12px 0 0", fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 1.55 }}>
-                Unpublishing hides this profile from the public creator roster and
-                makes the public profile page unavailable.
-              </p>
-              <p style={{ margin: "10px 0 0", fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55 }}>
-                Your profile data is preserved. You can republish at any time
-                without re-entering anything.
-              </p>
-
-              {unpublishError && (
-                <div
-                  style={{
-                    marginTop: 14,
-                    padding: "10px 12px",
-                    background: "rgba(220,38,38,0.08)",
-                    border: "1px solid rgba(220,38,38,0.25)",
-                    borderRadius: 10,
-                    color: "rgba(252,165,165,0.9)",
-                    fontSize: 13,
-                  }}
-                >
-                  {unpublishError}
-                </div>
-              )}
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
-                <button
-                  onClick={() => {
-                    if (publishBusy) return;
-                    setShowUnpublishModal(false);
-                    setUnpublishError("");
-                  }}
-                  disabled={publishBusy}
-                  style={{
-                    padding: "10px 18px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: "transparent",
-                    color: "rgba(255,255,255,0.75)",
-                    fontSize: 13,
-                    cursor: publishBusy ? "not-allowed" : "pointer",
-                    opacity: publishBusy ? 0.6 : 1,
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmUnpublish}
-                  disabled={publishBusy}
-                  style={{
-                    padding: "10px 18px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(245,197,24,0.4)",
-                    background: "rgba(245,197,24,0.08)",
-                    color: "rgba(245,197,24,0.95)",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: publishBusy ? "not-allowed" : "pointer",
-                    opacity: publishBusy ? 0.6 : 1,
-                  }}
-                >
-                  {publishBusy ? "Unpublishing…" : "Unpublish Profile"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Quarantine banner — admin-imposed hold ── */}
-        {placeholderQuarantined && (
-          <div
-            style={{
-              padding: "12px 16px",
-              marginBottom: 16,
-              borderRadius: 10,
-              background: "rgba(220,38,38,0.08)",
-              border: "1px solid rgba(220,38,38,0.25)",
-              color: "rgba(252,165,165,0.9)",
-              fontSize: 13,
-              lineHeight: 1.5,
-            }}
-          >
-            This profile has been placed under review and cannot be edited or
-            published from the workspace. Contact ShangoMaji support if you believe
-            this is in error.
-          </div>
-        )}
-
-        {/* ── Force-unpublished banner — admin trust/safety override ── */}
-        {forceUnpublished && (
-          <div
-            style={{
-              padding: "12px 16px",
-              marginBottom: 16,
-              borderRadius: 10,
-              background: "rgba(245,197,24,0.08)",
-              border: "1px solid rgba(245,197,24,0.3)",
-              color: "rgba(245,197,24,0.9)",
-              fontSize: 13,
-              lineHeight: 1.5,
-            }}
-          >
-            <p style={{ margin: 0, fontWeight: 600 }}>
-              Your public profile has been unpublished by ShangoMaji.
+              Public Profile
             </p>
-            {forceUnpublishedReason && (
-              <p style={{ margin: "6px 0 0", color: "rgba(255,255,255,0.55)" }}>
-                Reason: {forceUnpublishedReason}
-              </p>
-            )}
-            <p style={{ margin: "6px 0 0", color: "rgba(255,255,255,0.45)" }}>
-              You can continue to edit profile fields, but republishing requires
-              admin review.
+            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "white" }}>
+              Unpublish this profile?
+            </h3>
+            <p style={{ margin: "12px 0 0", fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 1.55 }}>
+              Unpublishing hides this profile from the public creator roster and
+              makes the public profile page unavailable.
             </p>
-          </div>
-        )}
-
-        {/* ── Publish strip ── */}
-        {cleanHandle && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "12px 16px",
-              marginBottom: 24,
-              borderRadius: 10,
-              background: isPublished
-                ? "rgba(52,211,153,0.06)"
-                : "rgba(255,255,255,0.03)",
-              border: isPublished
-                ? "1px solid rgba(52,211,153,0.25)"
-                : "1px solid rgba(255,255,255,0.08)",
-              fontSize: 13,
-              color: isPublished
-                ? "rgba(52,211,153,0.9)"
-                : "rgba(255,255,255,0.55)",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-              <span style={{ fontWeight: 600 }}>
-                {isPublished ? "Published" : "Not published yet"}
-              </span>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
-                {isPublished
-                  ? `Live at shangomaji.com/creators/${cleanHandle}`
-                  : "Save your profile, then publish to make it reachable at /creators/{handle}."}
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {isPublished && (
-                <a
-                  href={`/creators/${cleanHandle}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    fontSize: 12,
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    color: "rgba(255,255,255,0.85)",
-                    textDecoration: "none",
-                  }}
-                >
-                  Preview Public Profile
-                </a>
-              )}
-              {isPublished ? (
-                <button
-                  onClick={() => {
-                    if (publishBusy || placeholderQuarantined) return;
-                    setUnpublishError("");
-                    setShowUnpublishModal(true);
-                  }}
-                  disabled={publishBusy || placeholderQuarantined}
-                  style={{
-                    fontSize: 12,
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: "transparent",
-                    color: "rgba(255,255,255,0.75)",
-                    cursor: publishBusy ? "not-allowed" : "pointer",
-                    opacity: publishBusy ? 0.6 : 1,
-                  }}
-                >
-                  {publishBusy ? "Working…" : "Unpublish"}
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleTogglePublish(true)}
-                  disabled={publishBusy || !canPublish}
-                  title={
-                    !canPublish
-                      ? placeholderQuarantined
-                        ? "Profile is under review."
-                        : forceUnpublished
-                        ? "Profile has been unpublished by ShangoMaji."
-                        : !handleValid
-                        ? "Set a valid handle (3–32 lowercase letters, digits, or hyphens)."
-                        : !form.displayName.trim()
-                        ? "Set a display name before publishing."
-                        : undefined
-                      : undefined
-                  }
-                  style={{
-                    fontSize: 12,
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    border: "none",
-                    background:
-                      "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-                    color: "black",
-                    fontWeight: 600,
-                    cursor: publishBusy || !canPublish ? "not-allowed" : "pointer",
-                    opacity: publishBusy || !canPublish ? 0.55 : 1,
-                  }}
-                >
-                  {publishBusy ? "Publishing…" : "Publish Public Profile"}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── Identity Hero ── */}
-        <section style={{ marginBottom: 40 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 16 }}>
-            {/* Avatar display */}
-            <div style={heroAvatarStyle}>
-              {form.avatarUrl ? (
-                <img
-                  src={form.avatarUrl}
-                  alt="Avatar"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <span style={{ fontSize: 36, opacity: 0.25 }}>👤</span>
-              )}
-            </div>
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontSize: 32, margin: 0, lineHeight: 1.2 }}>
-                {form.displayName || "Your Name"}
-              </h1>
-              {cleanHandle ? (
-                <p style={{ margin: "4px 0 0", fontSize: 15, color: "rgba(255,255,255,0.45)" }}>
-                  @{cleanHandle}
-                </p>
-              ) : (
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
-                  Set up your handle below
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* CTA row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            {cleanHandle ? (
-              <>
-                {isPublished ? (
-                  <a
-                    href={`/creators/${cleanHandle}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={primaryButtonStyle}
-                  >
-                    Preview Public Profile
-                  </a>
-                ) : (
-                  <span
-                    style={{
-                      ...primaryButtonStyle,
-                      background: "rgba(255,255,255,0.06)",
-                      color: "rgba(255,255,255,0.5)",
-                      cursor: "not-allowed",
-                    }}
-                  >
-                    Not Yet Published
-                  </span>
-                )}
-                <span style={{
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.2)",
-                  letterSpacing: "0.01em",
-                  userSelect: "all",
-                  pointerEvents: "none",
-                }}>
-                  shangomaji.com/creators/{cleanHandle}
-                </span>
-              </>
-            ) : (
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontStyle: "italic" }}>
-                Complete your handle to activate your public profile
-              </span>
-            )}
-          </div>
-
-          {cleanHandle && isPublished && (
-            <p style={{ margin: "12px 0 0", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(240,112,48,0.6)" }}>
-              Live on ShangoMaji
+            <p style={{ margin: "10px 0 0", fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55 }}>
+              Your profile data is preserved. You can republish at any time
+              without re-entering anything.
             </p>
-          )}
-        </section>
 
-        {/* ── Status Strip ── */}
-        <section style={statusStripStyle}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-            {/* Progress bar */}
-            <div style={progressTrackStyle}>
+            {unpublishError && (
               <div
                 style={{
-                  height: "100%",
-                  width: `${completionPct}%`,
-                  borderRadius: 3,
-                  background: completionPct === 100
-                    ? "rgba(52,211,153,0.7)"
-                    : "linear-gradient(90deg, rgba(240,112,48,0.7), rgba(245,197,24,0.7))",
-                  transition: "width 0.4s ease",
-                }}
-              />
-            </div>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap" }}>
-              Profile {completionPct}% complete
-            </span>
-          </div>
-          {firstMissing && completionPct < 100 && (
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
-              Add a {firstMissing.label} to complete your profile
-            </span>
-          )}
-        </section>
-
-        {/* ── Edit Area: Identity ── */}
-        <section style={{ marginBottom: 36 }}>
-          <h2 style={sectionHeadingStyle}>Identity</h2>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {/* Email (read-only) */}
-            <div>
-              <label style={labelStyle}>Account Email</label>
-              <input value={email} readOnly style={{ ...inputStyle, opacity: 0.5, cursor: "not-allowed" }} />
-            </div>
-
-            {/* Avatar upload */}
-            <div>
-              <label style={labelStyle}>Profile Photo</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={editAvatarStyle}>
-                  {form.avatarUrl ? (
-                    <img src={form.avatarUrl} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : (
-                    <span style={{ fontSize: 22, opacity: 0.25 }}>👤</span>
-                  )}
-                </div>
-                <label
-                  style={{
-                    cursor: uploadingAvatar ? "not-allowed" : "pointer",
-                    fontSize: 13,
-                    color: uploadingAvatar ? "rgba(255,255,255,0.3)" : "rgba(240,112,48,0.85)",
-                    borderBottom: "1px solid currentColor",
-                    paddingBottom: 1,
-                  }}
-                >
-                  {uploadingAvatar ? "Adding…" : "Add photo"}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    hidden
-                    disabled={uploadingAvatar}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setUploadingAvatar(true);
-                      setError("");
-                      try {
-                        const fd = new FormData();
-                        fd.append("file", file);
-                        fd.append("asset_type", "avatar");
-                        const res = await fetch("/api/creators/upload/asset", { method: "POST", body: fd });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data?.error || "Upload failed");
-                        setForm((prev) => ({ ...prev, avatarUrl: data.url }));
-                      } catch (err: any) {
-                        setError(err.message || "Upload failed");
-                      } finally {
-                        setUploadingAvatar(false);
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
-
-            {/* Banner upload */}
-            <div>
-              <label style={labelStyle}>Banner Image</label>
-              <div style={{
-                width: "100%",
-                height: 120,
-                borderRadius: 12,
-                backgroundImage: form.bannerUrl ? `url(${form.bannerUrl})` : "none",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundColor: form.bannerUrl ? undefined : "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}>
-                {!form.bannerUrl && (
-                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.2)" }}>No banner added</span>
-                )}
-              </div>
-              <label
-                style={{
-                  cursor: uploadingBanner ? "not-allowed" : "pointer",
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  background: "rgba(220,38,38,0.08)",
+                  border: "1px solid rgba(220,38,38,0.25)",
+                  borderRadius: 10,
+                  color: "rgba(252,165,165,0.9)",
                   fontSize: 13,
-                  color: uploadingBanner ? "rgba(255,255,255,0.3)" : "rgba(240,112,48,0.85)",
-                  borderBottom: "1px solid currentColor",
-                  paddingBottom: 1,
-                  marginTop: 8,
-                  display: "inline-block",
                 }}
               >
-                {uploadingBanner ? "Adding…" : "Add banner"}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  hidden
-                  disabled={uploadingBanner}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    setUploadingBanner(true);
-                    setError("");
-                    try {
-                      const fd = new FormData();
-                      fd.append("file", file);
-                      fd.append("asset_type", "banner");
-                      const res = await fetch("/api/creators/upload/asset", { method: "POST", body: fd });
-                      const data = await res.json();
-                      if (!res.ok) throw new Error(data?.error || "Upload failed");
-                      setForm((prev) => ({ ...prev, bannerUrl: data.url }));
-                    } catch (err: any) {
-                      setError(err.message || "Upload failed");
-                    } finally {
-                      setUploadingBanner(false);
-                    }
-                  }}
-                />
-              </label>
-            </div>
-
-            {/* Display Name */}
-            <div>
-              <label style={labelStyle}>Display Name</label>
-              <input
-                value={form.displayName}
-                onChange={(e) => handleChange("displayName", e.target.value)}
-                placeholder="Your name or studio name"
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Handle */}
-            <div>
-              <label style={labelStyle}>Handle / Username</label>
-              <input
-                value={form.handle}
-                onChange={(e) => handleChange("handle", e.target.value)}
-                placeholder="@stormstudio"
-                style={inputStyle}
-              />
-            </div>
-
-            {/* Bio */}
-            <div>
-              <label style={labelStyle}>Bio</label>
-              <textarea
-                value={form.bio}
-                onChange={(e) => handleChange("bio", e.target.value.slice(0, BIO_MAX))}
-                placeholder="Tell your story in a few sentences."
-                style={{ ...inputStyle, height: 120, resize: "vertical" }}
-              />
-              <p
-                style={{
-                  fontSize: 11,
-                  color: form.bio.length >= BIO_MAX ? "#ff6b6b" : "rgba(255,255,255,0.25)",
-                  marginTop: 4,
-                  textAlign: "right",
-                }}
-              >
-                {form.bio.length}/{BIO_MAX}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Edit Area: Links ── */}
-        <section style={{ marginBottom: 36 }}>
-          <h2 style={sectionHeadingStyle}>Links</h2>
-          <div>
-            <label style={labelStyle}>Website</label>
-            <input
-              value={form.website}
-              onChange={(e) => handleChange("website", e.target.value)}
-              placeholder="https://yourdomain.com"
-              style={inputStyle}
-            />
-          </div>
-
-          <div style={{ marginTop: 24 }}>
-            <label style={labelStyle}>External Links (up to {MAX_EXTERNAL_LINKS})</label>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "0 0 12px" }}>
-              Optional. Each link must be a valid URL. Empty rows are dropped on save.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {form.externalLinks.map((l, idx) => (
-                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    value={l.label}
-                    onChange={(e) => setLinkAt(idx, { label: e.target.value })}
-                    placeholder="Label (optional)"
-                    style={{ ...inputStyle, maxWidth: 200 }}
-                  />
-                  <input
-                    value={l.url}
-                    onChange={(e) => setLinkAt(idx, { url: e.target.value })}
-                    placeholder="https://example.com"
-                    style={inputStyle}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeLinkAt(idx)}
-                    style={{
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      background: "transparent",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      color: "rgba(255,255,255,0.5)",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              {form.externalLinks.length < MAX_EXTERNAL_LINKS && (
-                <button
-                  type="button"
-                  onClick={addLink}
-                  style={{
-                    alignSelf: "flex-start",
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    background: "transparent",
-                    border: "1px dashed rgba(255,255,255,0.18)",
-                    color: "rgba(240,112,48,0.85)",
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  + Add link
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-
-      {/* ── Sticky Save Bar ── */}
-      {(isDirty || savedMessage || error) && (
-        <div style={stickyBarStyle}>
-          <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-            <span style={{ fontSize: 13, color: savedMessage ? "rgba(52,211,153,0.9)" : error ? "#ff6b6b" : "rgba(255,255,255,0.5)" }}>
-              {savedMessage || error || "Unsaved changes"}
-            </span>
-            {isDirty && (
-              <button onClick={handleSave} disabled={saving} style={saveButtonStyle}>
-                {saving ? "Saving…" : "Save Profile"}
-              </button>
+                {unpublishError}
+              </div>
             )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
+              <button
+                onClick={() => {
+                  if (publishBusy) return;
+                  setShowUnpublishModal(false);
+                  setUnpublishError("");
+                }}
+                disabled={publishBusy}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.75)",
+                  fontSize: 13,
+                  cursor: publishBusy ? "not-allowed" : "pointer",
+                  opacity: publishBusy ? 0.6 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmUnpublish}
+                disabled={publishBusy}
+                style={{
+                  padding: "10px 18px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(245,197,24,0.4)",
+                  background: "rgba(245,197,24,0.08)",
+                  color: "rgba(245,197,24,0.95)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: publishBusy ? "not-allowed" : "pointer",
+                  opacity: publishBusy ? 0.6 : 1,
+                }}
+              >
+                {publishBusy ? "Unpublishing…" : "Unpublish Profile"}
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Phase 7.3 Layer 2D — Creator Identity Control Room.
+          The host WorkspaceShell caps content to ~1000px. Same legitimate
+          100vw breakout used on New Work, applied here so the identity
+          workspace can use the full ~1440px desktop canvas. */}
+      <div
+        style={{
+          width: "100vw",
+          marginLeft: "calc(50% - 50vw)",
+          marginRight: "calc(50% - 50vw)",
+        }}
+      >
+        <div className="w-full mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12 xl:px-14 pb-32">
+
+          {/* ─────────────── ADMIN ALERTS ─────────────── */}
+          {placeholderQuarantined && (
+            <div
+              className="mb-5 rounded-xl px-4 py-3 text-[13px] leading-relaxed"
+              style={{
+                background: "rgba(220,38,38,0.08)",
+                border: "1px solid rgba(220,38,38,0.25)",
+                color: "rgba(252,165,165,0.9)",
+              }}
+            >
+              This profile has been placed under review and cannot be edited or
+              published from the workspace. Contact ShangoMaji support if you believe
+              this is in error.
+            </div>
+          )}
+
+          {forceUnpublished && (
+            <div
+              className="mb-5 rounded-xl px-4 py-3 text-[13px] leading-relaxed"
+              style={{
+                background: "rgba(245,197,24,0.08)",
+                border: "1px solid rgba(245,197,24,0.3)",
+                color: "rgba(245,197,24,0.9)",
+              }}
+            >
+              <p className="font-semibold m-0">
+                Your public profile has been unpublished by ShangoMaji.
+              </p>
+              {forceUnpublishedReason && (
+                <p className="m-0 mt-1.5" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  Reason: {forceUnpublishedReason}
+                </p>
+              )}
+              <p className="m-0 mt-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+                You can continue to edit profile fields, but republishing requires
+                admin review.
+              </p>
+            </div>
+          )}
+
+          {/* ─────────────── IDENTITY HERO ───────────────
+              Banner as a wide visual identity element, avatar overlapping
+              the banner, display name as the strongest text on the page,
+              handle directly under it, public URL on the third line, and
+              the publish/preview/unpublish actions on the right.
+              No stranded "publish strip" — everything lives here. */}
+          <header className="pt-2">
+            <div
+              className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]"
+              style={{ aspectRatio: "5 / 1.45", minHeight: 180 }}
+            >
+              {form.bannerUrl ? (
+                <img
+                  src={form.bannerUrl}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center text-sm text-white/30">
+                  Add a banner image to your public profile.
+                </div>
+              )}
+              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/55 to-transparent pointer-events-none" />
+            </div>
+
+            {/* Identity row — overlaps banner via negative top margin */}
+            <div className="relative -mt-12 xl:-mt-16 px-2 xl:px-6">
+              <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-5 xl:gap-8">
+                <div className="flex items-end gap-5 min-w-0">
+                  <div
+                    className="w-24 h-24 xl:w-[128px] xl:h-[128px] rounded-full overflow-hidden shrink-0 grid place-items-center"
+                    style={{
+                      background: "rgba(255,255,255,0.06)",
+                      border: "4px solid #0a0707",
+                      boxShadow: "0 6px 24px rgba(0,0,0,0.45)",
+                    }}
+                  >
+                    {form.avatarUrl ? (
+                      <img
+                        src={form.avatarUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-3xl xl:text-4xl text-white/25">👤</span>
+                    )}
+                  </div>
+                  <div className="pb-1.5 xl:pb-3 min-w-0">
+                    <h1
+                      className="text-white font-bold tracking-tight leading-tight truncate text-2xl sm:text-3xl xl:text-[40px]"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {form.displayName || "Your Name"}
+                    </h1>
+                    {cleanHandle ? (
+                      <p className="mt-1 text-sm xl:text-base text-white/55 truncate">
+                        @{cleanHandle}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-white/30 italic">
+                        Set up your handle to claim your URL
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 xl:gap-3 xl:pb-3 shrink-0">
+                  <ReadinessChip
+                    tone={isPublished ? "emerald" : "neutral"}
+                    label={isPublished ? "Published" : "Unpublished"}
+                  />
+                  {isPublished && cleanHandle && (
+                    <a
+                      href={`/creators/${cleanHandle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: 13,
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.18)",
+                        color: "rgba(255,255,255,0.85)",
+                        textDecoration: "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Preview Public Profile
+                    </a>
+                  )}
+                  {isPublished ? (
+                    <button
+                      onClick={() => {
+                        if (publishBusy || placeholderQuarantined) return;
+                        setUnpublishError("");
+                        setShowUnpublishModal(true);
+                      }}
+                      disabled={publishBusy || placeholderQuarantined}
+                      style={{
+                        fontSize: 13,
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.18)",
+                        background: "transparent",
+                        color: "rgba(255,255,255,0.78)",
+                        cursor: publishBusy ? "not-allowed" : "pointer",
+                        opacity: publishBusy ? 0.6 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {publishBusy ? "Working…" : "Unpublish"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleTogglePublish(true)}
+                      disabled={publishBusy || !canPublish}
+                      title={!canPublish ? publishDisabledReason : undefined}
+                      style={{
+                        fontSize: 13,
+                        padding: "9px 18px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                        color: "black",
+                        fontWeight: 700,
+                        cursor: publishBusy || !canPublish ? "not-allowed" : "pointer",
+                        opacity: publishBusy || !canPublish ? 0.55 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {publishBusy ? "Publishing…" : "Publish Public Profile"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {cleanHandle && (
+                <p
+                  className="mt-3 text-[11px] text-white/40 tracking-wider"
+                  style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+                >
+                  shangomaji.com/creators/{cleanHandle}
+                </p>
+              )}
+            </div>
+          </header>
+
+          {/* ─────────────── TWO-COLUMN WORKSPACE ───────────────
+              xl+ : 64% editor / 32% rail / 4% gutter.
+              < xl: single column flow.
+              DOM source order = mobile order: Hero → Rail → Editor.
+              On xl, the rail is grid-placed into col 2 row 1 and the
+              editor into col 1 row 1. The rail also stays sticky on
+              desktop so completion guidance stays visible while editing. */}
+          <div className="mt-14 xl:mt-20 grid gap-y-10 xl:grid-cols-[64%_32%] xl:gap-x-[4%] xl:items-start">
+
+            {/* ── SUPPORT RAIL ── DOM-first so it appears below the hero
+                on mobile; placed into the right column on xl+. */}
+            <aside className="xl:col-start-2 xl:row-start-1 xl:sticky xl:top-32 space-y-6 min-w-0">
+              <section>
+                <header className="pb-4 border-b border-white/12 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-ink-muted">
+                    Profile completion
+                  </p>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <h2
+                      className="text-white text-[18px] leading-tight font-semibold tracking-tight"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {completionPct}% complete
+                    </h2>
+                    <span className="text-xs text-white/45">
+                      {filledCount} / {COMPLETION_FIELDS.length}
+                    </span>
+                  </div>
+                </header>
+
+                <div className="pt-4 space-y-4">
+                  <div
+                    className="w-full h-[6px] rounded-full overflow-hidden"
+                    style={{ background: "rgba(255,255,255,0.08)" }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${completionPct}%`,
+                        background:
+                          completionPct === 100
+                            ? "rgba(52,211,153,0.7)"
+                            : "linear-gradient(90deg, rgba(240,112,48,0.75), rgba(245,197,24,0.75))",
+                        transition: "width 0.4s ease",
+                      }}
+                    />
+                  </div>
+
+                  {missingFields.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-ink-muted">
+                        Still to add
+                      </p>
+                      <ul className="space-y-1.5">
+                        {missingFields.map((f) => (
+                          <li
+                            key={f.key}
+                            className="flex items-center gap-2 text-[13px] text-white/65"
+                          >
+                            <span
+                              aria-hidden
+                              className="inline-block h-1.5 w-1.5 rounded-full"
+                              style={{ background: "rgba(245,197,24,0.7)" }}
+                            />
+                            <span className="capitalize">{f.label}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="text-[13px] text-emerald-300/85">
+                      All identity fields are filled in.
+                    </p>
+                  )}
+
+                  {!isPublished && cleanHandle && !canPublish && publishDisabledReason && (
+                    <p className="text-[12px] text-amber-300/80 leading-relaxed pt-1">
+                      {publishDisabledReason}
+                    </p>
+                  )}
+                </div>
+              </section>
+            </aside>
+
+            {/* ── PROFILE EDITOR CANVAS ── */}
+            <div className="xl:col-start-1 xl:row-start-1 space-y-12 min-w-0">
+
+              {/* I · Identity */}
+              <section>
+                <header className="pb-5 border-b border-white/12 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-ink-muted">
+                    Section I
+                  </p>
+                  <h2
+                    className="text-white text-[22px] leading-tight font-semibold tracking-tight"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    Identity
+                  </h2>
+                </header>
+
+                <div className="pt-7 space-y-7">
+                  {/* Account email — read only */}
+                  <Field label="Account Email">
+                    <input value={email} readOnly style={{ ...inputStyle, opacity: 0.55, cursor: "not-allowed" }} />
+                  </Field>
+
+                  {/* Asset uploads — Profile Photo / Banner side-by-side at xl */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-7">
+                    <Field label="Profile Photo" hint="JPG, PNG, or WebP.">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-14 h-14 rounded-full overflow-hidden shrink-0 grid place-items-center"
+                          style={{
+                            background: "rgba(255,255,255,0.06)",
+                            border: "1px solid rgba(255,255,255,0.15)",
+                          }}
+                        >
+                          {form.avatarUrl ? (
+                            <img src={form.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-xl text-white/25">👤</span>
+                          )}
+                        </div>
+                        <label
+                          style={{
+                            cursor: uploadingAvatar ? "not-allowed" : "pointer",
+                            fontSize: 13,
+                            color: uploadingAvatar ? "rgba(255,255,255,0.3)" : "rgba(240,112,48,0.85)",
+                            borderBottom: "1px solid currentColor",
+                            paddingBottom: 1,
+                          }}
+                        >
+                          {uploadingAvatar
+                            ? "Uploading…"
+                            : form.avatarUrl
+                            ? "Replace photo"
+                            : "Add photo"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            hidden
+                            disabled={uploadingAvatar}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              await uploadAsset(file, "avatar");
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </Field>
+
+                    <Field label="Banner Image" hint="Wide image used at the top of your public profile.">
+                      <div className="space-y-3">
+                        <div
+                          className="w-full h-20 rounded-lg overflow-hidden"
+                          style={{
+                            backgroundImage: form.bannerUrl ? `url(${form.bannerUrl})` : "none",
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                            background: form.bannerUrl ? undefined : "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.15)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {!form.bannerUrl && (
+                            <span className="text-xs text-white/25">No banner added</span>
+                          )}
+                        </div>
+                        <label
+                          style={{
+                            cursor: uploadingBanner ? "not-allowed" : "pointer",
+                            fontSize: 13,
+                            color: uploadingBanner ? "rgba(255,255,255,0.3)" : "rgba(240,112,48,0.85)",
+                            borderBottom: "1px solid currentColor",
+                            paddingBottom: 1,
+                            display: "inline-block",
+                          }}
+                        >
+                          {uploadingBanner
+                            ? "Uploading…"
+                            : form.bannerUrl
+                            ? "Replace banner"
+                            : "Add banner"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            hidden
+                            disabled={uploadingBanner}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              await uploadAsset(file, "banner");
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </Field>
+                  </div>
+
+                  {/* Display name + Handle side-by-side at sm+ */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-7">
+                    <Field label="Display Name">
+                      <input
+                        value={form.displayName}
+                        onChange={(e) => handleChange("displayName", e.target.value)}
+                        placeholder="Your name or studio name"
+                        style={inputStyle}
+                      />
+                    </Field>
+
+                    <Field
+                      label="Handle / Username"
+                      hint="3–32 lowercase letters, digits, or hyphens."
+                    >
+                      <input
+                        value={form.handle}
+                        onChange={(e) => handleChange("handle", e.target.value)}
+                        placeholder="stormstudio"
+                        style={inputStyle}
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Bio" hint={`Up to ${BIO_MAX} characters.`}>
+                    <textarea
+                      value={form.bio}
+                      onChange={(e) => handleChange("bio", e.target.value.slice(0, BIO_MAX))}
+                      placeholder="Tell your story in a few sentences."
+                      style={{ ...inputStyle, height: 140, resize: "vertical" }}
+                    />
+                    <p
+                      style={{
+                        fontSize: 11,
+                        color: form.bio.length >= BIO_MAX ? "#ff6b6b" : "rgba(255,255,255,0.3)",
+                        marginTop: 6,
+                        textAlign: "right",
+                      }}
+                    >
+                      {form.bio.length}/{BIO_MAX}
+                    </p>
+                  </Field>
+                </div>
+              </section>
+
+              {/* II · Web Presence */}
+              <section>
+                <header className="pb-5 border-b border-white/12 space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-ink-muted">
+                    Section II
+                  </p>
+                  <h2
+                    className="text-white text-[22px] leading-tight font-semibold tracking-tight"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    Web Presence
+                  </h2>
+                </header>
+
+                <div className="pt-7 space-y-7">
+                  <Field label="Website">
+                    <input
+                      value={form.website}
+                      onChange={(e) => handleChange("website", e.target.value)}
+                      placeholder="https://yourdomain.com"
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <div>
+                    <p className="block text-sm font-medium text-white">
+                      External Links
+                    </p>
+                    <p className="text-xs text-ink-faint mt-1.5 mb-3">
+                      Up to {MAX_EXTERNAL_LINKS}. Each link must be a valid URL. Empty rows are dropped on save.
+                    </p>
+                    <div className="space-y-2.5">
+                      {form.externalLinks.map((l, idx) => (
+                        <div
+                          key={idx}
+                          className="grid grid-cols-1 sm:grid-cols-[200px_1fr_auto] gap-2 items-center"
+                        >
+                          <input
+                            value={l.label}
+                            onChange={(e) => setLinkAt(idx, { label: e.target.value })}
+                            placeholder="Label (optional)"
+                            style={inputStyle}
+                          />
+                          <input
+                            value={l.url}
+                            onChange={(e) => setLinkAt(idx, { url: e.target.value })}
+                            placeholder="https://example.com"
+                            style={inputStyle}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeLinkAt(idx)}
+                            style={{
+                              padding: "10px 14px",
+                              borderRadius: 8,
+                              background: "transparent",
+                              border: "1px solid rgba(255,255,255,0.14)",
+                              color: "rgba(255,255,255,0.55)",
+                              fontSize: 13,
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      {form.externalLinks.length < MAX_EXTERNAL_LINKS && (
+                        <button
+                          type="button"
+                          onClick={addLink}
+                          style={{
+                            alignSelf: "flex-start",
+                            padding: "10px 14px",
+                            borderRadius: 8,
+                            background: "transparent",
+                            border: "1px dashed rgba(255,255,255,0.18)",
+                            color: "rgba(240,112,48,0.85)",
+                            fontSize: 13,
+                            cursor: "pointer",
+                          }}
+                        >
+                          + Add link
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Sticky Save Bar — preserved.
+            Single source of truth for the save action; appears only when
+            there are unsaved changes or a transient status to surface.
+            Spans the viewport so it's reachable from any scroll position. */}
+      {(isDirty || savedMessage || error) && (
+        <div style={stickyBarStyle}>
+          <div className="w-full mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12 xl:px-14">
+            <div className="flex items-center justify-between gap-4 h-[56px] sm:h-[64px]">
+              <span
+                style={{
+                  fontSize: 13,
+                  color: savedMessage
+                    ? "rgba(52,211,153,0.9)"
+                    : error
+                    ? "#ff6b6b"
+                    : "rgba(255,255,255,0.55)",
+                }}
+              >
+                {savedMessage || error || "Unsaved changes"}
+              </span>
+              {isDirty && (
+                <button onClick={handleSave} disabled={saving} style={saveButtonStyle}>
+                  {saving ? "Saving…" : "Save Profile"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── Field primitive ── */
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label style={fieldLabelStyle}>{label}</label>
+      {hint && <p style={fieldHintStyle}>{hint}</p>}
+      {children}
     </div>
   );
 }
 
 /* ── Style constants ── */
 
-
-const heroAvatarStyle: CSSProperties = {
-  width: 96,
-  height: 96,
-  borderRadius: "50%",
-  background: "rgba(255,255,255,0.06)",
-  border: "2px solid rgba(255,255,255,0.12)",
-  overflow: "hidden",
-  flexShrink: 0,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const primaryButtonStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "10px 22px",
-  borderRadius: 10,
-  border: "none",
-  background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-  color: "black",
-  fontWeight: 600,
-  fontSize: 14,
-  textDecoration: "none",
-  cursor: "pointer",
-};
-
-const statusStripStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 16,
-  padding: "14px 20px",
-  marginBottom: 40,
-  borderRadius: 12,
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  flexWrap: "wrap",
-};
-
-const progressTrackStyle: CSSProperties = {
-  width: 80,
-  height: 6,
-  borderRadius: 3,
-  background: "rgba(255,255,255,0.08)",
-  overflow: "hidden",
-  flexShrink: 0,
-};
-
-const sectionHeadingStyle: CSSProperties = {
-  fontSize: 14,
-  fontWeight: 600,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: "rgba(255,255,255,0.35)",
-  marginBottom: 20,
-  paddingBottom: 10,
-  borderBottom: "1px solid rgba(255,255,255,0.06)",
-};
-
-const labelStyle: CSSProperties = {
-  display: "block",
-  fontSize: 12,
-  fontWeight: 600,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: "rgba(255,255,255,0.45)",
-  marginBottom: 8,
-};
-
 const inputStyle: CSSProperties = {
-  padding: "14px 16px",
+  padding: "12px 14px",
   borderRadius: 10,
   border: "1px solid rgba(255,255,255,0.15)",
-  background: "rgba(255,255,255,0.05)",
+  background: "rgba(255,255,255,0.04)",
   color: "white",
   outline: "none",
   width: "100%",
   boxSizing: "border-box",
+  fontSize: 14,
 };
 
-const editAvatarStyle: CSSProperties = {
-  width: 56,
-  height: 56,
-  borderRadius: "50%",
-  background: "rgba(255,255,255,0.07)",
-  border: "1px solid rgba(255,255,255,0.15)",
-  overflow: "hidden",
-  flexShrink: 0,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+const fieldLabelStyle: CSSProperties = {
+  display: "block",
+  fontSize: 13,
+  fontWeight: 500,
+  color: "rgba(255,255,255,0.92)",
+  marginBottom: 6,
 };
 
+const fieldHintStyle: CSSProperties = {
+  fontSize: 11,
+  color: "rgba(255,255,255,0.4)",
+  margin: "0 0 8px",
+};
 
 const stickyBarStyle: CSSProperties = {
   position: "fixed",
   bottom: 0,
   left: 0,
   right: 0,
-  padding: "14px 24px",
-  background: "rgba(12,12,15,0.95)",
-  borderTop: "1px solid rgba(255,255,255,0.1)",
-  backdropFilter: "blur(12px)",
+  background: "rgba(13,9,8,0.94)",
+  borderTop: "1px solid rgba(255,255,255,0.12)",
+  backdropFilter: "blur(14px)",
+  WebkitBackdropFilter: "blur(14px)",
   zIndex: 50,
 };
 
 const saveButtonStyle: CSSProperties = {
-  padding: "10px 28px",
+  padding: "10px 24px",
   borderRadius: 10,
   border: "none",
   background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
   color: "black",
-  fontWeight: 600,
-  fontSize: 14,
+  fontWeight: 700,
+  fontSize: 13,
   cursor: "pointer",
 };
