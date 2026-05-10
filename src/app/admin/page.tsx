@@ -811,12 +811,15 @@ export default function AdminPage() {
   // ── Phase 7.3 — Command-detail render helpers ──
   //
   // The Mission Control architecture renders the same detail content in
-  // two places: inline-under-row on mobile (lg:hidden) and in the right
-  // command panel on desktop (hidden lg:block). Both call sites pass the
-  // selected record into one of these helpers so the detail markup stays
-  // single-source. They are declared inside AdminPage so they close over
-  // the page state and handlers; behavior is preserved exactly — no API,
-  // schema, lifecycle, gate, license, or media logic moves.
+  // two places: inline-under-row on tablet/mobile (xl:hidden) and in the
+  // right command panel on desktop (hidden xl:block). Both call sites
+  // pass the selected record into one of these helpers so the detail
+  // markup stays single-source. They are declared inside AdminPage so
+  // they close over the page state and handlers; behavior is preserved
+  // exactly — no API, schema, lifecycle, gate, license, or media logic
+  // moves. Phase 7.3 Layer 2E.3: the two-column board collapses earlier
+  // (xl: instead of lg:) so the right detail panel never squeezes into
+  // a skinny sidebar at narrow desktop widths.
   function renderApplicationDetail(app: Application) {
     return (
       <div className="space-y-4">
@@ -1842,11 +1845,13 @@ export default function AdminPage() {
   }
 
   // ── Dashboard ──
-  // Phase 7.3 Layer 2E correction — Mission Control wide canvas. The
-  // board uses the same legitimate 100vw breakout used on New Work /
-  // Profile so the page is independent of any parent shell width and
-  // can run a true desktop board (~1680px max) with the queue +
-  // command-detail layout breathing across the full canvas. All
+  // Phase 7.3 Layer 2E.3 — Mission Control board anatomy. The wrapper
+  // uses the legitimate 100vw breakout pattern (parent shell agnostic)
+  // and the inner canvas runs to max-w-[1760px] with light horizontal
+  // padding so the board occupies most of the desktop canvas. The two-
+  // column queue + command-detail board now collapses at xl: (1280px)
+  // rather than lg:, with minmax(620,1fr)/(560,0.9fr) columns so the
+  // right detail panel can never squeeze into a skinny sidebar. All
   // existing handlers, payloads, gates, and state are preserved.
   return (
     <div
@@ -1857,7 +1862,7 @@ export default function AdminPage() {
         marginRight: "calc(50% - 50vw)",
       }}
     >
-      <div className="w-full mx-auto max-w-[1680px] px-4 sm:px-6 lg:px-10 xl:px-12">
+      <div className="w-full mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8">
       {/* Archive confirmation gate */}
       {archiveTarget && (
         <div
@@ -2553,7 +2558,7 @@ export default function AdminPage() {
               <p className="text-neutral-500 text-sm">No applications found.</p>
             </div>
           ) : (
-            <div className="lg:grid lg:grid-cols-[minmax(0,52fr)_minmax(0,44fr)] lg:gap-x-12">
+            <div className="xl:grid xl:grid-cols-[minmax(620px,1fr)_minmax(560px,0.9fr)] xl:gap-x-8">
               {/* LEFT — operational queue */}
               <div className="space-y-2">
                 {filtered.map((app) => {
@@ -2564,7 +2569,7 @@ export default function AdminPage() {
                       key={app.id}
                       className={`rounded-lg border overflow-hidden transition ${
                         isSelected
-                          ? "border-orange-500/40 bg-orange-500/[0.05] lg:bg-orange-500/[0.04]"
+                          ? "border-orange-500/40 bg-orange-500/[0.05] xl:bg-orange-500/[0.04]"
                           : "border-white/8 bg-white/[0.02] hover:border-white/15"
                       }`}
                     >
@@ -2602,7 +2607,7 @@ export default function AdminPage() {
                           </span>
                         </div>
                         <svg
-                          className={`lg:hidden w-4 h-4 text-neutral-500 transition-transform shrink-0 ${
+                          className={`xl:hidden w-4 h-4 text-neutral-500 transition-transform shrink-0 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                           fill="none"
@@ -2619,7 +2624,7 @@ export default function AdminPage() {
                       </button>
 
                       {/* Mobile inline expansion (hidden on desktop) */}
-                      <div className="lg:hidden">
+                      <div className="xl:hidden">
                         {isExpanded && (
                           <div className="px-5 pb-5 border-t border-white/5 pt-4">
                             {renderApplicationDetail(app)}
@@ -2632,8 +2637,8 @@ export default function AdminPage() {
               </div>
 
               {/* RIGHT — command detail (desktop only) */}
-              <aside className="hidden lg:block">
-                <div className="lg:sticky lg:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-7 max-h-[calc(100vh-7rem)] overflow-y-auto">
+              <aside className="hidden xl:block">
+                <div className="xl:sticky xl:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-7 max-h-[calc(100vh-7rem)] overflow-y-auto">
                   {selectedApplication ? (
                     renderApplicationDetail(selectedApplication)
                   ) : (
@@ -2786,7 +2791,7 @@ export default function AdminPage() {
           )}
 
           {!projectLoading && filteredProjects.length > 0 && (
-            <div className="lg:grid lg:grid-cols-[minmax(0,52fr)_minmax(0,44fr)] lg:gap-x-12">
+            <div className="xl:grid xl:grid-cols-[minmax(620px,1fr)_minmax(560px,0.9fr)] xl:gap-x-8">
               {/* LEFT — operational queue */}
               <div className="space-y-2">
                 {filteredProjects.map((project) => {
@@ -2802,7 +2807,7 @@ export default function AdminPage() {
                       key={project.id}
                       className={`rounded-lg border overflow-hidden transition ${
                         isSelected
-                          ? "border-orange-500/40 bg-orange-500/[0.05] lg:bg-orange-500/[0.04]"
+                          ? "border-orange-500/40 bg-orange-500/[0.05] xl:bg-orange-500/[0.04]"
                           : "border-white/8 bg-white/[0.02] hover:border-white/15"
                       }`}
                     >
@@ -2845,7 +2850,7 @@ export default function AdminPage() {
                           </span>
                         </div>
                         <svg
-                          className={`lg:hidden w-4 h-4 text-neutral-500 transition-transform shrink-0 ${
+                          className={`xl:hidden w-4 h-4 text-neutral-500 transition-transform shrink-0 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                           fill="none"
@@ -2862,7 +2867,7 @@ export default function AdminPage() {
                       </button>
 
                       {/* Mobile inline expansion (hidden on desktop) */}
-                      <div className="lg:hidden">
+                      <div className="xl:hidden">
                         {isExpanded && (
                           <div className="px-5 pb-5 border-t border-white/5 pt-4">
                             {renderProjectDetail(project)}
@@ -2875,8 +2880,8 @@ export default function AdminPage() {
               </div>
 
               {/* RIGHT — command detail (desktop only) */}
-              <aside className="hidden lg:block">
-                <div className="lg:sticky lg:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-7 max-h-[calc(100vh-7rem)] overflow-y-auto">
+              <aside className="hidden xl:block">
+                <div className="xl:sticky xl:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-7 max-h-[calc(100vh-7rem)] overflow-y-auto">
                   {selectedWork ? (
                     renderProjectDetail(selectedWork)
                   ) : (
