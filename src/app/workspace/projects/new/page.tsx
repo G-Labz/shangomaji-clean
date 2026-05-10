@@ -263,14 +263,16 @@ export default function WorkspaceNewProject() {
         <p className="mt-4 text-brand-red text-sm">{errors.save}</p>
       )}
 
-      {/* ─────────────────────────── TOP DESK ZONE ───────────────────────────
+      {/* ─────────────────────────── TOP INTAKE GRID ───────────────────────────
           Two-column desk on lg+:
-            LEFT  minmax(620px, 1fr)  — Work Identity (wide creative brief)
-            RIGHT minmax(380px, 440px) — vertical support rail wrapping
-                                         Submission Actions then Release Assets
+            LEFT  minmax(620px, 1fr)   — Work Identity (wide creative brief)
+            RIGHT minmax(380px, 440px) — Release Assets (release checklist)
+
+          Submission Actions live in the full-width Bottom Command Footer
+          below the Submission Declaration; they are NOT in this grid.
 
           DOM source order = mobile order:
-            Work Identity → Submission Actions → Release Assets → Submission Declaration */}
+            Work Identity → Release Assets → Submission Declaration → Bottom Command Footer */}
       <div
         className="mt-8 flex flex-col gap-8 lg:grid lg:items-start lg:gap-10"
         style={{ gridTemplateColumns: "minmax(620px, 1fr) minmax(380px, 440px)" }}
@@ -366,87 +368,13 @@ export default function WorkspaceNewProject() {
           </Field>
         </Card>
 
-        {/* RIGHT — vertical support rail. Wraps Submission Actions and
-            Release Assets together so they share one grid cell and stack
-            naturally on mobile in the required order (Actions → Assets). */}
-        <div className="flex flex-col gap-6 min-w-0">
-          {/* Submission Actions — single source of truth. No duplicate
-              footer action bar lives anywhere else on this page. */}
-          <Card className="space-y-4">
-            <SectionHeading title="Submission Actions" />
-            <div
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
-                readyForReview
-                  ? "border-emerald-500/30 bg-emerald-500/5"
-                  : "border-amber-500/30 bg-amber-500/5"
-              }`}
-            >
-              <ReadinessChip
-                tone={readyForReview ? "emerald" : "amber"}
-                label={readyForReview ? "Ready" : "Draft mode"}
-              />
-              <p className="text-[11px] text-ink-faint leading-snug">
-                {readyForReview ? "Declaration complete." : "Declaration incomplete."}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={submitForReview}
-                disabled={saving || submitting}
-                style={{
-                  width: "100%",
-                  padding: "12px 18px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-                  color: "black",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: saving || submitting ? "not-allowed" : "pointer",
-                  opacity: saving || submitting ? 0.6 : 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                }}
-              >
-                {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                {submitting ? "Submitting..." : "Submit for Review"}
-              </button>
-              <button
-                onClick={saveDraft}
-                disabled={saving || submitting}
-                style={{
-                  width: "100%",
-                  padding: "10px 18px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  background: "transparent",
-                  color: "rgba(255,255,255,0.78)",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: saving || submitting ? "not-allowed" : "pointer",
-                  opacity: saving || submitting ? 0.5 : 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                }}
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {saving ? "Saving..." : saved ? "Saved" : "Save Draft"}
-              </button>
-            </div>
-            <p className="text-[11px] text-ink-muted leading-relaxed">
-              Save as draft to continue later, or submit when the required declaration is complete.
-            </p>
-          </Card>
-
-          {/* Release Assets — supporting material. Three groups:
-              Artwork → Trailer & deliverables → Private subsection.
-              sample_url stays creator/admin-private; field name and
-              payload key unchanged. */}
-          <Card className="space-y-6">
+        {/* RIGHT — Release Assets only. Submission Actions live in the
+            full-width command footer at the bottom of the page; no
+            actions or readiness controls are duplicated here.
+            Three groups: Artwork → Trailer & deliverables → Private
+            subsection. sample_url stays creator/admin-private; field
+            name and payload key unchanged. */}
+        <Card className="space-y-6 min-w-0">
             <SectionHeading
               title="Release Assets"
               description="These ship with your release. Add what you have; remaining items can come later."
@@ -609,7 +537,6 @@ export default function WorkspaceNewProject() {
               </Field>
             </div>
           </Card>
-        </div>
       </div>
 
       {/* ─────────────── SUBMISSION DECLARATION ZONE ───────────────
@@ -629,6 +556,80 @@ export default function WorkspaceNewProject() {
             onChange={setIntegrity}
             fieldError={integrityError}
           />
+        </div>
+      </Card>
+
+      {/* ─────────────── BOTTOM COMMAND FOOTER ───────────────
+          Full-width institutional final checkpoint. Single source of
+          truth for Submit for Review and Save Draft on this page. No
+          sticky, no floating, no duplicate action area. */}
+      <Card className="mt-8 px-5 py-5 sm:px-7 sm:py-6 lg:px-8 lg:py-7">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+          <div className="flex items-start gap-3 min-w-0">
+            <ReadinessChip
+              tone={readyForReview ? "emerald" : "amber"}
+              label={readyForReview ? "Ready" : "Draft mode"}
+            />
+            <div className="min-w-0">
+              <p className="text-sm text-white font-medium leading-snug">
+                {readyForReview
+                  ? "Ready for review — declaration complete."
+                  : "Draft mode — declaration incomplete."}
+              </p>
+              <p className="text-xs text-ink-muted leading-relaxed mt-1 max-w-xl">
+                Save as draft to continue later, or submit when the required declaration is complete.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 lg:shrink-0">
+            <button
+              onClick={saveDraft}
+              disabled={saving || submitting}
+              style={{
+                padding: "12px 22px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "transparent",
+                color: "rgba(255,255,255,0.78)",
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: saving || submitting ? "not-allowed" : "pointer",
+                opacity: saving || submitting ? 0.5 : 1,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                minWidth: 160,
+              }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {saving ? "Saving..." : saved ? "Saved" : "Save Draft"}
+            </button>
+            <button
+              onClick={submitForReview}
+              disabled={saving || submitting}
+              style={{
+                padding: "12px 26px",
+                borderRadius: 12,
+                border: "none",
+                background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                color: "black",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: saving || submitting ? "not-allowed" : "pointer",
+                opacity: saving || submitting ? 0.6 : 1,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                minWidth: 200,
+              }}
+            >
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {submitting ? "Submitting..." : "Submit for Review"}
+            </button>
+          </div>
         </div>
       </Card>
     </div>
