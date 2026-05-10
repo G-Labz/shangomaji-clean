@@ -17,7 +17,6 @@
 
 import {
   THESIS_PATHS,
-  THESIS_PATH_LABELS,
   AI_USAGE_VALUES,
   AI_USAGE_LABELS,
   PRIOR_DISTRIBUTION_VALUES,
@@ -103,6 +102,20 @@ export function checkIntegrity(s: IntegrityState) {
   return validateCreatorIntegrity(s as unknown as CreatorIntegrityInput);
 }
 
+// Phase 7.3 Layer 2C — creator-facing thesis labels.
+// The shared THESIS_PATH_LABELS map remains the canonical admin/audit
+// label (it backs admin review surfaces, decision records, and downstream
+// reporting). The creator submission UI shows a more welcoming framing
+// while writing the same enum values to the same `thesis_path` column.
+// One enum value, one display label per surface — no schema change, no
+// API change, no validator change.
+const CREATOR_THESIS_LABELS: Record<ThesisPath, string> = {
+  black_creator:                "Culture-led story",
+  meaningful_black_characters:  "Meaningful Black / Afro-descendant characters",
+  both:                         "Black or Afro-influenced worldbuilding",
+  edge_case:                    "Other cultural fit / explain below",
+};
+
 const LICENSE_AWARENESS_COPY =
   "I understand this is a licensing submission, not a publishing platform. " +
   "If accepted, this work requires a signed distribution license before " +
@@ -133,10 +146,10 @@ export default function SubmissionIntegrityForm({
       <DossierPanel
         marker="A"
         title="Thesis Declaration"
-        helper="How does this work meet ShangoMaji’s thesis?"
+        helper="How does this work meet ShangoMaji’s thesis? Choose the closest cultural fit and explain in your own words."
       >
         <ChoiceGrid
-          options={THESIS_PATHS.map((p) => ({ value: p, label: THESIS_PATH_LABELS[p] }))}
+          options={THESIS_PATHS.map((p) => ({ value: p, label: CREATOR_THESIS_LABELS[p] }))}
           selected={value.thesis_path}
           onSelect={(v) => set("thesis_path")(v as ThesisPath)}
         />

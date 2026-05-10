@@ -205,36 +205,38 @@ export default function WorkspaceNewProject() {
   const readyForReview = coreComplete && declarationComplete;
 
   return (
-    <div className="max-w-6xl mx-auto pb-12">
-      {/* Header band */}
-      <div>
-        <p className="text-[11px] uppercase tracking-[0.18em] text-ink-muted mb-2">
+    <div className="mx-auto max-w-[1500px] px-6 lg:px-8 pb-14">
+      {/* Header — restrained eyebrow + display title + body. Reads as a
+          studio submission desk, not a form heading. */}
+      <header className="pt-2">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-ink-muted">
           Studio submission dossier
         </p>
         <h1
-          className="font-bold text-2xl text-white tracking-tight"
+          className="mt-2 font-bold text-3xl lg:text-[34px] text-white tracking-tight leading-tight"
           style={{ fontFamily: "var(--font-display)" }}
         >
           New Work
         </h1>
-        <p className="text-ink-faint text-sm mt-2 max-w-2xl leading-relaxed">
-          Prepare the work, declaration, and release assets for ShangoMaji review. Save as draft anytime; submission requires a complete declaration.
+        <p className="mt-3 text-ink-faint text-sm max-w-2xl leading-relaxed">
+          Prepare the work, declaration, and release assets for ShangoMaji review.
         </p>
-      </div>
+      </header>
 
-      {/* Compact readiness strip — derived from existing validation gates */}
+      {/* Readiness strip — full-width institutional bar across the desk.
+          No progress bar, no percentage, no animation. */}
       <div
-        className={`mt-4 inline-flex items-center gap-3 rounded-full border px-3 py-1.5 ${
+        className={`mt-6 flex items-center gap-3 rounded-xl border px-4 py-3 ${
           readyForReview
-            ? "border-emerald-500/30 bg-emerald-500/5"
-            : "border-amber-500/30 bg-amber-500/5"
+            ? "border-emerald-500/30 bg-emerald-500/[0.05]"
+            : "border-amber-500/30 bg-amber-500/[0.04]"
         }`}
       >
         <ReadinessChip
           tone={readyForReview ? "emerald" : "amber"}
           label={readyForReview ? "Ready" : "Draft mode"}
         />
-        <p className="text-[11px] text-ink-faint leading-snug">
+        <p className="text-xs text-ink-faint leading-snug">
           {readyForReview
             ? "Ready for review — declaration complete."
             : "Draft mode — save anytime. Review requires a complete declaration."}
@@ -257,14 +259,29 @@ export default function WorkspaceNewProject() {
         </div>
       )}
 
-      {/* Studio Desk — two-column on desktop, stacked on mobile.
-          Mobile source order: Identity → Release Assets → Declaration → Actions.
-          Desktop visual: Identity (top-left) | Release Assets (top-right);
-                          Declaration (bottom-left) | Actions (bottom-right, sticky). */}
-      <div className="mt-6 lg:flex lg:items-start lg:gap-6">
-        {/* Left/main column — Work Identity + Submission Declaration */}
-        <div className="lg:flex-1 min-w-0 space-y-6">
-          {/* Section 1 — Work Identity */}
+      {errors.save && (
+        <p className="mt-4 text-brand-red text-sm">{errors.save}</p>
+      )}
+
+      {/* Studio Desk — three-zone canvas on desktop, single-column source-
+          order stack on mobile.
+          Source order (= mobile order): Identity → Release Assets →
+          Submission Declaration → Submission Actions.
+          Desktop visual:
+            col 1 (compact)  Work Identity     (row 1)
+            col 2 (dominant) Submission Declaration  (rows 1–2)
+            col 3 (rail)     Release Assets    (row 1)
+                             Submission Actions (row 2, sticky) */}
+      <div
+        className="mt-8 flex flex-col gap-6 lg:grid lg:gap-8"
+        style={{
+          gridTemplateColumns:
+            "minmax(320px, 420px) minmax(520px, 1fr) minmax(300px, 360px)",
+          gridAutoRows: "min-content",
+        }}
+      >
+        {/* LEFT — Work Identity */}
+        <section className="min-w-0 lg:col-start-1 lg:row-start-1">
           <Card className="space-y-5">
             <SectionHeading title="Work Identity" />
             <div className="grid md:grid-cols-2 gap-4">
@@ -299,7 +316,7 @@ export default function WorkspaceNewProject() {
                 value={draft.synopsis}
                 onChange={(e) => set("synopsis")(e.target.value)}
                 placeholder="Tell the full story, key beats, and what makes it special."
-                rows={4}
+                rows={5}
               />
             </Field>
             <div className="grid md:grid-cols-2 gap-4">
@@ -327,29 +344,10 @@ export default function WorkspaceNewProject() {
               </Field>
             </div>
           </Card>
+        </section>
 
-          {/* Section 3 (left bottom) — Submission Declaration */}
-          <Card className="space-y-4">
-            <SectionHeading
-              title="Submission Declaration"
-              description="Required for review. Drafts may be saved without it."
-            />
-            <SubmissionIntegrityForm
-              value={integrity}
-              onChange={setIntegrity}
-              fieldError={integrityError}
-            />
-          </Card>
-
-          {errors.save && <p className="text-brand-red text-sm">{errors.save}</p>}
-        </div>
-
-        {/* Right rail — Release Assets + Submission Actions.
-            On desktop the rail stretches to match the left column height;
-            the Actions panel pins via sticky positioning. On mobile this
-            block stacks below the left column with no sticky. */}
-        <aside className="mt-6 lg:mt-0 lg:w-[340px] lg:shrink-0 space-y-6">
-          {/* Section 2 — Release Assets (with private sample subsection) */}
+        {/* RIGHT — Release Assets (row 1) */}
+        <section className="min-w-0 lg:col-start-3 lg:row-start-1">
           <Card className="space-y-6">
             <SectionHeading
               title="Release Assets"
@@ -481,13 +479,28 @@ export default function WorkspaceNewProject() {
               </Field>
             </div>
           </Card>
+        </section>
 
-          {/* Submission Actions panel — pinned on desktop via sticky so
-              the creator can submit without scrolling back up. The aside
-              parent stretches to the left column's height (lg:flex
-              align-stretch default), so the sticky element stays in
-              view through the entire scroll until the column ends. */}
-          <div className="lg:sticky lg:top-[140px]">
+        {/* CENTER — Submission Declaration. Spans both desktop rows so it
+            reads as the dominant institutional panel and gives the right-
+            rail row 2 enough vertical runway for sticky Actions. */}
+        <section className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <Card className="space-y-5">
+            <SectionHeading
+              title="Submission Declaration"
+              description="Required for review. Drafts may be saved without it."
+            />
+            <SubmissionIntegrityForm
+              value={integrity}
+              onChange={setIntegrity}
+              fieldError={integrityError}
+            />
+          </Card>
+        </section>
+
+        {/* RIGHT — Submission Actions (row 2, sticky on desktop) */}
+        <section className="min-w-0 lg:col-start-3 lg:row-start-2">
+          <div className="lg:sticky lg:top-[120px]">
             <Card className="space-y-4">
               <SectionHeading title="Submission Actions" />
               <div
@@ -513,8 +526,8 @@ export default function WorkspaceNewProject() {
                   disabled={saving || submitting}
                   style={{
                     width: "100%",
-                    padding: "10px 18px",
-                    borderRadius: 10,
+                    padding: "12px 18px",
+                    borderRadius: 12,
                     border: "none",
                     background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
                     color: "black",
@@ -537,7 +550,7 @@ export default function WorkspaceNewProject() {
                   style={{
                     width: "100%",
                     padding: "10px 18px",
-                    borderRadius: 10,
+                    borderRadius: 12,
                     border: "1px solid rgba(255,255,255,0.15)",
                     background: "transparent",
                     color: "rgba(255,255,255,0.7)",
@@ -560,7 +573,7 @@ export default function WorkspaceNewProject() {
               </p>
             </Card>
           </div>
-        </aside>
+        </section>
       </div>
     </div>
   );
