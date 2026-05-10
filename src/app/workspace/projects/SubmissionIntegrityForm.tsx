@@ -147,6 +147,7 @@ export default function SubmissionIntegrityForm({
         marker="A"
         title="Thesis Declaration"
         helper="How does this work meet ShangoMaji’s thesis? Choose the closest cultural fit and explain in your own words."
+        topRule={false}
       >
         <ChoiceGrid
           options={THESIS_PATHS.map((p) => ({ value: p, label: CREATOR_THESIS_LABELS[p] }))}
@@ -228,6 +229,12 @@ export default function SubmissionIntegrityForm({
         />
       </DossierPanel>
 
+      {/* D + E paired side-by-side on wider boards. Both are
+          choice-grid sections with optional follow-up textareas — the
+          symmetry shortens the dossier without changing any data
+          behavior. Each panel still carries its own top rule, which
+          read as one continuous divider above the row. */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-x-10">
       {/* D. AI Disclosure */}
       <DossierPanel
         marker="D"
@@ -276,6 +283,7 @@ export default function SubmissionIntegrityForm({
           </DossierField>
         )}
       </DossierPanel>
+      </div>
 
       {/* F. License Awareness — institutional callout */}
       <div className="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-5">
@@ -316,15 +324,23 @@ function DossierPanel({
   marker,
   title,
   helper,
+  topRule = true,
   children,
 }: {
   marker: string;
   title: string;
   helper?: string;
+  topRule?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="py-7 border-t border-white/8 first:border-t-0 first:pt-2 space-y-4">
+    <section
+      className={
+        topRule
+          ? "py-7 border-t border-white/8 space-y-4"
+          : "pt-2 pb-7 space-y-4"
+      }
+    >
       <header className="space-y-1.5">
         <p className="text-[10px] uppercase tracking-[0.22em] text-ink-muted">
           Section {marker}

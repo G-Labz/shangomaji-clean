@@ -205,26 +205,29 @@ export default function WorkspaceNewProject() {
   const readyForReview = coreComplete && declarationComplete;
 
   return (
-    <div className="mx-auto max-w-[1500px] px-6 lg:px-8 pb-14">
-      {/* Header — restrained eyebrow + display title + body. Reads as a
-          studio submission desk, not a form heading. */}
-      <header className="pt-2">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-ink-muted">
-          Studio submission dossier
-        </p>
-        <h1
-          className="mt-2 font-bold text-3xl lg:text-[34px] text-white tracking-tight leading-tight"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          New Work
-        </h1>
-        <p className="mt-3 text-ink-faint text-sm max-w-2xl leading-relaxed">
-          Prepare the work, declaration, and release assets for ShangoMaji review.
-        </p>
+    <div className="mx-auto max-w-[1600px] px-5 sm:px-6 lg:px-10 pb-14">
+      {/* Command header — eyebrow + title + subtitle. The readiness strip
+          renders as a full-width status bar directly below, so the page
+          opens with a real command/status block, not a floating pill. */}
+      <header className="pt-2 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-ink-muted">
+            Studio submission dossier
+          </p>
+          <h1
+            className="mt-2 font-bold text-3xl lg:text-[36px] text-white tracking-tight leading-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            New Work
+          </h1>
+          <p className="mt-3 text-ink-faint text-sm max-w-2xl leading-relaxed">
+            Prepare the work, declaration, and release assets for ShangoMaji review.
+          </p>
+        </div>
       </header>
 
-      {/* Readiness strip — full-width institutional bar across the desk.
-          No progress bar, no percentage, no animation. */}
+      {/* Readiness command/status strip — institutional bar across the
+          full board width. */}
       <div
         className={`mt-6 flex items-center gap-3 rounded-xl border px-4 py-3 ${
           readyForReview
@@ -263,97 +266,119 @@ export default function WorkspaceNewProject() {
         <p className="mt-4 text-brand-red text-sm">{errors.save}</p>
       )}
 
-      {/* Studio Desk — three-zone canvas on desktop, single-column source-
-          order stack on mobile.
-          Source order (= mobile order): Identity → Release Assets →
-          Submission Declaration → Submission Actions.
-          Desktop visual:
-            col 1 (compact)  Work Identity     (row 1)
-            col 2 (dominant) Submission Declaration  (rows 1–2)
-            col 3 (rail)     Release Assets    (row 1)
-                             Submission Actions (row 2, sticky) */}
+      {/* Studio Intake Board — two-zone wide canvas.
+          Source order (= mobile order):
+            Work Identity → Release Assets → Submission Declaration → Submission Actions.
+          Desktop placement:
+            LEFT zone   col 1   row 1  Work Identity (wide horizontal panel)
+            LEFT zone   col 1   row 2  Submission Declaration (wide institutional)
+            RIGHT zone  col 2   row 1  Submission Actions (docked top)
+            RIGHT zone  col 2   row 2  Release Assets (release checklist)
+          No sticky — Actions sits docked at the top of the right command
+          zone so it never floats mid-page. */}
       <div
         className="mt-8 flex flex-col gap-6 lg:grid lg:gap-8"
         style={{
-          gridTemplateColumns:
-            "minmax(320px, 420px) minmax(520px, 1fr) minmax(300px, 360px)",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 420px)",
           gridAutoRows: "min-content",
         }}
       >
-        {/* LEFT — Work Identity */}
+        {/* LEFT ZONE · row 1 — Work Identity (wide horizontal brief panel) */}
         <section className="min-w-0 lg:col-start-1 lg:row-start-1">
           <Card className="space-y-5">
             <SectionHeading title="Work Identity" />
-            <div className="grid md:grid-cols-2 gap-4">
-              <Field label="Title" error={errors.title}>
-                <input value={draft.title} onChange={(e) => set("title")(e.target.value)} placeholder="Project title" />
-              </Field>
-              <Field label="Type" error={errors.type}>
-                <div className="grid grid-cols-3 gap-2">
-                  {TYPES.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => set("type")(t)}
-                      className={`py-2 px-3 rounded-lg border text-sm transition ${
-                        draft.type === t
-                          ? "border-transparent text-black"
-                          : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                      }`}
-                      style={draft.type === t ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" } : {}}
-                      type="button"
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-            </div>
-            <Field label="Logline" error={errors.logline} hint="One to two sentences.">
-              <input value={draft.logline} onChange={(e) => set("logline")(e.target.value)} placeholder="A young warrior..." />
-            </Field>
-            <Field label="Synopsis" hint="Optional detailed description.">
-              <textarea
-                value={draft.synopsis}
-                onChange={(e) => set("synopsis")(e.target.value)}
-                placeholder="Tell the full story, key beats, and what makes it special."
-                rows={5}
-              />
-            </Field>
-            <div className="grid md:grid-cols-2 gap-4">
-              <Field label="Genre" error={errors.genre}>
-                <div className="flex flex-wrap gap-2">
-                  {GENRES.map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => set("genre")(g)}
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-                        draft.genre === g
-                          ? "border-transparent text-black"
-                          : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                      }`}
-                      style={draft.genre === g ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" } : {}}
-                      type="button"
-                    >
-                      {g}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-              <Field label="Runtime / Episode count">
-                <input value={draft.runtime} onChange={(e) => set("runtime")(e.target.value)} placeholder="e.g., 6 x 22min" />
-              </Field>
+            {/* 12-col internal grid keeps Title/Type and Genre/Runtime as
+                clean horizontal rows on the wide left zone, while Logline
+                and Synopsis breathe across the full width. */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
+              <div className="lg:col-span-8">
+                <Field label="Title" error={errors.title}>
+                  <input value={draft.title} onChange={(e) => set("title")(e.target.value)} placeholder="Project title" />
+                </Field>
+              </div>
+              <div className="lg:col-span-4">
+                <Field label="Type" error={errors.type}>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TYPES.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => set("type")(t)}
+                        className={`py-2 px-3 rounded-lg border text-sm transition ${
+                          draft.type === t
+                            ? "border-transparent text-black"
+                            : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                        }`}
+                        style={draft.type === t ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" } : {}}
+                        type="button"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+              </div>
+
+              <div className="lg:col-span-12">
+                <Field label="Logline" error={errors.logline} hint="One to two sentences.">
+                  <input value={draft.logline} onChange={(e) => set("logline")(e.target.value)} placeholder="A young warrior..." />
+                </Field>
+              </div>
+
+              <div className="lg:col-span-12">
+                <Field label="Synopsis" hint="Optional detailed description.">
+                  <textarea
+                    value={draft.synopsis}
+                    onChange={(e) => set("synopsis")(e.target.value)}
+                    placeholder="Tell the full story, key beats, and what makes it special."
+                    rows={5}
+                  />
+                </Field>
+              </div>
+
+              <div className="lg:col-span-8">
+                <Field label="Genre" error={errors.genre}>
+                  <div className="flex flex-wrap gap-2">
+                    {GENRES.map((g) => (
+                      <button
+                        key={g}
+                        onClick={() => set("genre")(g)}
+                        className={`px-3 py-1.5 rounded-lg text-xs border transition ${
+                          draft.genre === g
+                            ? "border-transparent text-black"
+                            : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                        }`}
+                        style={draft.genre === g ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" } : {}}
+                        type="button"
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+              </div>
+              <div className="lg:col-span-4">
+                <Field label="Runtime / Episode count">
+                  <input value={draft.runtime} onChange={(e) => set("runtime")(e.target.value)} placeholder="e.g., 6 x 22min" />
+                </Field>
+              </div>
             </div>
           </Card>
         </section>
 
-        {/* RIGHT — Release Assets (row 1) */}
-        <section className="min-w-0 lg:col-start-3 lg:row-start-1">
+        {/* RIGHT ZONE · row 2 — Release Assets (release checklist).
+            Sits below the Submission Actions panel so the command panel
+            remains docked at the top of the right zone. */}
+        <section className="min-w-0 lg:col-start-2 lg:row-start-2">
           <Card className="space-y-6">
             <SectionHeading
               title="Release Assets"
               description="These ship with your release. Add what you have; remaining items can come later."
             />
 
+            {/* Group 1 — Artwork */}
+            <p className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">
+              Artwork
+            </p>
             <UploadField
               label="Poster / Thumbnail"
               hint="Square or 2:3 portrait recommended."
@@ -433,13 +458,18 @@ export default function WorkspaceNewProject() {
             />
             {errors.stills && <p className="text-xs text-brand-red">{errors.stills}</p>}
 
-            <Field label="Trailer URL" hint="An outbound link. Your public title page renders this as a single “Watch trailer” button.">
-              <input value={draft.trailerUrl} onChange={(e) => set("trailerUrl")(e.target.value)} placeholder="https://youtube.com/... or direct link" />
-            </Field>
+            {/* Group 2 — Trailer & deliverables */}
+            <div className="border-t border-white/8 pt-5 space-y-5">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">
+                Trailer & deliverables
+              </p>
+              <Field label="Trailer URL" hint="An outbound link. Your public title page renders this as a single “Watch trailer” button.">
+                <input value={draft.trailerUrl} onChange={(e) => set("trailerUrl")(e.target.value)} placeholder="https://youtube.com/... or direct link" />
+              </Field>
 
-            <div>
-              <p className="text-sm font-medium text-white mb-2">Deliverables</p>
-              <p className="text-xs text-ink-faint mb-3">These assets ship with your release.</p>
+              <div>
+                <p className="text-sm font-medium text-white mb-1">Deliverables</p>
+                <p className="text-xs text-ink-faint mb-3">Mark every asset that will ship with this release.</p>
               <div className="space-y-2">
                 {DELIVERABLES.map((item) => {
                   const on = draft.deliverables.includes(item);
@@ -461,6 +491,7 @@ export default function WorkspaceNewProject() {
                   );
                 })}
               </div>
+              </div>
             </div>
 
             {/* Private subsection — visually separated. Server still
@@ -481,10 +512,10 @@ export default function WorkspaceNewProject() {
           </Card>
         </section>
 
-        {/* CENTER — Submission Declaration. Spans both desktop rows so it
-            reads as the dominant institutional panel and gives the right-
-            rail row 2 enough vertical runway for sticky Actions. */}
-        <section className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+        {/* LEFT ZONE · row 2 — Submission Declaration (wide institutional
+            panel). Stops being a tall narrow wall by riding the full
+            left-zone width; D + E pair side-by-side internally. */}
+        <section className="min-w-0 lg:col-start-1 lg:row-start-2">
           <Card className="space-y-5">
             <SectionHeading
               title="Submission Declaration"
@@ -498,81 +529,80 @@ export default function WorkspaceNewProject() {
           </Card>
         </section>
 
-        {/* RIGHT — Submission Actions (row 2, sticky on desktop) */}
-        <section className="min-w-0 lg:col-start-3 lg:row-start-2">
-          <div className="lg:sticky lg:top-[120px]">
-            <Card className="space-y-4">
-              <SectionHeading title="Submission Actions" />
-              <div
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
-                  readyForReview
-                    ? "border-emerald-500/30 bg-emerald-500/5"
-                    : "border-amber-500/30 bg-amber-500/5"
-                }`}
-              >
-                <ReadinessChip
-                  tone={readyForReview ? "emerald" : "amber"}
-                  label={readyForReview ? "Ready" : "Draft mode"}
-                />
-                <p className="text-[11px] text-ink-faint leading-snug">
-                  {readyForReview
-                    ? "Declaration complete."
-                    : "Declaration incomplete."}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={submitForReview}
-                  disabled={saving || submitting}
-                  style={{
-                    width: "100%",
-                    padding: "12px 18px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-                    color: "black",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: saving || submitting ? "not-allowed" : "pointer",
-                    opacity: saving || submitting ? 0.6 : 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                  }}
-                >
-                  {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  {submitting ? "Submitting..." : "Submit for Review"}
-                </button>
-                <button
-                  onClick={saveDraft}
-                  disabled={saving || submitting}
-                  style={{
-                    width: "100%",
-                    padding: "10px 18px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: "transparent",
-                    color: "rgba(255,255,255,0.7)",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: saving || submitting ? "not-allowed" : "pointer",
-                    opacity: saving || submitting ? 0.5 : 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                  }}
-                >
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  {saving ? "Saving..." : saved ? "Saved" : "Save Draft"}
-                </button>
-              </div>
-              <p className="text-[11px] text-ink-muted leading-relaxed">
-                Save as draft to continue later, or submit when the required declaration is complete.
+        {/* RIGHT ZONE · row 1 — Submission Actions (docked at the top of
+            the right command zone). No sticky. */}
+        <section className="min-w-0 lg:col-start-2 lg:row-start-1">
+          <Card className="space-y-4">
+            <SectionHeading title="Submission Actions" />
+            <div
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                readyForReview
+                  ? "border-emerald-500/30 bg-emerald-500/5"
+                  : "border-amber-500/30 bg-amber-500/5"
+              }`}
+            >
+              <ReadinessChip
+                tone={readyForReview ? "emerald" : "amber"}
+                label={readyForReview ? "Ready" : "Draft mode"}
+              />
+              <p className="text-[11px] text-ink-faint leading-snug">
+                {readyForReview
+                  ? "Declaration complete."
+                  : "Declaration incomplete."}
               </p>
-            </Card>
-          </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={submitForReview}
+                disabled={saving || submitting}
+                style={{
+                  width: "100%",
+                  padding: "12px 18px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                  color: "black",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: saving || submitting ? "not-allowed" : "pointer",
+                  opacity: saving || submitting ? 0.6 : 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {submitting ? "Submitting..." : "Submit for Review"}
+              </button>
+              <button
+                onClick={saveDraft}
+                disabled={saving || submitting}
+                style={{
+                  width: "100%",
+                  padding: "10px 18px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: saving || submitting ? "not-allowed" : "pointer",
+                  opacity: saving || submitting ? 0.5 : 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {saving ? "Saving..." : saved ? "Saved" : "Save Draft"}
+              </button>
+            </div>
+            <p className="text-[11px] text-ink-muted leading-relaxed">
+              Save as draft to continue later, or submit when the required declaration is complete.
+            </p>
+          </Card>
         </section>
       </div>
     </div>
