@@ -229,6 +229,12 @@ export default function SubmissionIntegrityForm({
         />
       </DossierPanel>
 
+      {/* D + E may sit side-by-side on very wide canvases (2xl+ ≈
+          1536px viewport), where both halves comfortably exceed the
+          420px readable column floor. On all narrower contexts they
+          stack vertically — including Edit Work, where the form lives
+          inside a narrower left column of a two-zone desk. */}
+      <div className="2xl:grid 2xl:grid-cols-2 2xl:gap-x-10">
       {/* D. AI Disclosure */}
       <DossierPanel
         marker="D"
@@ -277,6 +283,7 @@ export default function SubmissionIntegrityForm({
           </DossierField>
         )}
       </DossierPanel>
+      </div>
 
       {/* F. License Awareness — institutional callout */}
       <div className="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-5">
