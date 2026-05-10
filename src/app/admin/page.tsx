@@ -823,22 +823,25 @@ export default function AdminPage() {
   function renderApplicationDetail(app: Application) {
     return (
       <div className="space-y-4">
-        {/* HEADER — applicant identity (priority 1) */}
-        <div className="space-y-2">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
+        {/* HEADER — applicant identity (priority 1).
+            Phase 8 polish: eyebrow, larger applicant name, distinct
+            handle/email rail, and a status + submitted-date row that
+            anchors the panel as the decision surface. */}
+        <div className="pb-3 border-b border-white/8">
+          <p className="text-[10px] uppercase tracking-[0.24em] text-orange-400/80 font-semibold mb-2">
             Selected Application
           </p>
           <h2
-            className="text-xl font-semibold text-white leading-tight"
+            className="text-2xl font-semibold text-white leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {app.name || "—"}
           </h2>
-          <p className="text-xs text-neutral-400 break-words">
+          <p className="text-xs text-neutral-400 break-words mt-1.5">
             {app.handle ? `@${app.handle}` : "no handle"}
             {app.email ? ` · ${app.email}` : ""}
           </p>
-          <div className="flex items-center gap-2 flex-wrap pt-1">
+          <div className="flex items-center gap-2 flex-wrap mt-3">
             <span
               className={`text-[11px] px-2 py-0.5 rounded border ${
                 statusColor[app.status] || "text-neutral-400"
@@ -846,15 +849,15 @@ export default function AdminPage() {
             >
               {app.status}
             </span>
-            <span className="text-neutral-600 text-[11px]">
+            <span className="text-neutral-600 text-[11px] tabular-nums">
               Submitted {new Date(app.submitted_at).toLocaleDateString()}
             </span>
           </div>
         </div>
 
         {/* SUBMISSION (priority 2) */}
-        <div className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 mb-2 font-medium">
+        <section className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-400 mb-3 font-medium">
             Submission
           </p>
           <div className="grid grid-cols-1 gap-3 text-sm">
@@ -867,11 +870,11 @@ export default function AdminPage() {
             <Field label="Why ShangoMaji" value={app.why_shangomaji} full />
             <Field label="What They Need" value={app.what_you_need} full />
           </div>
-        </div>
+        </section>
 
         {/* CONTACT */}
-        <div className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 mb-2 font-medium">
+        <section className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-400 mb-3 font-medium">
             Contact
           </p>
           <div className="grid grid-cols-1 gap-3 text-sm">
@@ -894,30 +897,40 @@ export default function AdminPage() {
             />
             <Field label="Website" value={app.website} link />
           </div>
-        </div>
+        </section>
 
         {/* AUTHORITY-OF-STATE COPY (status 3, informational) */}
-        <div className="space-y-2">
-          {app.status === "accepted" && (
-            <p className="text-xs text-emerald-300/90">
-              Decision finalized — creator onboarded.
-            </p>
-          )}
-          {app.status === "rejected" && (
-            <p className="text-xs text-red-300/80">
-              Application closed.
-            </p>
-          )}
-          {app.status === "archived" && (
-            <p className="text-xs text-neutral-400">
-              Archived. Terminal state.
-            </p>
-          )}
-        </div>
+        {(app.status === "accepted" ||
+          app.status === "rejected" ||
+          app.status === "archived") && (
+          <div>
+            {app.status === "accepted" && (
+              <p className="text-xs text-emerald-300/90">
+                Decision finalized — creator onboarded.
+              </p>
+            )}
+            {app.status === "rejected" && (
+              <p className="text-xs text-red-300/80">
+                Application closed.
+              </p>
+            )}
+            {app.status === "archived" && (
+              <p className="text-xs text-neutral-400">
+                Archived. Terminal state.
+              </p>
+            )}
+          </div>
+        )}
 
-        {/* DECISION CONTROLS (priority 4) + delete (priority 5) */}
-        <div className="pt-4 border-t border-white/5 flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-neutral-500 mr-2">Set status:</span>
+        {/* DECISION CONTROLS (priority 4) + delete (priority 5).
+            Phase 8 polish: decision controls and the destructive Delete
+            action are visually separated by a thicker top rule and an
+            eyebrow label. Delete remains the subordinate trailing
+            action so it never reads as primary. */}
+        <div className="mt-2 pt-4 border-t border-white/10 flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium mr-2">
+            Set status
+          </span>
           {(["pending", "accepted", "rejected"] as const).map((s) => {
             const allowed =
               app.status === "pending" &&
@@ -999,23 +1012,27 @@ export default function AdminPage() {
     const nextEmerald = classifyBucket(project) === "public_ready";
 
     return (
-      <div className="space-y-3">
-        {/* HEADER — title / creator / status (priority 1) */}
-        <div className="space-y-2">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
+      <div className="space-y-4">
+        {/* HEADER — title / creator / status (priority 1).
+            Phase 8 polish: stronger identity block with eyebrow, larger
+            title, and a clean meta line; the status badge + last-updated
+            stamp share a row so the panel reads as an authoritative
+            command surface rather than a stack of fields. */}
+        <div className="pb-3 border-b border-white/8">
+          <p className="text-[10px] uppercase tracking-[0.24em] text-orange-400/80 font-semibold mb-2">
             Selected Work
           </p>
           <h2
-            className="text-xl font-semibold text-white leading-tight"
+            className="text-2xl font-semibold text-white leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {project.title || "Untitled"}
           </h2>
-          <p className="text-xs text-neutral-400 break-words">
+          <p className="text-xs text-neutral-400 break-words mt-1.5">
             {project.creator_email}
             {project.project_type ? ` · ${project.project_type}` : ""}
           </p>
-          <div className="flex items-center gap-2 flex-wrap pt-1">
+          <div className="flex items-center gap-2 flex-wrap mt-3">
             <span
               className={`text-[11px] px-2 py-0.5 rounded border ${
                 projectStatusColor[project.status] || "text-neutral-400"
@@ -1023,36 +1040,38 @@ export default function AdminPage() {
             >
               {statusDisplay(project.status)}
             </span>
-            <span className="text-neutral-600 text-[11px]">
+            <span className="text-neutral-600 text-[11px] tabular-nums">
               Updated {new Date(project.updated_at).toLocaleDateString()}
             </span>
           </div>
         </div>
 
-        {/* PUBLIC VISIBILITY (priority 2) */}
-        <PublicVisibilityRow project={project} />
+        {/* OPERATIONAL SIGNAL BAND — public visibility + next required
+            action grouped together at the top for fast scan. */}
+        <div className="space-y-2">
+          <PublicVisibilityRow project={project} />
 
-        {/* NEXT REQUIRED ACTION (priority 3, prominent) */}
-        {next && (
-          <div
-            className={`rounded-lg border px-3 py-2 ${
-              nextEmerald
-                ? "border-emerald-500/30 bg-emerald-500/5"
-                : "border-amber-500/30 bg-amber-500/5"
-            }`}
-          >
-            <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium mb-0.5">
-              Next required action
-            </p>
-            <p
-              className={`text-sm leading-snug ${
-                nextEmerald ? "text-emerald-200" : "text-amber-200"
+          {next && (
+            <div
+              className={`rounded-md border px-3 py-2 ${
+                nextEmerald
+                  ? "border-emerald-500/30 bg-emerald-500/[0.06]"
+                  : "border-amber-500/30 bg-amber-500/[0.06]"
               }`}
             >
-              {next}
-            </p>
-          </div>
-        )}
+              <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium mb-0.5">
+                Next required action
+              </p>
+              <p
+                className={`text-sm leading-snug ${
+                  nextEmerald ? "text-emerald-200" : "text-amber-200"
+                }`}
+              >
+                {next}
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* AUTHORITY BLOCKS (status-specific copy) */}
         {project.status === "removed" && (
@@ -1557,9 +1576,14 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ACTIONS ROW (priority 8) */}
-        <div className="pt-4 border-t border-white/5 flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-neutral-500 mr-2">Actions:</span>
+        {/* ACTIONS ROW (priority 8) — Phase 8 polish: action area is
+            visually separated from record details by a thicker rule and
+            an "Actions" eyebrow so the controls read as a distinct
+            decision surface, not a continuation of fields. */}
+        <div className="mt-2 pt-4 border-t border-white/10 flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium mr-2">
+            Actions
+          </span>
 
           {project.status === "pending" && rejectingId !== project.id && (
             <>
@@ -2418,61 +2442,85 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
+      {/* Phase 8 — Admin Mission Control header. Replaces the legacy
+          "Creator Applications" title (which only described the
+          application-review surface) with mission-control framing that
+          covers both applications and works. Existing total submissions
+          count is retained as secondary operational metadata. Refresh
+          and Lock controls keep their behavior, aligned cleanly to the
+          right of the header. */}
+      <div className="flex items-start justify-between gap-6 flex-wrap mb-6">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.28em] text-neutral-500 font-medium mb-2">
+            ShangoMaji · Operations
+          </p>
           <h1
-            className="text-2xl font-semibold text-white tracking-wide"
+            className="text-2xl sm:text-3xl font-semibold text-white tracking-wide leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Creator Applications
+            Admin Mission Control
           </h1>
-          <p className="text-sm text-neutral-500 mt-1">{applications.length} total submissions</p>
+          <p className="text-sm text-neutral-400 mt-1.5 leading-relaxed max-w-2xl">
+            Review creator applications, monitor works, and manage launch readiness.
+          </p>
+          <p className="text-[11px] text-neutral-600 mt-2">
+            {applications.length} total submission{applications.length === 1 ? "" : "s"}
+            {projectList.length > 0 && (
+              <> · {projectList.length} work{projectList.length === 1 ? "" : "s"} tracked</>
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end gap-1">
-            <button
-              onClick={refreshAll}
-              disabled={refreshing}
-              title="Refresh applications and works without reloading the browser."
-              type="button"
-              className="text-xs font-medium px-3.5 py-2 rounded-md border border-white/30 bg-white/10 text-white hover:bg-white/15 hover:border-white/45 transition disabled:opacity-50"
-            >
-              {refreshing ? "Refreshing…" : "Refresh Data"}
-            </button>
-            <span className="text-[10px] text-neutral-600 leading-none">
-              Refresh applications and works without reloading the browser.
-            </span>
-          </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={refreshAll}
+            disabled={refreshing}
+            title="Refresh applications and works without reloading the browser."
+            type="button"
+            className="text-xs font-medium px-3.5 py-2 rounded-md border border-white/15 bg-white/5 text-white hover:bg-white/10 hover:border-white/25 transition disabled:opacity-50"
+          >
+            {refreshing ? "Refreshing…" : "Refresh Data"}
+          </button>
           <button
             onClick={() => { setAuthed(false); setPassword(""); }}
-            className="text-xs text-neutral-500 hover:text-white transition"
+            className="text-xs font-medium px-3 py-2 rounded-md border border-white/10 text-neutral-500 hover:text-white hover:border-white/20 transition"
           >
             Lock
           </button>
         </div>
       </div>
 
-      {/* View toggle */}
-      <div className="flex gap-2 mb-6 border-b border-white/10 pb-3">
+      {/* View toggle — Applications / Works */}
+      <div className="flex gap-1 mb-6 border-b border-white/10">
         <button
           onClick={() => setView("applications")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            view === "applications" ? "bg-white/10 text-white" : "text-neutral-500 hover:text-white"
+          className={`px-4 py-2.5 -mb-px text-sm font-medium transition border-b-2 ${
+            view === "applications"
+              ? "text-white border-orange-500/60"
+              : "text-neutral-500 hover:text-white border-transparent"
           }`}
         >
           Applications
+          <span className="ml-2 text-[10px] text-neutral-600 font-normal">
+            {applications.length}
+          </span>
         </button>
         <button
           onClick={() => {
             setView("projects");
             if (projectList.length === 0) loadProjects();
           }}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            view === "projects" ? "bg-white/10 text-white" : "text-neutral-500 hover:text-white"
+          className={`px-4 py-2.5 -mb-px text-sm font-medium transition border-b-2 ${
+            view === "projects"
+              ? "text-white border-orange-500/60"
+              : "text-neutral-500 hover:text-white border-transparent"
           }`}
         >
           Works
+          {projectList.length > 0 && (
+            <span className="ml-2 text-[10px] text-neutral-600 font-normal">
+              {projectList.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -2555,7 +2603,7 @@ export default function AdminPage() {
               and the existing handlers / payloads are unchanged. */}
           {filtered.length === 0 ? (
             <div className="rounded-xl border border-dashed border-white/10 px-6 py-10 text-center">
-              <p className="text-neutral-500 text-sm">No applications found.</p>
+              <p className="text-neutral-500 text-sm">No applications match this filter.</p>
             </div>
           ) : (
             <div className="xl:grid xl:grid-cols-[minmax(620px,1fr)_minmax(560px,0.9fr)] xl:gap-x-8">
@@ -2567,10 +2615,10 @@ export default function AdminPage() {
                   return (
                     <div
                       key={app.id}
-                      className={`rounded-lg border overflow-hidden transition ${
+                      className={`rounded-md border overflow-hidden transition ${
                         isSelected
-                          ? "border-orange-500/40 bg-orange-500/[0.05] xl:bg-orange-500/[0.04]"
-                          : "border-white/8 bg-white/[0.02] hover:border-white/15"
+                          ? "border-orange-500/45 bg-orange-500/[0.06] xl:bg-orange-500/[0.04] xl:border-l-2 xl:border-l-orange-500/80"
+                          : "border-white/8 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.035]"
                       }`}
                     >
                       <button
@@ -2579,35 +2627,42 @@ export default function AdminPage() {
                           setSelectedApplicationId(app.id);
                           setExpanded(isExpanded ? null : app.id);
                         }}
-                        className="w-full text-left flex items-center gap-3 px-4 py-3"
+                        className="w-full text-left flex items-start gap-3 px-4 py-3"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-white font-medium text-sm truncate">
-                              {app.name || "—"}
-                            </span>
+                          <p className="text-white font-medium text-[13px] leading-snug truncate">
+                            {app.name || "—"}
+                          </p>
+                          <p className="text-neutral-500 text-[11px] mt-0.5 truncate">
                             {app.handle && (
-                              <span className="text-neutral-500 text-[11px]">@{app.handle}</span>
+                              <>
+                                <span className="text-neutral-400">@{app.handle}</span>
+                                <span className="text-neutral-700 mx-1.5">·</span>
+                              </>
                             )}
-                          </div>
-                          <p className="text-neutral-400 text-[11px] mt-0.5 truncate">
-                            {app.project_title || "No project title"} · {app.project_type || "—"}
+                            <span className="text-neutral-400">{app.project_title || "No project title"}</span>
+                            {app.project_type && (
+                              <>
+                                <span className="text-neutral-700 mx-1.5">·</span>
+                                {app.project_type}
+                              </>
+                            )}
                           </p>
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
+                        <div className="flex flex-col items-end gap-1 shrink-0 pt-0.5">
                           <span
-                            className={`text-[10px] px-2 py-0.5 rounded border ${
+                            className={`text-[10px] px-2 py-0.5 rounded border tabular-nums ${
                               statusColor[app.status] || "text-neutral-400"
                             }`}
                           >
                             {app.status}
                           </span>
-                          <span className="text-neutral-600 text-[10px]">
+                          <span className="text-neutral-600 text-[10px] tabular-nums">
                             {new Date(app.submitted_at).toLocaleDateString()}
                           </span>
                         </div>
                         <svg
-                          className={`xl:hidden w-4 h-4 text-neutral-500 transition-transform shrink-0 ${
+                          className={`xl:hidden w-4 h-4 mt-1 text-neutral-500 transition-transform shrink-0 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                           fill="none"
@@ -2656,34 +2711,37 @@ export default function AdminPage() {
       {/* ── Projects tab ── */}
       {view === "projects" && (
         <>
-          {/* Phase 7.2 Mission Control. Launch readiness pill + bucket
-              cards summarise what the system needs next; cards and chips
-              share the same axis so each is a navigation affordance. */}
+          {/* Phase 8 — Launch Readiness command deck. Seven existing
+              buckets, counts, and filter behavior are unchanged; polish
+              targets alignment and rhythm: tiles share consistent
+              interior height (label rail + count rail), counts align on
+              a baseline, and the active tile uses a calm ring rather
+              than a louder fill so the deck reads as command indicators
+              rather than competing buttons. */}
           {!projectLoading && totalProjects > 0 && (
             <>
-              <div className="flex items-center gap-2 mb-3 flex-wrap">
-                <span className="text-[11px] uppercase tracking-widest text-neutral-500">
-                  Launch readiness:
-                </span>
-                <span
-                  className={`text-[11px] px-2 py-0.5 rounded border ${
-                    launchReadiness.tone === "ready"
-                      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-                      : launchReadiness.tone === "attention"
-                      ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                      : "bg-white/5 text-neutral-300 border-white/15"
-                  }`}
-                >
-                  {launchReadiness.label}
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
+                    Launch readiness
+                  </span>
+                  <span
+                    className={`text-[11px] px-2 py-0.5 rounded border ${
+                      launchReadiness.tone === "ready"
+                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                        : launchReadiness.tone === "attention"
+                        ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                        : "bg-white/5 text-neutral-300 border-white/15"
+                    }`}
+                  >
+                    {launchReadiness.label}
+                  </span>
+                </div>
+                <span className="text-[10px] text-neutral-600">
+                  {totalProjects} work{totalProjects === 1 ? "" : "s"} across {BUCKET_ORDER.length} states
                 </span>
               </div>
 
-              {/* Phase 7.3 Layer 2E correction — Launch Readiness command
-                  deck. Tiles stretch across the full board width with
-                  stronger spacing and weight so the deck reads as the
-                  primary operational signal, not a strip above the queue.
-                  Existing seven buckets, counts, and filter behavior are
-                  unchanged. */}
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
                 {BUCKET_ORDER.map((key) => {
                   const tone   = BUCKET_TONES[key];
@@ -2691,25 +2749,38 @@ export default function AdminPage() {
                   const active = projectFilter === key;
                   const toneCls =
                     tone === "amber"
-                      ? "border-amber-500/30 bg-amber-500/5"
+                      ? "border-amber-500/30 bg-amber-500/[0.04]"
                       : tone === "emerald"
-                      ? "border-emerald-500/30 bg-emerald-500/5"
+                      ? "border-emerald-500/30 bg-emerald-500/[0.04]"
                       : "border-white/10 bg-white/[0.02]";
                   return (
                     <button
                       key={key}
                       onClick={() => setProjectFilter(key)}
-                      className={`text-left rounded-lg border px-4 py-4 transition ${toneCls} ${
+                      aria-pressed={active}
+                      className={`group flex flex-col justify-between text-left rounded-lg border px-4 py-3.5 min-h-[88px] transition ${toneCls} ${
                         active
-                          ? "ring-1 ring-white/30"
-                          : "hover:bg-white/5"
+                          ? "ring-1 ring-white/35 bg-white/[0.04]"
+                          : "hover:bg-white/[0.04]"
                       }`}
                     >
-                      <div className="text-[11px] uppercase tracking-widest text-neutral-500 leading-tight">
+                      <div className="text-[10px] uppercase tracking-[0.18em] text-neutral-400 leading-snug min-h-[28px] flex items-start">
                         {BUCKET_LABELS[key]}
                       </div>
-                      <div className="text-2xl font-semibold text-white mt-2 leading-none">
-                        {count}
+                      <div className="flex items-baseline gap-2 mt-2">
+                        <span className="text-2xl font-semibold text-white leading-none tabular-nums">
+                          {count}
+                        </span>
+                        {count > 0 && tone === "amber" && (
+                          <span className="text-[10px] text-amber-400/80 leading-none">
+                            open
+                          </span>
+                        )}
+                        {count > 0 && tone === "emerald" && (
+                          <span className="text-[10px] text-emerald-400/80 leading-none">
+                            ready
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -2718,34 +2789,42 @@ export default function AdminPage() {
             </>
           )}
 
-          {/* Operational filter chips mirror the readiness cards — same
-              bucket keys, smaller surface for repeat navigation. The
-              "Showing all"/"View all" link on the right preserves the
-              quieter secondary toggle from the prior layout. */}
-          <div className="flex items-center gap-2 mb-6 flex-wrap">
+          {/* Phase 8 — Secondary filter row. Mirrors the readiness deck
+              for repeat navigation but reads as subordinate controls,
+              not a competing system. Bucket keys/counts unchanged. The
+              "Showing all" / "View all" toggle on the right is the same
+              quieter secondary control as before. */}
+          <div className="flex items-center gap-1.5 mb-5 flex-wrap text-[11px]">
+            <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-600 mr-1">
+              Filter:
+            </span>
             {BUCKET_ORDER.map((key) => (
               <button
                 key={key}
                 onClick={() => setProjectFilter(key)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                className={`px-2.5 py-1 rounded font-medium transition ${
                   projectFilter === key
                     ? "bg-white/10 text-white"
                     : "text-neutral-500 hover:text-white hover:bg-white/5"
                 }`}
               >
-                {BUCKET_LABELS[key]} ({bucketCounts[key]})
+                {BUCKET_LABELS[key]}{" "}
+                <span className={projectFilter === key ? "text-neutral-400" : "text-neutral-600"}>
+                  {bucketCounts[key]}
+                </span>
               </button>
             ))}
             <div className="flex-1" />
             <button
               onClick={() => setProjectFilter("all")}
-              className={`text-[11px] transition underline-offset-4 hover:underline ${
+              className={`px-2.5 py-1 rounded transition ${
                 projectFilter === "all"
-                  ? "text-white"
-                  : "text-neutral-500 hover:text-white"
+                  ? "text-white bg-white/5"
+                  : "text-neutral-500 hover:text-white hover:bg-white/5"
               }`}
             >
-              {projectFilter === "all" ? "Showing all" : "View all"} ({totalProjects})
+              {projectFilter === "all" ? "Showing all" : "View all"}{" "}
+              <span className="text-neutral-600">{totalProjects}</span>
             </button>
           </div>
 
@@ -2805,10 +2884,10 @@ export default function AdminPage() {
                   return (
                     <div
                       key={project.id}
-                      className={`rounded-lg border overflow-hidden transition ${
+                      className={`rounded-md border overflow-hidden transition ${
                         isSelected
-                          ? "border-orange-500/40 bg-orange-500/[0.05] xl:bg-orange-500/[0.04]"
-                          : "border-white/8 bg-white/[0.02] hover:border-white/15"
+                          ? "border-orange-500/45 bg-orange-500/[0.06] xl:bg-orange-500/[0.04] xl:border-l-2 xl:border-l-orange-500/80"
+                          : "border-white/8 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.035]"
                       }`}
                     >
                       <button
@@ -2817,40 +2896,41 @@ export default function AdminPage() {
                           setSelectedWorkId(project.id);
                           setExpandedProject(isExpanded ? null : project.id);
                         }}
-                        className="w-full text-left flex items-center gap-3 px-4 py-3"
+                        className="w-full text-left flex items-start gap-3 px-4 py-3"
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-white font-medium text-sm truncate">
-                              {project.title}
-                            </span>
+                          <p className="text-white font-medium text-[13px] leading-snug truncate">
+                            {project.title}
+                          </p>
+                          <p className="text-neutral-500 text-[11px] mt-0.5 truncate">
+                            <span className="text-neutral-400">{project.creator_email}</span>
                             {project.project_type && (
-                              <span className="text-neutral-500 text-[11px]">
+                              <>
+                                <span className="text-neutral-700 mx-1.5">·</span>
                                 {project.project_type}
-                              </span>
+                              </>
                             )}
-                          </div>
-                          <p className="text-neutral-400 text-[11px] mt-0.5 truncate">
-                            {project.creator_email}
                           </p>
                           {next && (
-                            <p className={`text-[11px] mt-1 ${nextTone}`}>{next}</p>
+                            <p className={`text-[11px] mt-1.5 leading-snug ${nextTone}`}>
+                              {next}
+                            </p>
                           )}
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
+                        <div className="flex flex-col items-end gap-1 shrink-0 pt-0.5">
                           <span
-                            className={`text-[10px] px-2 py-0.5 rounded border ${
+                            className={`text-[10px] px-2 py-0.5 rounded border tabular-nums ${
                               projectStatusColor[project.status] || "text-neutral-400"
                             }`}
                           >
                             {statusDisplay(project.status)}
                           </span>
-                          <span className="text-neutral-600 text-[10px]">
+                          <span className="text-neutral-600 text-[10px] tabular-nums">
                             {new Date(project.updated_at).toLocaleDateString()}
                           </span>
                         </div>
                         <svg
-                          className={`xl:hidden w-4 h-4 text-neutral-500 transition-transform shrink-0 ${
+                          className={`xl:hidden w-4 h-4 mt-1 text-neutral-500 transition-transform shrink-0 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                           fill="none"
