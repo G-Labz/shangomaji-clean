@@ -1842,12 +1842,22 @@ export default function AdminPage() {
   }
 
   // ── Dashboard ──
-  // Phase 7.3 — Mission Control architecture. Wide command canvas (max
-  // 1440px) replacing the narrow max-w-6xl wrapper so the desktop layout
-  // can run a real queue + command-detail two-column board on the Works
-  // and Applications tabs without horizontal cramping.
+  // Phase 7.3 Layer 2E correction — Mission Control wide canvas. The
+  // board uses the same legitimate 100vw breakout used on New Work /
+  // Profile so the page is independent of any parent shell width and
+  // can run a true desktop board (~1680px max) with the queue +
+  // command-detail layout breathing across the full canvas. All
+  // existing handlers, payloads, gates, and state are preserved.
   return (
-    <div className="min-h-screen px-4 sm:px-6 lg:px-10 pt-24 pb-12 max-w-[1440px] mx-auto">
+    <div
+      className="min-h-screen pt-24 pb-12"
+      style={{
+        width: "100vw",
+        marginLeft: "calc(50% - 50vw)",
+        marginRight: "calc(50% - 50vw)",
+      }}
+    >
+      <div className="w-full mx-auto max-w-[1680px] px-4 sm:px-6 lg:px-10 xl:px-12">
       {/* Archive confirmation gate */}
       {archiveTarget && (
         <div
@@ -2543,7 +2553,7 @@ export default function AdminPage() {
               <p className="text-neutral-500 text-sm">No applications found.</p>
             </div>
           ) : (
-            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-6">
+            <div className="lg:grid lg:grid-cols-[minmax(0,52fr)_minmax(0,44fr)] lg:gap-x-12">
               {/* LEFT — operational queue */}
               <div className="space-y-2">
                 {filtered.map((app) => {
@@ -2623,7 +2633,7 @@ export default function AdminPage() {
 
               {/* RIGHT — command detail (desktop only) */}
               <aside className="hidden lg:block">
-                <div className="lg:sticky lg:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-6 max-h-[calc(100vh-7rem)] overflow-y-auto">
+                <div className="lg:sticky lg:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-7 max-h-[calc(100vh-7rem)] overflow-y-auto">
                   {selectedApplication ? (
                     renderApplicationDetail(selectedApplication)
                   ) : (
@@ -2663,7 +2673,13 @@ export default function AdminPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
+              {/* Phase 7.3 Layer 2E correction — Launch Readiness command
+                  deck. Tiles stretch across the full board width with
+                  stronger spacing and weight so the deck reads as the
+                  primary operational signal, not a strip above the queue.
+                  Existing seven buckets, counts, and filter behavior are
+                  unchanged. */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
                 {BUCKET_ORDER.map((key) => {
                   const tone   = BUCKET_TONES[key];
                   const count  = bucketCounts[key];
@@ -2678,16 +2694,16 @@ export default function AdminPage() {
                     <button
                       key={key}
                       onClick={() => setProjectFilter(key)}
-                      className={`text-left rounded-lg border px-3 py-2 transition ${toneCls} ${
+                      className={`text-left rounded-lg border px-4 py-4 transition ${toneCls} ${
                         active
                           ? "ring-1 ring-white/30"
                           : "hover:bg-white/5"
                       }`}
                     >
-                      <div className="text-[10px] uppercase tracking-widest text-neutral-500 leading-tight">
+                      <div className="text-[11px] uppercase tracking-widest text-neutral-500 leading-tight">
                         {BUCKET_LABELS[key]}
                       </div>
-                      <div className="text-lg font-semibold text-white mt-1">
+                      <div className="text-2xl font-semibold text-white mt-2 leading-none">
                         {count}
                       </div>
                     </button>
@@ -2770,7 +2786,7 @@ export default function AdminPage() {
           )}
 
           {!projectLoading && filteredProjects.length > 0 && (
-            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-6">
+            <div className="lg:grid lg:grid-cols-[minmax(0,52fr)_minmax(0,44fr)] lg:gap-x-12">
               {/* LEFT — operational queue */}
               <div className="space-y-2">
                 {filteredProjects.map((project) => {
@@ -2860,7 +2876,7 @@ export default function AdminPage() {
 
               {/* RIGHT — command detail (desktop only) */}
               <aside className="hidden lg:block">
-                <div className="lg:sticky lg:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-6 max-h-[calc(100vh-7rem)] overflow-y-auto">
+                <div className="lg:sticky lg:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-7 max-h-[calc(100vh-7rem)] overflow-y-auto">
                   {selectedWork ? (
                     renderProjectDetail(selectedWork)
                   ) : (
@@ -2874,6 +2890,7 @@ export default function AdminPage() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }
