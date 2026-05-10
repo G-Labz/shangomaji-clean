@@ -9,6 +9,11 @@
 //
 // Validation here is UX only. The server is the source of truth for the
 // submit gate; see src/lib/submission-integrity.ts.
+//
+// Phase 7.3 Layer 2C — visual architecture rewrite. The data contract,
+// payload keys, validation, and disabled semantics are unchanged. Only
+// the rendering treatment is reorganised into a dossier of declaration
+// panels.
 
 import {
   THESIS_PATHS,
@@ -121,259 +126,227 @@ export default function SubmissionIntegrityForm({
   return (
     <fieldset
       disabled={disabled}
-      style={{
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 12,
-        padding: 20,
-        margin: 0,
-        opacity: disabled ? 0.55 : 1,
-        pointerEvents: disabled ? "none" : "auto",
-        background: "rgba(255,255,255,0.02)",
-      }}
+      className={disabled ? "opacity-60 pointer-events-none" : ""}
+      style={{ border: "none", padding: 0, margin: 0 }}
     >
-      <legend
-        style={{
-          padding: "0 8px",
-          fontSize: 11,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          color: "rgba(245,197,24,0.85)",
-          fontWeight: 600,
-        }}
-      >
-        Submission Integrity
-      </legend>
-      <p className="text-xs text-ink-faint" style={{ marginTop: 4, marginBottom: 18 }}>
-        Required before this work can be submitted for editorial review. Drafts may save
-        partially; submission is gated on a complete record.
-      </p>
-
       {/* A. Thesis Declaration */}
-      <Section title="A. Thesis Declaration" />
-      <p className="text-xs text-ink-faint" style={{ marginBottom: 8 }}>
-        How does this work meet ShangoMaji&rsquo;s thesis?
-      </p>
-      <div className="flex flex-wrap gap-2" style={{ marginBottom: 10 }}>
-        {THESIS_PATHS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => set("thesis_path")(p)}
-            className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-              value.thesis_path === p
-                ? "border-transparent text-black"
-                : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-            }`}
-            style={
-              value.thesis_path === p
-                ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                : {}
-            }
-          >
-            {THESIS_PATH_LABELS[p]}
-          </button>
-        ))}
-      </div>
-      <Label>Explain how this work meets ShangoMaji&rsquo;s thesis.</Label>
-      <Textarea
-        value={value.thesis_explanation}
-        onChange={(v) => set("thesis_explanation")(v)}
-        placeholder="Be specific. What makes this work fit the thesis?"
-        rows={4}
-      />
+      <DossierPanel
+        marker="A"
+        title="Thesis Declaration"
+        helper="How does this work meet ShangoMaji’s thesis?"
+      >
+        <ChoiceGrid
+          options={THESIS_PATHS.map((p) => ({ value: p, label: THESIS_PATH_LABELS[p] }))}
+          selected={value.thesis_path}
+          onSelect={(v) => set("thesis_path")(v as ThesisPath)}
+        />
+        <DossierField label="Explain how this work meets ShangoMaji’s thesis.">
+          <DossierTextarea
+            value={value.thesis_explanation}
+            onChange={(v) => set("thesis_explanation")(v)}
+            placeholder="Be specific. What makes this work fit the thesis?"
+            rows={5}
+          />
+        </DossierField>
+      </DossierPanel>
 
       {/* B. Rights Attestation */}
-      <Section title="B. Rights Attestation" />
-      <CheckRow
-        checked={value.rights_ownership_ack}
-        onChange={set("rights_ownership_ack")}
-        label="I own or control the rights to this work."
-      />
-      <CheckRow
-        checked={value.rights_collaborators_disclosed_ack}
-        onChange={set("rights_collaborators_disclosed_ack")}
-        label="All collaborators, co-owners, or contributors have been disclosed."
-      />
-      <CheckRow
-        checked={value.rights_no_conflicts_ack}
-        onChange={set("rights_no_conflicts_ack")}
-        label="This work has no conflicting distribution, publishing, or licensing agreements."
-      />
-      <CheckRow
-        checked={value.rights_no_unlicensed_assets_ack}
-        onChange={set("rights_no_unlicensed_assets_ack")}
-        label="This work does not contain unlicensed third-party assets."
-      />
+      <DossierPanel
+        marker="B"
+        title="Rights Attestation"
+        helper="Confirm each statement applies to this work."
+      >
+        <div className="rounded-lg border border-white/8 divide-y divide-white/8 overflow-hidden">
+          <AttestationRow
+            checked={value.rights_ownership_ack}
+            onChange={set("rights_ownership_ack")}
+            label="I own or control the rights to this work."
+          />
+          <AttestationRow
+            checked={value.rights_collaborators_disclosed_ack}
+            onChange={set("rights_collaborators_disclosed_ack")}
+            label="All collaborators, co-owners, or contributors have been disclosed."
+          />
+          <AttestationRow
+            checked={value.rights_no_conflicts_ack}
+            onChange={set("rights_no_conflicts_ack")}
+            label="This work has no conflicting distribution, publishing, or licensing agreements."
+          />
+          <AttestationRow
+            checked={value.rights_no_unlicensed_assets_ack}
+            onChange={set("rights_no_unlicensed_assets_ack")}
+            label="This work does not contain unlicensed third-party assets."
+          />
+        </div>
+      </DossierPanel>
 
       {/* C. Collaborator Disclosure */}
-      <Section title="C. Collaborator Disclosure" />
-      <Label>List collaborators, co-owners, or contributors.</Label>
-      <Textarea
-        value={value.collaborators}
-        onChange={(v) => {
-          // Typing collaborators implicitly clears the "no collaborators" ack.
-          if (v.trim() && value.no_collaborators_ack) {
-            onChange({ ...value, collaborators: v, no_collaborators_ack: false });
-          } else {
-            set("collaborators")(v);
-          }
-        }}
-        placeholder="Name, role, agreement (one per line)"
-        rows={3}
-      />
-      <CheckRow
-        checked={value.no_collaborators_ack}
-        onChange={(checked) => {
-          // Checking "no collaborators" implicitly clears the list.
-          if (checked && value.collaborators.trim()) {
-            onChange({ ...value, no_collaborators_ack: true, collaborators: "" });
-          } else {
-            set("no_collaborators_ack")(checked);
-          }
-        }}
-        label="No collaborators or co-owners."
-      />
+      <DossierPanel
+        marker="C"
+        title="Collaborator Disclosure"
+        helper="List every collaborator, co-owner, or contributor — or confirm there are none."
+      >
+        <DossierField label="Collaborators">
+          <DossierTextarea
+            value={value.collaborators}
+            onChange={(v) => {
+              // Typing collaborators implicitly clears the "no collaborators" ack.
+              if (v.trim() && value.no_collaborators_ack) {
+                onChange({ ...value, collaborators: v, no_collaborators_ack: false });
+              } else {
+                set("collaborators")(v);
+              }
+            }}
+            placeholder={"Name, role, agreement (one per line)"}
+            rows={4}
+          />
+        </DossierField>
+        <ConfirmationRow
+          checked={value.no_collaborators_ack}
+          onChange={(checked) => {
+            // Checking "no collaborators" implicitly clears the list.
+            if (checked && value.collaborators.trim()) {
+              onChange({ ...value, no_collaborators_ack: true, collaborators: "" });
+            } else {
+              set("no_collaborators_ack")(checked);
+            }
+          }}
+          label="No collaborators or co-owners."
+        />
+      </DossierPanel>
 
       {/* D. AI Disclosure */}
-      <Section title="D. AI Disclosure" />
-      <div className="flex flex-wrap gap-2" style={{ marginBottom: 10 }}>
-        {AI_USAGE_VALUES.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => set("ai_usage")(p)}
-            className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-              value.ai_usage === p
-                ? "border-transparent text-black"
-                : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-            }`}
-            style={
-              value.ai_usage === p
-                ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                : {}
-            }
-          >
-            {AI_USAGE_LABELS[p]}
-          </button>
-        ))}
-      </div>
-      {(value.ai_usage === "assisted" || value.ai_usage === "generated") && (
-        <>
-          <Label>Describe how AI was used in this work.</Label>
-          <Textarea
-            value={value.ai_usage_description}
-            onChange={(v) => set("ai_usage_description")(v)}
-            placeholder="Tools, scope of use, what was AI-touched and what wasn't."
-            rows={3}
-          />
-        </>
-      )}
+      <DossierPanel
+        marker="D"
+        title="AI Disclosure"
+        helper="Be transparent about how AI was — or wasn’t — used."
+      >
+        <ChoiceGrid
+          options={AI_USAGE_VALUES.map((p) => ({ value: p, label: AI_USAGE_LABELS[p] }))}
+          selected={value.ai_usage}
+          onSelect={(v) => set("ai_usage")(v as AiUsage)}
+        />
+        {(value.ai_usage === "assisted" || value.ai_usage === "generated") && (
+          <DossierField label="Describe how AI was used in this work.">
+            <DossierTextarea
+              value={value.ai_usage_description}
+              onChange={(v) => set("ai_usage_description")(v)}
+              placeholder="Tools, scope of use, what was AI-touched and what wasn’t."
+              rows={3}
+            />
+          </DossierField>
+        )}
+      </DossierPanel>
 
       {/* E. Prior Distribution */}
-      <Section title="E. Prior Distribution" />
-      <div className="flex flex-wrap gap-2" style={{ marginBottom: 10 }}>
-        {PRIOR_DISTRIBUTION_VALUES.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => set("prior_distribution")(p)}
-            className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-              value.prior_distribution === p
-                ? "border-transparent text-black"
-                : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-            }`}
-            style={
-              value.prior_distribution === p
-                ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                : {}
-            }
-          >
-            {PRIOR_DISTRIBUTION_LABELS[p]}
-          </button>
-        ))}
-      </div>
-      {value.prior_distribution === "published" && (
-        <>
-          <Label>Where, when, and under what arrangement was this work distributed?</Label>
-          <Textarea
-            value={value.prior_distribution_details}
-            onChange={(v) => set("prior_distribution_details")(v)}
-            placeholder="Distributor / platform, dates, exclusivity, current status."
-            rows={3}
-          />
-        </>
-      )}
+      <DossierPanel
+        marker="E"
+        title="Prior Distribution"
+        helper="Disclose any prior public release of this work."
+      >
+        <ChoiceGrid
+          options={PRIOR_DISTRIBUTION_VALUES.map((p) => ({
+            value: p,
+            label: PRIOR_DISTRIBUTION_LABELS[p],
+          }))}
+          selected={value.prior_distribution}
+          onSelect={(v) => set("prior_distribution")(v as PriorDistribution)}
+        />
+        {value.prior_distribution === "published" && (
+          <DossierField label="Where, when, and under what arrangement was this work distributed?">
+            <DossierTextarea
+              value={value.prior_distribution_details}
+              onChange={(v) => set("prior_distribution_details")(v)}
+              placeholder="Distributor / platform, dates, exclusivity, current status."
+              rows={3}
+            />
+          </DossierField>
+        )}
+      </DossierPanel>
 
-      {/* F. License Awareness */}
-      <Section title="F. License Awareness" />
-      <CheckRow
-        checked={value.license_awareness_ack}
-        onChange={set("license_awareness_ack")}
-        label={LICENSE_AWARENESS_COPY}
-      />
+      {/* F. License Awareness — institutional callout */}
+      <div className="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-5">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300/85 font-semibold">
+          F · License Awareness
+        </p>
+        <p className="mt-2 text-[13px] text-white/80 leading-relaxed">
+          ShangoMaji is a licensing pipeline. Acceptance leads to a binding
+          distribution license, not an automatic publication. Please confirm
+          you understand what submission means.
+        </p>
+        <label className="mt-4 flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={value.license_awareness_ack}
+            onChange={(e) => set("license_awareness_ack")(e.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0"
+            style={{ accentColor: "#f5c518" }}
+          />
+          <span className="text-[13px] text-white/85 leading-relaxed">
+            {LICENSE_AWARENESS_COPY}
+          </span>
+        </label>
+      </div>
 
       {fieldError && (
-        <p className="text-xs text-brand-red" style={{ marginTop: 14 }}>
+        <p className="mt-4 text-xs text-brand-red">
           {fieldError}
         </p>
       )}
-
-      <style jsx global>{`
-        .integrity-textarea {
-          width: 100%;
-          background: rgba(0, 0, 0, 0.4);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 0.625rem;
-          padding: 0.625rem 0.75rem;
-          color: white;
-          font-size: 0.85rem;
-          outline: none;
-          resize: vertical;
-          box-sizing: border-box;
-        }
-        .integrity-textarea:focus {
-          border-color: rgba(240, 112, 48, 0.5);
-        }
-        .integrity-textarea::placeholder {
-          color: rgba(120, 120, 120, 1);
-        }
-      `}</style>
     </fieldset>
   );
 }
 
-function Section({ title }: { title: string }) {
+/* ─────────────────────────── Dossier primitives ─────────────────────────── */
+
+function DossierPanel({
+  marker,
+  title,
+  helper,
+  children,
+}: {
+  marker: string;
+  title: string;
+  helper?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <h3
-      style={{
-        color: "white",
-        fontSize: 13,
-        fontWeight: 600,
-        margin: "20px 0 10px",
-        letterSpacing: "0.01em",
-      }}
-    >
-      {title}
-    </h3>
+    <section className="py-7 border-t border-white/8 first:border-t-0 first:pt-2 space-y-4">
+      <header className="space-y-1.5">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-ink-muted">
+          Section {marker}
+        </p>
+        <h3
+          className="text-white text-[17px] leading-tight font-semibold tracking-tight"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {title}
+        </h3>
+        {helper && (
+          <p className="text-xs text-ink-faint leading-relaxed max-w-xl">{helper}</p>
+        )}
+      </header>
+      <div className="space-y-4">{children}</div>
+    </section>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+function DossierField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
-    <label
-      style={{
-        display: "block",
-        fontSize: 12,
-        color: "rgba(255,255,255,0.6)",
-        marginBottom: 6,
-      }}
-    >
+    <div className="space-y-2">
+      <label className="block text-xs text-white/65 font-medium">{label}</label>
       {children}
-    </label>
+    </div>
   );
 }
 
-function Textarea({
+function DossierTextarea({
   value,
   onChange,
   placeholder,
@@ -386,17 +359,57 @@ function Textarea({
 }) {
   return (
     <textarea
-      className="integrity-textarea"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={rows ?? 3}
-      style={{ marginBottom: 4 }}
+      className="w-full bg-black/40 border border-white/10 rounded-lg px-3.5 py-3 text-[13px] text-white placeholder:text-white/30 leading-relaxed outline-none focus:border-amber-500/50 focus:bg-black/55 transition resize-y"
     />
   );
 }
 
-function CheckRow({
+function ChoiceGrid({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: { value: string; label: string }[];
+  selected: string;
+  onSelect: (v: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {options.map((opt) => {
+        const active = selected === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onSelect(opt.value)}
+            className={`text-left px-4 py-3 rounded-lg border text-[13px] transition ${
+              active
+                ? "border-amber-500/50 bg-amber-500/[0.06] text-white"
+                : "border-white/10 bg-white/[0.02] text-ink-faint hover:border-white/25 hover:text-white"
+            }`}
+          >
+            <span className="flex items-center gap-2.5">
+              <span
+                className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border ${
+                  active ? "border-amber-400/80" : "border-white/25"
+                }`}
+              >
+                {active && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+              </span>
+              <span>{opt.label}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AttestationRow({
   checked,
   onChange,
   label,
@@ -407,24 +420,47 @@ function CheckRow({
 }) {
   return (
     <label
-      style={{
-        display: "grid",
-        gridTemplateColumns: "auto 1fr",
-        gap: 10,
-        alignItems: "flex-start",
-        padding: "8px 0",
-        cursor: "pointer",
-      }}
+      className={`flex items-start gap-3 px-4 py-3.5 cursor-pointer transition ${
+        checked ? "bg-white/[0.03]" : "hover:bg-white/[0.02]"
+      }`}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        style={{ marginTop: 3, accentColor: "#f5c518" }}
+        className="mt-1 h-4 w-4 shrink-0"
+        style={{ accentColor: "#f5c518" }}
       />
-      <span style={{ color: "rgba(255,255,255,0.78)", fontSize: 13, lineHeight: 1.5 }}>
-        {label}
-      </span>
+      <span className="text-[13px] text-white/85 leading-relaxed">{label}</span>
+    </label>
+  );
+}
+
+function ConfirmationRow({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition ${
+        checked
+          ? "border-white/20 bg-white/[0.04]"
+          : "border-white/8 bg-white/[0.01] hover:border-white/15"
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 shrink-0"
+        style={{ accentColor: "#f5c518" }}
+      />
+      <span className="text-[13px] text-white/85">{label}</span>
     </label>
   );
 }

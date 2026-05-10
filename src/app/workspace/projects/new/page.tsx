@@ -208,14 +208,17 @@ export default function WorkspaceNewProject() {
     <div className="max-w-6xl mx-auto pb-12">
       {/* Header band */}
       <div>
+        <p className="text-[11px] uppercase tracking-[0.18em] text-ink-muted mb-2">
+          Studio submission dossier
+        </p>
         <h1
           className="font-bold text-2xl text-white tracking-tight"
           style={{ fontFamily: "var(--font-display)" }}
         >
           New Work
         </h1>
-        <p className="text-ink-faint text-sm mt-1 max-w-2xl leading-relaxed">
-          Submit a new work for ShangoMaji review. Save as draft anytime; submission requires a complete declaration.
+        <p className="text-ink-faint text-sm mt-2 max-w-2xl leading-relaxed">
+          Prepare the work, declaration, and release assets for ShangoMaji review. Save as draft anytime; submission requires a complete declaration.
         </p>
       </div>
 
