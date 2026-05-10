@@ -229,12 +229,12 @@ export default function SubmissionIntegrityForm({
         />
       </DossierPanel>
 
-      {/* D + E may sit side-by-side on very wide canvases (2xl+ ≈
-          1536px viewport), where both halves comfortably exceed the
-          420px readable column floor. On all narrower contexts they
-          stack vertically — including Edit Work, where the form lives
-          inside a narrower left column of a two-zone desk. */}
-      <div className="2xl:grid 2xl:grid-cols-2 2xl:gap-x-10">
+      {/* D + E always stack. On New Work the declaration lives in the
+          right column of the dossier spread (~38% of canvas), and on
+          Edit Work the form lives inside a narrower left column of the
+          two-zone desk — neither has room for a comfortable two-up
+          split, so D and E stay vertical for consistent rhythm. */}
+      <div>
       {/* D. AI Disclosure */}
       <DossierPanel
         marker="D"
