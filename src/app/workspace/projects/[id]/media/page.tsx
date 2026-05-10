@@ -40,7 +40,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, Loader2, Lock } from "lucide-react";
-import { Card, SectionHeading, GradientButton, StatusBadge } from "../../../components";
+import { Card, SectionHeading, GradientButton, StatusBadge, UploadField } from "../../../components";
 
 interface PageProps {
   params: { id: string };
@@ -327,126 +327,88 @@ export default function WorkspaceMediaPackagePage({ params }: PageProps) {
       <Card className="space-y-6">
         <SectionHeading title="Promotional artwork" />
 
-        <Field label="Poster / Thumbnail" hint="Square or 2:3 portrait recommended.">
-          {draft.thumbUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={draft.thumbUrl}
-              alt="Poster"
-              className="h-24 w-auto rounded-lg object-cover mb-2"
-            />
-          )}
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const url = await uploadFile(file, "poster");
-                  setDraft((d) => ({ ...d, thumbUrl: url }));
-                } catch (err: any) {
-                  showError(err.message || "Upload failed");
-                }
-              }}
-              className="text-xs text-ink-faint"
-            />
-            {uploading.poster && <Loader2 size={14} className="animate-spin text-ink-faint" />}
-            {draft.thumbUrl && (
-              <button
-                type="button"
-                onClick={() => setDraft((d) => ({ ...d, thumbUrl: "" }))}
-                className="text-[11px] text-ink-faint hover:text-white"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        </Field>
+        <UploadField
+          label="Poster / Thumbnail"
+          hint="Square or 2:3 portrait recommended."
+          accept="image/*"
+          uploading={uploading.poster}
+          preview={
+            draft.thumbUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={draft.thumbUrl} alt="Poster" className="h-24 w-auto rounded-lg object-cover" />
+            ) : null
+          }
+          onFile={async (file) => {
+            try {
+              const url = await uploadFile(file, "poster");
+              setDraft((d) => ({ ...d, thumbUrl: url }));
+            } catch (err: any) {
+              showError(err.message || "Upload failed");
+            }
+          }}
+          onRemove={draft.thumbUrl ? () => setDraft((d) => ({ ...d, thumbUrl: "" })) : undefined}
+        />
 
-        <Field label="Banner" hint="Wide cinematic image used in hero contexts.">
-          {draft.bannerUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={draft.bannerUrl}
-              alt="Banner"
-              className="h-24 w-auto rounded-lg object-cover mb-2"
-            />
-          )}
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const url = await uploadFile(file, "banner");
-                  setDraft((d) => ({ ...d, bannerUrl: url }));
-                } catch (err: any) {
-                  showError(err.message || "Upload failed");
-                }
-              }}
-              className="text-xs text-ink-faint"
-            />
-            {uploading.banner && <Loader2 size={14} className="animate-spin text-ink-faint" />}
-            {draft.bannerUrl && (
-              <button
-                type="button"
-                onClick={() => setDraft((d) => ({ ...d, bannerUrl: "" }))}
-                className="text-[11px] text-ink-faint hover:text-white"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        </Field>
+        <UploadField
+          label="Banner"
+          hint="Wide cinematic image used in hero contexts."
+          accept="image/*"
+          uploading={uploading.banner}
+          preview={
+            draft.bannerUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={draft.bannerUrl} alt="Banner" className="h-24 w-auto rounded-lg object-cover" />
+            ) : null
+          }
+          onFile={async (file) => {
+            try {
+              const url = await uploadFile(file, "banner");
+              setDraft((d) => ({ ...d, bannerUrl: url }));
+            } catch (err: any) {
+              showError(err.message || "Upload failed");
+            }
+          }}
+          onRemove={draft.bannerUrl ? () => setDraft((d) => ({ ...d, bannerUrl: "" })) : undefined}
+        />
 
-        <Field label="Stills" hint="Two or more stills appear as a release gallery on your public title page.">
-          {draft.stillsUrls.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
-              {draft.stillsUrls.map((url, i) => (
-                <div key={`${url}-${i}`} className="relative aspect-video rounded-lg overflow-hidden border border-white/8">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i),
-                      }))
-                    }
-                    className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] hover:bg-black/80"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const url = await uploadFile(file, "still");
-                  setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] }));
-                  // Reset the input so re-uploading the same file fires onChange.
-                  e.target.value = "";
-                } catch (err: any) {
-                  showError(err.message || "Upload failed");
-                }
-              }}
-              className="text-xs text-ink-faint"
-            />
-            {uploading.still && <Loader2 size={14} className="animate-spin text-ink-faint" />}
-          </div>
-        </Field>
+        <UploadField
+          label="Stills"
+          hint="Two or more stills appear as a release gallery on your public title page."
+          accept="image/*"
+          uploading={uploading.still}
+          preview={
+            draft.stillsUrls.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {draft.stillsUrls.map((url, i) => (
+                  <div key={`${url}-${i}`} className="relative aspect-video rounded-lg overflow-hidden border border-white/8">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDraft((d) => ({
+                          ...d,
+                          stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i),
+                        }))
+                      }
+                      className="absolute top-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] hover:bg-black/80"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null
+          }
+          onFile={async (file) => {
+            try {
+              const url = await uploadFile(file, "still");
+              setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] }));
+            } catch (err: any) {
+              showError(err.message || "Upload failed");
+            }
+          }}
+        />
       </Card>
 
       <Card className="space-y-6">

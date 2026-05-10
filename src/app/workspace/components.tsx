@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -78,6 +79,99 @@ export function Pill({ children }: { children: React.ReactNode }) {
     <span className="text-[11px] px-2 py-1 rounded-full bg-white/5 border border-white/10 text-ink-faint">
       {children}
     </span>
+  );
+}
+
+// Phase 7.3 Layer 2 — small two-state pill for readiness / context strips.
+// Tones mirror the Phase 7.1/7.2 admin diagnostic palette so creator and
+// admin surfaces share the same visual language.
+export function ReadinessChip({
+  tone,
+  label,
+}: {
+  tone: "amber" | "emerald" | "neutral";
+  label: string;
+}) {
+  const cls =
+    tone === "emerald"
+      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+      : tone === "amber"
+      ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+      : "bg-white/5 text-neutral-300 border-white/15";
+  return (
+    <span className={`text-[11px] px-2 py-0.5 rounded border ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+// Phase 7.3 Layer 2 — visual chrome around <input type="file">. Keyboard +
+// screen-reader accessible via <label>-wrapping; no upload logic, no
+// drag/drop, no fetch. Caller owns the preview render and the upload
+// handler. Designed to be a drop-in replacement for the bare file inputs
+// on Media Package and (where useful) New / Edit Work.
+export function UploadField({
+  label,
+  hint,
+  accept,
+  uploading,
+  preview,
+  onFile,
+  onRemove,
+  multiple,
+}: {
+  label: string;
+  hint?: string;
+  accept: string;
+  uploading?: boolean;
+  preview?: React.ReactNode;
+  onFile: (file: File) => void | Promise<void>;
+  onRemove?: () => void;
+  multiple?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-white">{label}</p>
+      {hint && <p className="text-xs text-ink-faint">{hint}</p>}
+      {preview}
+      <div className="flex items-center gap-3 flex-wrap">
+        <label
+          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition cursor-pointer ${
+            uploading
+              ? "border-white/10 text-ink-muted cursor-not-allowed"
+              : "border-white/15 bg-white/5 text-white hover:bg-white/10"
+          }`}
+        >
+          <span>{uploading ? "Uploading…" : "Choose file"}</span>
+          <input
+            type="file"
+            accept={accept}
+            multiple={multiple}
+            disabled={uploading}
+            onChange={async (e) => {
+              const files = Array.from(e.target.files ?? []);
+              if (multiple && files.length) {
+                await Promise.all(files.map((f) => onFile(f)));
+              } else if (files[0]) {
+                await onFile(files[0]);
+              }
+              e.target.value = "";
+            }}
+            className="sr-only"
+          />
+        </label>
+        {uploading && <Loader2 size={14} className="animate-spin text-ink-faint" />}
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-[11px] text-ink-faint hover:text-white transition"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

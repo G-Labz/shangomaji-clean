@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Save, Loader2, Send } from "lucide-react";
+import { Save, Loader2, Send, Lock } from "lucide-react";
 import {
   Card,
   SectionHeading,
   GradientButton,
   StatusBadge,
   ItemActions,
+  UploadField,
   useConfirm,
 } from "../../../components";
 import SubmissionIntegrityForm, {
@@ -256,7 +257,7 @@ export default function EditProjectPage({ params }: PageProps) {
       const submitData = await submitRes.json();
 
       if (submitRes.status === 422) {
-        const msg = submitData?.error || "Submission integrity record is incomplete.";
+        const msg = submitData?.error || "Submission required declaration is incomplete.";
         setIntegrityError(msg);
         showError(msg);
         return;
@@ -345,7 +346,7 @@ export default function EditProjectPage({ params }: PageProps) {
   // When rejected: all form fields hidden, only rejection info + two actions shown
   if (projectStatus === "rejected") {
     return (
-      <div className="space-y-6 pb-12">
+      <div className="max-w-3xl mx-auto space-y-6 pb-12">
         {dialog}
 
         {errors.save && (
@@ -453,7 +454,7 @@ export default function EditProjectPage({ params }: PageProps) {
   const showBlockedDelete = isBlocked && projectStatus !== "removed";
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="max-w-3xl mx-auto space-y-6 pb-12">
       {dialog}
 
       {/* Removal request modal */}
@@ -676,7 +677,8 @@ export default function EditProjectPage({ params }: PageProps) {
       {/* Edit form — semantically disabled for any non-draft state. The
           field-level disabling is enforced by <fieldset disabled>; the
           server-side gate in PUT /api/creators/projects rejects saves
-          from non-draft states regardless. */}
+          from non-draft states regardless. Phase 7.3 Layer 2: regrouped
+          into Work Identity + Release Assets cards mirroring New Work. */}
       <fieldset
         disabled={projectStatus !== "draft"}
         style={{
@@ -686,10 +688,11 @@ export default function EditProjectPage({ params }: PageProps) {
           opacity: projectStatus === "draft" ? 1 : 0.55,
           pointerEvents: projectStatus === "draft" ? "auto" : "none",
         }}
+        className="space-y-6"
       >
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2 space-y-6">
-          <SectionHeading title="Project Details" />
+        {/* Section 1 — Work Identity */}
+        <Card className="space-y-5">
+          <SectionHeading title="Work Identity" />
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Title" error={errors.title}>
               <input
@@ -737,10 +740,6 @@ export default function EditProjectPage({ params }: PageProps) {
               rows={4}
             />
           </Field>
-          {/* Phase 6 Tier 2 — runtime input mirrors the New Project
-              form's Runtime/Episode count field. Same component, same
-              placeholder, same drafts-only edit gate enforced server-side.
-              No new dependencies, no layout overhaul. */}
           <Field label="Runtime / Episode count" hint="Optional. e.g., 2h 7m, 22 min, 6 x 22min.">
             <input
               value={draft.runtime}
@@ -748,97 +747,96 @@ export default function EditProjectPage({ params }: PageProps) {
               placeholder="e.g., 6 x 22min"
             />
           </Field>
-          <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Genre" error={errors.genre}>
-              <div className="flex flex-wrap gap-2">
-                {GENRES.map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => set("genre")(g)}
-                    type="button"
-                    className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-                      draft.genre === g
-                        ? "border-transparent text-black"
-                        : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                    }`}
-                    style={
-                      draft.genre === g
-                        ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                        : {}
-                    }
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <Field label="Trailer URL" hint="Paste a link. Direct file submissions are not supported.">
-              <input
-                value={draft.trailerUrl}
-                onChange={(e) => set("trailerUrl")(e.target.value)}
-                placeholder="https://youtube.com/..."
-              />
-            </Field>
-          </div>
+          <Field label="Genre" error={errors.genre}>
+            <div className="flex flex-wrap gap-2">
+              {GENRES.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => set("genre")(g)}
+                  type="button"
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition ${
+                    draft.genre === g
+                      ? "border-transparent text-black"
+                      : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                  }`}
+                  style={
+                    draft.genre === g
+                      ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                      : {}
+                  }
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </Field>
         </Card>
 
+        {/* Section 2 — Release Assets */}
         <Card className="space-y-6">
-          <SectionHeading title="Media" />
-          <div className="space-y-3">
-            <Field label="Poster / Thumbnail">
-              {draft.thumbUrl && (
-                <img
-                  src={draft.thumbUrl}
-                  alt="Poster"
-                  className="h-24 w-auto rounded-lg object-cover mb-2"
-                />
-              )}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                disabled={uploading["poster"]}
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (f) {
-                    try {
-                      const url = await uploadFile(f, "poster");
-                      set("thumbUrl")(url);
-                    } catch (err: any) {
-                      setErrors((p) => ({ ...p, thumbUrl: err.message }));
-                    }
-                  }
-                }}
-                className="w-full text-sm text-ink-faint file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-white/10 file:text-white"
-              />
-              {uploading["poster"] && <p className="text-xs text-ink-faint">Uploading…</p>}
-            </Field>
-            <Field label="Banner">
-              {draft.bannerUrl && (
-                <img
-                  src={draft.bannerUrl}
-                  alt="Banner"
-                  className="h-16 w-full rounded-lg object-cover mb-2"
-                />
-              )}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                disabled={uploading["banner"]}
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (f) {
-                    try {
-                      const url = await uploadFile(f, "banner");
-                      set("bannerUrl")(url);
-                    } catch (err: any) {
-                      setErrors((p) => ({ ...p, bannerUrl: err.message }));
-                    }
-                  }
-                }}
-                className="w-full text-sm text-ink-faint file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-white/10 file:text-white"
-              />
-              {uploading["banner"] && <p className="text-xs text-ink-faint">Uploading…</p>}
-            </Field>
+          <SectionHeading
+            title="Release Assets"
+            description="These ship with your release. Add what you have; remaining items can come later."
+          />
+          <UploadField
+            label="Poster / Thumbnail"
+            hint="Square or 2:3 portrait recommended."
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            uploading={uploading["poster"]}
+            preview={
+              draft.thumbUrl ? (
+                <img src={draft.thumbUrl} alt="Poster" className="h-24 w-auto rounded-lg object-cover" />
+              ) : null
+            }
+            onFile={async (file) => {
+              try {
+                const url = await uploadFile(file, "poster");
+                set("thumbUrl")(url);
+              } catch (err: any) {
+                setErrors((p) => ({ ...p, thumbUrl: err.message }));
+              }
+            }}
+            onRemove={draft.thumbUrl ? () => set("thumbUrl")("") : undefined}
+          />
+          <UploadField
+            label="Banner"
+            hint="Wide cinematic image used in hero contexts."
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            uploading={uploading["banner"]}
+            preview={
+              draft.bannerUrl ? (
+                <img src={draft.bannerUrl} alt="Banner" className="h-16 w-full rounded-lg object-cover" />
+              ) : null
+            }
+            onFile={async (file) => {
+              try {
+                const url = await uploadFile(file, "banner");
+                set("bannerUrl")(url);
+              } catch (err: any) {
+                setErrors((p) => ({ ...p, bannerUrl: err.message }));
+              }
+            }}
+            onRemove={draft.bannerUrl ? () => set("bannerUrl")("") : undefined}
+          />
+          <Field label="Trailer URL" hint="An outbound link. Your public title page renders this as a single “Watch trailer” button.">
+            <input
+              value={draft.trailerUrl}
+              onChange={(e) => set("trailerUrl")(e.target.value)}
+              placeholder="https://youtube.com/..."
+            />
+          </Field>
+
+          {/* Private subsection — visually separated. Server still
+              treats sample_url as creator/admin-private (no public
+              exposure). Field name and payload key unchanged. */}
+          <div className="border-t border-white/8 pt-5 space-y-2">
+            <p className="text-[11px] uppercase tracking-widest text-ink-faint inline-flex items-center gap-1.5">
+              <Lock size={11} className="opacity-70" aria-hidden="true" />
+              Private — admin reference only
+            </p>
+            <p className="text-xs text-ink-muted leading-relaxed max-w-2xl">
+              Private reference shared with ShangoMaji review only. Not part of your public release.
+            </p>
             <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
               <input
                 value={draft.sampleUrl}
@@ -848,18 +846,24 @@ export default function EditProjectPage({ params }: PageProps) {
             </Field>
           </div>
         </Card>
-      </div>
       </fieldset>
 
-      {/* Submission Integrity panel — read-only after submission. Shown for
-          drafts (so the creator can complete it) and for any submitted/live
-          state (so the creator can see what they attested to). */}
-      <SubmissionIntegrityForm
-        value={integrity}
-        onChange={setIntegrity}
-        disabled={projectStatus !== "draft"}
-        fieldError={integrityError}
-      />
+      {/* Section 3 — Submission Declaration. Lives outside the fieldset
+          because the integrity form has its own `disabled` pass-through;
+          this preserves read-only behavior on submitted / live / etc.
+          states without changing form internals. */}
+      <Card className="space-y-4">
+        <SectionHeading
+          title="Submission Declaration"
+          description="Required for review. Drafts may be saved without it."
+        />
+        <SubmissionIntegrityForm
+          value={integrity}
+          onChange={setIntegrity}
+          disabled={projectStatus !== "draft"}
+          fieldError={integrityError}
+        />
+      </Card>
 
       {/* Action bar — Save Changes and Submit are scoped strictly to drafts.
           Other states are read-only at the UI level; the API also rejects

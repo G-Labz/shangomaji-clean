@@ -53,6 +53,23 @@ function stateMeaning(status: string): string {
   }
 }
 
+// Phase 7.3 Layer 2: subtle 2px left-edge accent so a creator can scan
+// a long catalog and see status tone before reading the badge cluster.
+// Tones mirror the cross-surface palette (emerald=live/positive,
+// amber=needs creator attention, red=terminal/negative). Quiet for
+// states that don't need a glance signal.
+function statusAccent(status: string, licenseStatus?: "executed" | "none"): string {
+  if (status === "live")              return "border-l-2 border-l-emerald-500/40";
+  if (status === "approved")
+    return licenseStatus === "executed"
+      ? "border-l-2 border-l-emerald-500/30"
+      : "border-l-2 border-l-amber-500/40";
+  if (status === "removal_requested") return "border-l-2 border-l-amber-500/40";
+  if (status === "rejected")          return "border-l-2 border-l-red-500/30";
+  if (status === "removed")           return "border-l-2 border-l-red-500/40";
+  return "";
+}
+
 // Phase 7.3: at-a-glance Stage · Next Step pair shown on every My Works
 // card. Stage is the lifecycle position in plain language; next is the
 // imperative the creator (or ShangoMaji) needs to take. Returns null
@@ -412,79 +429,94 @@ export default function WorkspaceProjects() {
           const isSubmittingThis  = submittingId === project.id;
 
           return (
-            <Card key={project.id} className="flex flex-col gap-4">
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <p className="text-white font-semibold text-base">{project.title}</p>
-                    <StatusBadge status={project.status} />
-                    {/* Phase 7.3: license substate sits adjacent to the
-                        Approved badge so creators read "Approved · License
-                        required" / "Approved · License executed" at a
-                        glance, without scrolling to the helper section. */}
-                    {needsLicense && (
-                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
-                        License required
-                      </span>
+            <Card
+              key={project.id}
+              className={`flex flex-col gap-4 ${statusAccent(project.status, project.license_status)}`}
+            >
+              <div className="flex flex-col md:flex-row md:items-start gap-4">
+                <div className="flex-1 space-y-3">
+                  {/* Identity cluster — title + state badges + Stage·Next */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="text-white font-semibold text-base">{project.title}</p>
+                      <StatusBadge status={project.status} />
+                      {/* Phase 7.3: license substate sits adjacent to the
+                          Approved badge so creators read "Approved · License
+                          required" / "Approved · License executed" at a
+                          glance, without scrolling to the helper section. */}
+                      {needsLicense && (
+                        <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
+                          License required
+                        </span>
+                      )}
+                      {isApproved && licenseExecuted && (
+                        <span className="text-[11px] px-2.5 py-1 rounded-full border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">
+                          License executed
+                        </span>
+                      )}
+                      {project.project_type && <Pill>{project.project_type}</Pill>}
+                      {project.genres?.map((g) => <Pill key={g}>{g}</Pill>)}
+                      {isRemovalRequested && (
+                        <span className="text-[11px] px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
+                          Removal Requested
+                        </span>
+                      )}
+                    </div>
+                    {/* Phase 7.3: at-a-glance Stage · Next Step pair. Sits
+                        directly under the badge cluster so a creator reads
+                        stage + action before logline detail. */}
+                    {(() => {
+                      const sn = creatorStageAndNext(project.status, project.license_status);
+                      if (!sn) return null;
+                      return (
+                        <p className="text-xs text-white/85">
+                          <span className="text-ink-faint">Stage:</span> {sn.stage}
+                          {sn.next && (
+                            <>
+                              <span className="text-ink-muted"> · </span>
+                              <span className="text-ink-faint">Next:</span> {sn.next}
+                            </>
+                          )}
+                        </p>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Context cluster — logline + state meaning + timestamps + state-specific notes */}
+                  <div className="space-y-1">
+                    {project.logline && (
+                      <p className="text-ink-faint text-sm leading-snug">{project.logline}</p>
                     )}
-                    {isApproved && licenseExecuted && (
-                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">
-                        License executed
-                      </span>
+                    <p className="text-xs text-ink-faint italic leading-snug">
+                      {stateMeaning(project.status)}
+                    </p>
+                    <p className="text-[11px] text-ink-muted">
+                      Last updated {formatDate(project.updated_at)}
+                    </p>
+                    {isLive && (
+                      <p className="text-[11px] text-ink-muted leading-relaxed">
+                        Subject to review. Removal may be denied during an active license term.
+                      </p>
                     )}
-                    {project.project_type && <Pill>{project.project_type}</Pill>}
-                    {project.genres?.map((g) => <Pill key={g}>{g}</Pill>)}
                     {isRemovalRequested && (
-                      <span className="text-[11px] px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
-                        Removal Requested
-                      </span>
+                      <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                        Removal request under review. Your work remains live until a decision is made.
+                      </p>
+                    )}
+                    {project.status === "removed" && (
+                      <p className="text-[11px] text-red-300/80 leading-relaxed">
+                        This work has been removed from distribution.
+                      </p>
                     )}
                   </div>
-                  {/* Phase 7.3: at-a-glance Stage · Next Step pair. Sits
-                      directly under the badge cluster so a creator reads
-                      stage + action before logline detail. */}
-                  {(() => {
-                    const sn = creatorStageAndNext(project.status, project.license_status);
-                    if (!sn) return null;
-                    return (
-                      <p className="text-xs text-white/85">
-                        <span className="text-ink-faint">Stage:</span> {sn.stage}
-                        {sn.next && (
-                          <>
-                            <span className="text-ink-muted"> · </span>
-                            <span className="text-ink-faint">Next:</span> {sn.next}
-                          </>
-                        )}
-                      </p>
-                    );
-                  })()}
-                  {project.logline && (
-                    <p className="text-ink-faint text-sm">{project.logline}</p>
-                  )}
-                  <p className="text-xs text-ink-faint italic">
-                    {stateMeaning(project.status)}
-                  </p>
-                  <p className="text-[11px] text-ink-muted">
-                    Last updated {formatDate(project.updated_at)}
-                  </p>
-                  {isLive && (
-                    <p className="text-[11px] text-ink-muted leading-relaxed">
-                      Subject to review. Removal may be denied during an active license term.
-                    </p>
-                  )}
-                  {isRemovalRequested && (
-                    <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                      Removal request under review. Your work remains live until a decision is made.
-                    </p>
-                  )}
-                  {project.status === "removed" && (
-                    <p className="text-[11px] text-red-300/80 leading-relaxed">
-                      This work has been removed from distribution.
-                    </p>
-                  )}
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                {/* Phase 7.3 Layer 2: action cluster reads as a single
+                    grouped right-side affordance rather than loose
+                    buttons. Manage Media Package and ItemActions share
+                    the same row context; Submit for Review (drafts only)
+                    sits beside them but is the primary draft CTA. */}
+                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
                   {isDraft && (
                     <button
                       onClick={() => handleSubmitDraft(project)}

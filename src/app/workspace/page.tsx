@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const sections = [
@@ -25,7 +26,42 @@ const sections = [
   },
 ];
 
+type CatalogCounts = { inReview: number; live: number; drafts: number };
+
 export default function WorkspacePage() {
+  // Phase 7.3 Layer 2: lightweight catalog context strip — single fetch
+  // against the existing creator projects endpoint, no new APIs, no
+  // analytics. Quietly fails closed if the request errors so the
+  // landing always renders.
+  const [counts, setCounts] = useState<CatalogCounts | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res  = await fetch("/api/creators/projects");
+        const data = await res.json();
+        if (!alive || !res.ok) return;
+        const projects: { status: string }[] = data.projects ?? [];
+        setCounts({
+          inReview: projects.filter((p) => p.status === "pending" || p.status === "in_review").length,
+          live:     projects.filter((p) => p.status === "live").length,
+          drafts:   projects.filter((p) => p.status === "draft").length,
+        });
+      } catch {
+        /* silent — strip just stays empty */
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const contextLine = (() => {
+    if (!counts) return null;
+    const total = counts.inReview + counts.live + counts.drafts;
+    if (total === 0) return "Welcome. Start a new work whenever you're ready.";
+    return `${counts.inReview} in review · ${counts.live} live · ${counts.drafts} drafts`;
+  })();
+
   return (
     <div>
       <h1
@@ -38,9 +74,21 @@ export default function WorkspacePage() {
       >
         Creator Studio
       </h1>
-      <p style={{ opacity: 0.55, fontSize: 14, marginBottom: 32 }}>
+      <p style={{ opacity: 0.55, fontSize: 14, marginBottom: contextLine ? 14 : 32 }}>
         Manage your works, distribution assets, and account.
       </p>
+      {contextLine && (
+        <p
+          style={{
+            fontSize: 12,
+            color: "rgba(255,255,255,0.5)",
+            marginBottom: 32,
+            letterSpacing: "0.01em",
+          }}
+        >
+          {contextLine}
+        </p>
+      )}
 
       <div
         style={{
