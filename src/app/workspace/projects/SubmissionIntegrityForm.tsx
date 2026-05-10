@@ -229,12 +229,6 @@ export default function SubmissionIntegrityForm({
         />
       </DossierPanel>
 
-      {/* D + E paired side-by-side on wider boards. Both are
-          choice-grid sections with optional follow-up textareas — the
-          symmetry shortens the dossier without changing any data
-          behavior. Each panel still carries its own top rule, which
-          read as one continuous divider above the row. */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-x-10">
       {/* D. AI Disclosure */}
       <DossierPanel
         marker="D"
@@ -283,7 +277,6 @@ export default function SubmissionIntegrityForm({
           </DossierField>
         )}
       </DossierPanel>
-      </div>
 
       {/* F. License Awareness — institutional callout */}
       <div className="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-5">

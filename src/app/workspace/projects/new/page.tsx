@@ -205,29 +205,27 @@ export default function WorkspaceNewProject() {
   const readyForReview = coreComplete && declarationComplete;
 
   return (
-    <div className="mx-auto max-w-[1600px] px-5 sm:px-6 lg:px-10 pb-14">
-      {/* Command header — eyebrow + title + subtitle. The readiness strip
-          renders as a full-width status bar directly below, so the page
-          opens with a real command/status block, not a floating pill. */}
-      <header className="pt-2 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-ink-muted">
-            Studio submission dossier
-          </p>
-          <h1
-            className="mt-2 font-bold text-3xl lg:text-[36px] text-white tracking-tight leading-tight"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            New Work
-          </h1>
-          <p className="mt-3 text-ink-faint text-sm max-w-2xl leading-relaxed">
-            Prepare the work, declaration, and release assets for ShangoMaji review.
-          </p>
-        </div>
+    <div className="mx-auto max-w-[1500px] px-5 sm:px-8 lg:px-12 pb-16">
+
+      {/* ───────────────────────── ZONE 1 — TOP COMMAND HEADER ─────────────────────────
+          Eyebrow + display title + subtitle, then a wide horizontal
+          readiness command strip. Sits at the top of the page canvas as
+          one institutional opening block. */}
+      <header className="pt-2">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-ink-muted">
+          Studio submission dossier
+        </p>
+        <h1
+          className="mt-2 font-bold text-3xl lg:text-[36px] text-white tracking-tight leading-tight"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          New Work
+        </h1>
+        <p className="mt-3 text-ink-faint text-sm max-w-2xl leading-relaxed">
+          Prepare the work, declaration, and release assets for ShangoMaji review.
+        </p>
       </header>
 
-      {/* Readiness command/status strip — institutional bar across the
-          full board width. */}
       <div
         className={`mt-6 flex items-center gap-3 rounded-xl border px-4 py-3 ${
           readyForReview
@@ -266,210 +264,233 @@ export default function WorkspaceNewProject() {
         <p className="mt-4 text-brand-red text-sm">{errors.save}</p>
       )}
 
-      {/* Studio Intake Board — two-zone wide canvas.
-          Source order (= mobile order):
-            Work Identity → Release Assets → Submission Declaration → Submission Actions.
-          Desktop placement:
-            LEFT zone   col 1   row 1  Work Identity (wide horizontal panel)
-            LEFT zone   col 1   row 2  Submission Declaration (wide institutional)
-            RIGHT zone  col 2   row 1  Submission Actions (docked top)
-            RIGHT zone  col 2   row 2  Release Assets (release checklist)
-          No sticky — Actions sits docked at the top of the right command
-          zone so it never floats mid-page. */}
+      {/* ─────────────── ZONE 2 — WORK IDENTITY / RELEASE ASSETS ROW ───────────────
+          Two-column row on desktop: wide creative brief on the left,
+          release assets supporting rail on the right. Stacks naturally
+          on mobile.
+
+          DOM source order = mobile order:
+            Work Identity → Release Assets → Submission Declaration → Submission Actions */}
       <div
-        className="mt-8 flex flex-col gap-6 lg:grid lg:gap-8"
-        style={{
-          gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 420px)",
-          gridAutoRows: "min-content",
-        }}
+        className="mt-8 flex flex-col gap-8 lg:grid lg:items-start lg:gap-10"
+        style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(400px, 460px)" }}
       >
-        {/* LEFT ZONE · row 1 — Work Identity (wide horizontal brief panel) */}
-        <section className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <Card className="space-y-5">
-            <SectionHeading title="Work Identity" />
-            {/* 12-col internal grid keeps Title/Type and Genre/Runtime as
-                clean horizontal rows on the wide left zone, while Logline
-                and Synopsis breathe across the full width. */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5">
-              <div className="lg:col-span-8">
-                <Field label="Title" error={errors.title}>
-                  <input value={draft.title} onChange={(e) => set("title")(e.target.value)} placeholder="Project title" />
-                </Field>
-              </div>
-              <div className="lg:col-span-4">
-                <Field label="Type" error={errors.type}>
-                  <div className="grid grid-cols-3 gap-2">
-                    {TYPES.map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => set("type")(t)}
-                        className={`py-2 px-3 rounded-lg border text-sm transition ${
-                          draft.type === t
-                            ? "border-transparent text-black"
-                            : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                        }`}
-                        style={draft.type === t ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" } : {}}
-                        type="button"
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-              </div>
+        {/* Work Identity — wide creative brief panel. */}
+        <Card className="space-y-6 min-w-0">
+          <SectionHeading title="Work Identity" />
 
-              <div className="lg:col-span-12">
-                <Field label="Logline" error={errors.logline} hint="One to two sentences.">
-                  <input value={draft.logline} onChange={(e) => set("logline")(e.target.value)} placeholder="A young warrior..." />
-                </Field>
-              </div>
-
-              <div className="lg:col-span-12">
-                <Field label="Synopsis" hint="Optional detailed description.">
-                  <textarea
-                    value={draft.synopsis}
-                    onChange={(e) => set("synopsis")(e.target.value)}
-                    placeholder="Tell the full story, key beats, and what makes it special."
-                    rows={5}
-                  />
-                </Field>
-              </div>
-
-              <div className="lg:col-span-8">
-                <Field label="Genre" error={errors.genre}>
-                  <div className="flex flex-wrap gap-2">
-                    {GENRES.map((g) => (
-                      <button
-                        key={g}
-                        onClick={() => set("genre")(g)}
-                        className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-                          draft.genre === g
-                            ? "border-transparent text-black"
-                            : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                        }`}
-                        style={draft.genre === g ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" } : {}}
-                        type="button"
-                      >
-                        {g}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-              </div>
-              <div className="lg:col-span-4">
-                <Field label="Runtime / Episode count">
-                  <input value={draft.runtime} onChange={(e) => set("runtime")(e.target.value)} placeholder="e.g., 6 x 22min" />
-                </Field>
-              </div>
-            </div>
-          </Card>
-        </section>
-
-        {/* RIGHT ZONE · row 2 — Release Assets (release checklist).
-            Sits below the Submission Actions panel so the command panel
-            remains docked at the top of the right zone. */}
-        <section className="min-w-0 lg:col-start-2 lg:row-start-2">
-          <Card className="space-y-6">
-            <SectionHeading
-              title="Release Assets"
-              description="These ship with your release. Add what you have; remaining items can come later."
-            />
-
-            {/* Group 1 — Artwork */}
-            <p className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">
-              Artwork
-            </p>
-            <UploadField
-              label="Poster / Thumbnail"
-              hint="Square or 2:3 portrait recommended."
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              uploading={uploading["poster"]}
-              preview={
-                draft.thumbUrl ? (
-                  <img src={draft.thumbUrl} alt="Poster preview" className="h-24 w-auto rounded-lg object-cover" />
-                ) : null
-              }
-              onFile={async (file) => {
-                try {
-                  const url = await uploadFile(file, "poster");
-                  set("thumbUrl")(url);
-                } catch (err: any) {
-                  setErrors((prev) => ({ ...prev, thumbUrl: err.message }));
-                }
-              }}
-              onRemove={draft.thumbUrl ? () => set("thumbUrl")("") : undefined}
-            />
-            {errors.thumbUrl && <p className="text-xs text-brand-red">{errors.thumbUrl}</p>}
-
-            <UploadField
-              label="Banner"
-              hint="Wide cinematic image used in hero contexts."
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              uploading={uploading["banner"]}
-              preview={
-                draft.bannerUrl ? (
-                  <img src={draft.bannerUrl} alt="Banner preview" className="h-16 w-full rounded-lg object-cover" />
-                ) : null
-              }
-              onFile={async (file) => {
-                try {
-                  const url = await uploadFile(file, "banner");
-                  set("bannerUrl")(url);
-                } catch (err: any) {
-                  setErrors((prev) => ({ ...prev, bannerUrl: err.message }));
-                }
-              }}
-              onRemove={draft.bannerUrl ? () => set("bannerUrl")("") : undefined}
-            />
-            {errors.bannerUrl && <p className="text-xs text-brand-red">{errors.bannerUrl}</p>}
-
-            <UploadField
-              label="Stills"
-              hint="Two or more stills appear as a release gallery on your public title page."
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              multiple
-              uploading={uploading["still"]}
-              preview={
-                draft.stillsUrls.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {draft.stillsUrls.map((url, i) => (
-                      <div key={i} className="relative">
-                        <img src={url} alt={`Still ${i + 1}`} className="h-14 w-20 rounded-lg object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => setDraft((d) => ({ ...d, stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i) }))}
-                          className="absolute -top-1 -right-1 bg-black/70 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center hover:bg-brand-red"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null
-              }
-              onFile={async (file) => {
-                try {
-                  const url = await uploadFile(file, "still");
-                  setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] }));
-                } catch (err: any) {
-                  setErrors((prev) => ({ ...prev, stills: err.message }));
-                }
-              }}
-            />
-            {errors.stills && <p className="text-xs text-brand-red">{errors.stills}</p>}
-
-            {/* Group 2 — Trailer & deliverables */}
-            <div className="border-t border-white/8 pt-5 space-y-5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">
-                Trailer & deliverables
-              </p>
-              <Field label="Trailer URL" hint="An outbound link. Your public title page renders this as a single “Watch trailer” button.">
-                <input value={draft.trailerUrl} onChange={(e) => set("trailerUrl")(e.target.value)} placeholder="https://youtube.com/... or direct link" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+            <div className="lg:col-span-2">
+              <Field label="Title" error={errors.title}>
+                <input
+                  value={draft.title}
+                  onChange={(e) => set("title")(e.target.value)}
+                  placeholder="Project title"
+                />
               </Field>
+            </div>
+            <div className="lg:col-span-1">
+              <Field label="Type" error={errors.type}>
+                <div className="grid grid-cols-3 gap-2">
+                  {TYPES.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => set("type")(t)}
+                      className={`py-2 px-2 rounded-lg border text-sm transition ${
+                        draft.type === t
+                          ? "border-transparent text-black"
+                          : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                      }`}
+                      style={
+                        draft.type === t
+                          ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                          : {}
+                      }
+                      type="button"
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
+          </div>
 
-              <div>
-                <p className="text-sm font-medium text-white mb-1">Deliverables</p>
-                <p className="text-xs text-ink-faint mb-3">Mark every asset that will ship with this release.</p>
+          <Field label="Logline" error={errors.logline} hint="One to two sentences.">
+            <input
+              value={draft.logline}
+              onChange={(e) => set("logline")(e.target.value)}
+              placeholder="A young warrior..."
+            />
+          </Field>
+
+          <Field label="Synopsis" hint="Optional detailed description.">
+            <textarea
+              value={draft.synopsis}
+              onChange={(e) => set("synopsis")(e.target.value)}
+              placeholder="Tell the full story, key beats, and what makes it special."
+              rows={6}
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+            <div className="lg:col-span-2">
+              <Field label="Genre" error={errors.genre}>
+                <div className="flex flex-wrap gap-2">
+                  {GENRES.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => set("genre")(g)}
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition ${
+                        draft.genre === g
+                          ? "border-transparent text-black"
+                          : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                      }`}
+                      style={
+                        draft.genre === g
+                          ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                          : {}
+                      }
+                      type="button"
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
+            <div className="lg:col-span-1">
+              <Field label="Runtime / Episode count">
+                <input
+                  value={draft.runtime}
+                  onChange={(e) => set("runtime")(e.target.value)}
+                  placeholder="e.g., 6 x 22min"
+                />
+              </Field>
+            </div>
+          </div>
+        </Card>
+
+        {/* Release Assets — supporting material rail.
+            Three intentional groups: Artwork, Trailer & deliverables,
+            Private (admin-reference only). sample_url stays creator/
+            admin-private; field name and payload key unchanged. */}
+        <Card className="space-y-6 min-w-0">
+          <SectionHeading
+            title="Release Assets"
+            description="These ship with your release. Add what you have; remaining items can come later."
+          />
+
+          {/* Group 1 — Artwork */}
+          <p className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">
+            Artwork
+          </p>
+
+          <UploadField
+            label="Poster / Thumbnail"
+            hint="Square or 2:3 portrait recommended."
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            uploading={uploading["poster"]}
+            preview={
+              draft.thumbUrl ? (
+                <img src={draft.thumbUrl} alt="Poster preview" className="h-24 w-auto rounded-lg object-cover" />
+              ) : null
+            }
+            onFile={async (file) => {
+              try {
+                const url = await uploadFile(file, "poster");
+                set("thumbUrl")(url);
+              } catch (err: any) {
+                setErrors((prev) => ({ ...prev, thumbUrl: err.message }));
+              }
+            }}
+            onRemove={draft.thumbUrl ? () => set("thumbUrl")("") : undefined}
+          />
+          {errors.thumbUrl && <p className="text-xs text-brand-red">{errors.thumbUrl}</p>}
+
+          <UploadField
+            label="Banner"
+            hint="Wide cinematic image used in hero contexts."
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            uploading={uploading["banner"]}
+            preview={
+              draft.bannerUrl ? (
+                <img src={draft.bannerUrl} alt="Banner preview" className="h-16 w-full rounded-lg object-cover" />
+              ) : null
+            }
+            onFile={async (file) => {
+              try {
+                const url = await uploadFile(file, "banner");
+                set("bannerUrl")(url);
+              } catch (err: any) {
+                setErrors((prev) => ({ ...prev, bannerUrl: err.message }));
+              }
+            }}
+            onRemove={draft.bannerUrl ? () => set("bannerUrl")("") : undefined}
+          />
+          {errors.bannerUrl && <p className="text-xs text-brand-red">{errors.bannerUrl}</p>}
+
+          <UploadField
+            label="Stills"
+            hint="Two or more stills appear as a release gallery on your public title page."
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            uploading={uploading["still"]}
+            preview={
+              draft.stillsUrls.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {draft.stillsUrls.map((url, i) => (
+                    <div key={i} className="relative">
+                      <img src={url} alt={`Still ${i + 1}`} className="h-14 w-20 rounded-lg object-cover" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDraft((d) => ({
+                            ...d,
+                            stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i),
+                          }))
+                        }
+                        className="absolute -top-1 -right-1 bg-black/70 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center hover:bg-brand-red"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null
+            }
+            onFile={async (file) => {
+              try {
+                const url = await uploadFile(file, "still");
+                setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] }));
+              } catch (err: any) {
+                setErrors((prev) => ({ ...prev, stills: err.message }));
+              }
+            }}
+          />
+          {errors.stills && <p className="text-xs text-brand-red">{errors.stills}</p>}
+
+          {/* Group 2 — Trailer & deliverables */}
+          <div className="border-t border-white/8 pt-5 space-y-5">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">
+              Trailer & deliverables
+            </p>
+            <Field
+              label="Trailer URL"
+              hint="An outbound link. Your public title page renders this as a single “Watch trailer” button."
+            >
+              <input
+                value={draft.trailerUrl}
+                onChange={(e) => set("trailerUrl")(e.target.value)}
+                placeholder="https://youtube.com/... or direct link"
+              />
+            </Field>
+
+            <div>
+              <p className="text-sm font-medium text-white mb-1">Deliverables</p>
+              <p className="text-xs text-ink-faint mb-3">
+                Mark every asset that will ship with this release.
+              </p>
               <div className="space-y-2">
                 {DELIVERABLES.map((item) => {
                   const on = draft.deliverables.includes(item);
@@ -491,120 +512,129 @@ export default function WorkspaceNewProject() {
                   );
                 })}
               </div>
-              </div>
             </div>
+          </div>
 
-            {/* Private subsection — visually separated. Server still
-                treats sample_url as creator/admin-private (no public
-                exposure). Field name and payload key unchanged. */}
-            <div className="border-t border-white/8 pt-5 space-y-2">
-              <p className="text-[11px] uppercase tracking-widest text-ink-faint inline-flex items-center gap-1.5">
-                <Lock size={11} className="opacity-70" aria-hidden="true" />
-                Private — admin reference only
-              </p>
-              <p className="text-xs text-ink-muted leading-relaxed">
-                Private reference shared with ShangoMaji review only. Not part of your public release.
-              </p>
-              <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
-                <input value={draft.sampleUrl} onChange={(e) => set("sampleUrl")(e.target.value)} placeholder="https://..." />
-              </Field>
-            </div>
-          </Card>
-        </section>
+          {/* Group 3 — Private subsection.
+              Server still treats sample_url as creator/admin-private (no
+              public exposure). Field name and payload key unchanged. */}
+          <div className="border-t border-white/8 pt-5 space-y-2">
+            <p className="text-[11px] uppercase tracking-widest text-ink-faint inline-flex items-center gap-1.5">
+              <Lock size={11} className="opacity-70" aria-hidden="true" />
+              Private — admin reference only
+            </p>
+            <p className="text-xs text-ink-muted leading-relaxed">
+              Private reference shared with ShangoMaji review only. Not part of your public release.
+            </p>
+            <Field
+              label="Sample / Screener URL"
+              hint="Paste a link. Direct file submissions are not supported."
+            >
+              <input
+                value={draft.sampleUrl}
+                onChange={(e) => set("sampleUrl")(e.target.value)}
+                placeholder="https://..."
+              />
+            </Field>
+          </div>
+        </Card>
+      </div>
 
-        {/* LEFT ZONE · row 2 — Submission Declaration (wide institutional
-            panel). Stops being a tall narrow wall by riding the full
-            left-zone width; D + E pair side-by-side internally. */}
-        <section className="min-w-0 lg:col-start-1 lg:row-start-2">
-          <Card className="space-y-5">
-            <SectionHeading
-              title="Submission Declaration"
-              description="Required for review. Drafts may be saved without it."
-            />
+      {/* ─────────────── ZONE 3 — SUBMISSION DECLARATION DOCUMENT ───────────────
+          Full-width institutional document below Zone 2. The card is
+          substantial across the canvas; the dossier sections inside use
+          a constrained reading column so the legal/declaration text
+          stays comfortably readable. All six sections stack vertically;
+          D and E are NOT side-by-side. */}
+      <Card className="mt-10 p-6 lg:p-10">
+        <div className="max-w-[940px] mx-auto">
+          <SectionHeading
+            title="Submission Declaration"
+            description="Required for review. Drafts may be saved without it."
+          />
+          <div className="mt-2">
             <SubmissionIntegrityForm
               value={integrity}
               onChange={setIntegrity}
               fieldError={integrityError}
             />
-          </Card>
-        </section>
+          </div>
+        </div>
+      </Card>
 
-        {/* RIGHT ZONE · row 1 — Submission Actions (docked at the top of
-            the right command zone). No sticky. */}
-        <section className="min-w-0 lg:col-start-2 lg:row-start-1">
-          <Card className="space-y-4">
-            <SectionHeading title="Submission Actions" />
-            <div
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
-                readyForReview
-                  ? "border-emerald-500/30 bg-emerald-500/5"
-                  : "border-amber-500/30 bg-amber-500/5"
-              }`}
-            >
-              <ReadinessChip
-                tone={readyForReview ? "emerald" : "amber"}
-                label={readyForReview ? "Ready" : "Draft mode"}
-              />
-              <p className="text-[11px] text-ink-faint leading-snug">
+      {/* ─────────────── ZONE 4 — ACTION / READINESS COMMAND FOOTER ───────────────
+          Institutional command footer at the bottom of the page canvas.
+          Inside the page, not floating; not sticky. Readiness state on
+          the left, primary Submit + secondary Save Draft on the right. */}
+      <Card className="mt-8 p-5 lg:p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          <div className="flex items-start gap-3 min-w-0">
+            <ReadinessChip
+              tone={readyForReview ? "emerald" : "amber"}
+              label={readyForReview ? "Ready" : "Draft mode"}
+            />
+            <div className="min-w-0">
+              <p className="text-sm text-white font-medium leading-snug">
                 {readyForReview
-                  ? "Declaration complete."
-                  : "Declaration incomplete."}
+                  ? "Ready for review — declaration complete."
+                  : "Draft mode — declaration incomplete."}
+              </p>
+              <p className="text-xs text-ink-muted leading-relaxed mt-1 max-w-xl">
+                Save as draft to continue later, or submit when the required declaration is complete.
               </p>
             </div>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={submitForReview}
-                disabled={saving || submitting}
-                style={{
-                  width: "100%",
-                  padding: "12px 18px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-                  color: "black",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: saving || submitting ? "not-allowed" : "pointer",
-                  opacity: saving || submitting ? 0.6 : 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                }}
-              >
-                {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                {submitting ? "Submitting..." : "Submit for Review"}
-              </button>
-              <button
-                onClick={saveDraft}
-                disabled={saving || submitting}
-                style={{
-                  width: "100%",
-                  padding: "10px 18px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "transparent",
-                  color: "rgba(255,255,255,0.7)",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: saving || submitting ? "not-allowed" : "pointer",
-                  opacity: saving || submitting ? 0.5 : 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                }}
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {saving ? "Saving..." : saved ? "Saved" : "Save Draft"}
-              </button>
-            </div>
-            <p className="text-[11px] text-ink-muted leading-relaxed">
-              Save as draft to continue later, or submit when the required declaration is complete.
-            </p>
-          </Card>
-        </section>
-      </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 lg:shrink-0">
+            <button
+              onClick={saveDraft}
+              disabled={saving || submitting}
+              style={{
+                padding: "12px 22px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "transparent",
+                color: "rgba(255,255,255,0.78)",
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: saving || submitting ? "not-allowed" : "pointer",
+                opacity: saving || submitting ? 0.5 : 1,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                minWidth: 160,
+              }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {saving ? "Saving..." : saved ? "Saved" : "Save Draft"}
+            </button>
+            <button
+              onClick={submitForReview}
+              disabled={saving || submitting}
+              style={{
+                padding: "12px 26px",
+                borderRadius: 12,
+                border: "none",
+                background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                color: "black",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: saving || submitting ? "not-allowed" : "pointer",
+                opacity: saving || submitting ? 0.6 : 1,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                minWidth: 200,
+              }}
+            >
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {submitting ? "Submitting..." : "Submit for Review"}
+            </button>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }
