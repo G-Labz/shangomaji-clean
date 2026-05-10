@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ItemActions,
   WorkPoster,
   WorkStatusDot,
   useConfirm,
@@ -317,10 +316,12 @@ export default function WorkspaceProjects() {
       </div>
 
       {/* Quiet text filters with counts. Active filter uses subtle
-          underline + brighter text. Counts are stable (not filtered). */}
+          underline + brighter text. Zero-count filters dim but stay
+          clickable so the catalog is always navigable. */}
       <div className="flex items-center gap-5 flex-wrap border-b border-white/8 pb-3">
         {FILTERS.map((f) => {
           const active = filter === f.key;
+          const empty  = counts[f.key] === 0 && !active;
           return (
             <button
               key={f.key}
@@ -328,7 +329,9 @@ export default function WorkspaceProjects() {
               className={`text-xs tracking-wide transition pb-1 -mb-[13px] border-b-2 ${
                 active
                   ? "text-white border-white/70"
-                  : "text-ink-faint border-transparent hover:text-white/85"
+                  : empty
+                    ? "text-ink-muted/60 border-transparent hover:text-white/70"
+                    : "text-ink-faint border-transparent hover:text-white/85"
               }`}
             >
               <span className={active ? "font-medium" : ""}>{f.label}</span>
@@ -398,9 +401,18 @@ export default function WorkspaceProjects() {
         </div>
       )}
 
-      {/* Catalog grid */}
+      {/* Catalog grid — auto-fill with a 220–280px track keeps card
+          width confident regardless of count. A single work sits left-
+          aligned at ~280px wide rather than stretching across the page
+          or shrinking to a postage stamp. */}
       {!loading && filtered.length > 0 && (
-        <div className="grid gap-x-5 gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
+        <div
+          className="grid gap-x-5 gap-y-10"
+          style={{
+            gridTemplateColumns:
+              "repeat(auto-fill, minmax(min(100%, 220px), 280px))",
+          }}
+        >
           {filtered.map((project) => (
             <WorkCatalogCard
               key={project.id}
@@ -418,22 +430,19 @@ export default function WorkspaceProjects() {
 }
 
 /* ───────────────────────── Work Catalog Card ─────────────────────────
-   Poster-led card. Poster region is the primary visual element with a
-   thin status stripe at its base; metadata + a single primary action
-   sit beneath. Secondary actions (Edit / Delete / Request Removal)
-   remain available via ItemActions, which reads as quiet text.
-   Lifecycle/validation/API are unchanged — this is a visual
-   reorganization of existing affordances. */
+   Poster-led card. Poster region is the visual anchor with a thin
+   status stripe at its base; metadata + one full-width primary action
+   sit beneath, with all secondaries (Request Removal, Submit for
+   Review, View License, Delete) as quiet text links so the primary is
+   never visually contested. Lifecycle/validation/API are unchanged —
+   this is a visual reorganization of existing affordances. */
 
 type PrimaryAction =
-  | { kind: "link"; label: string; href: string; emphasis?: "amber" | "neutral" }
+  | { kind: "link";   label: string; href: string; emphasis?: "amber" | "neutral" }
   | { kind: "button"; label: string; onClick: () => void; busy?: boolean; emphasis?: "amber" | "neutral" }
-  | { kind: "quiet"; label: string };
+  | { kind: "quiet";  label: string };
 
-function primaryAction(
-  project: Project,
-  opts: { onSubmitDraft: () => void; submitting: boolean }
-): PrimaryAction {
+function primaryAction(project: Project): PrimaryAction {
   const { status, license_status } = project;
   if (status === "live") {
     return {
@@ -460,8 +469,6 @@ function primaryAction(
     };
   }
   if (status === "draft") {
-    // Two natural actions: Continue (edit) is the primary visible
-    // affordance; Submit for Review is a secondary inline option below.
     return {
       kind: "link",
       label: "Continue",
@@ -512,10 +519,7 @@ function WorkCatalogCard({
   const licenseExecuted   = project.license_status === "executed";
   const canDelete         = isDraft || isRejected;
 
-  const action = primaryAction(project, {
-    onSubmitDraft: () => onSubmitDraft(project),
-    submitting,
-  });
+  const action = primaryAction(project);
 
   const genreLine = project.genres?.slice(0, 2).join(" · ") ?? "";
   const typeLine  = [project.project_type, genreLine].filter(Boolean).join(" · ");
@@ -556,83 +560,93 @@ function WorkCatalogCard({
         </p>
       </div>
 
-      {/* Action region — one primary visible action + quiet secondaries.
-          Drafts get an additional Submit-for-Review row directly under
-          Continue so it stays one click away without competing visually. */}
+      {/* Action region — one primary, full-width button; secondaries
+          sit visually subordinate as quiet text links so they never
+          compete with the primary even on a single-card layout. */}
       <div className="flex flex-col gap-2 mt-1">
-        <div className="flex items-center justify-between gap-2">
-          {action.kind === "link" ? (
-            <Link
-              href={action.href}
-              className={
-                action.emphasis === "amber"
-                  ? "px-3 py-1.5 rounded-lg text-xs font-semibold text-black transition active:scale-95"
-                  : "px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition"
-              }
-              style={
-                action.emphasis === "amber"
-                  ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                  : undefined
-              }
-            >
-              {action.label}
-            </Link>
-          ) : action.kind === "button" ? (
-            <button
-              onClick={action.onClick}
-              disabled={action.busy}
-              className={
-                action.emphasis === "amber"
-                  ? "px-3 py-1.5 rounded-lg text-xs font-semibold text-black transition active:scale-95 disabled:opacity-50"
-                  : "px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
-              }
-              style={
-                action.emphasis === "amber"
-                  ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                  : undefined
-              }
-            >
-              {action.label}
-            </button>
-          ) : action.label ? (
-            <span className="text-xs text-ink-muted italic">{action.label}</span>
-          ) : (
-            <span />
-          )}
-
-          <ItemActions
-            editHref={
-              isDraft || isRejected
-                ? `/workspace/projects/${project.id}/edit`
+        {action.kind === "link" ? (
+          <Link
+            href={action.href}
+            className={
+              action.emphasis === "amber"
+                ? "block w-full text-center px-3 py-2 rounded-lg text-[13px] font-semibold text-black transition active:scale-[0.98]"
+                : "block w-full text-center px-3 py-2 rounded-lg text-[13px] font-semibold border border-white/15 bg-white/[0.04] text-white hover:bg-white/[0.09] hover:border-white/25 transition"
+            }
+            style={
+              action.emphasis === "amber"
+                ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
                 : undefined
             }
-            onDelete={canDelete ? () => onDelete(project) : undefined}
-            onRequestRemoval={isLive ? () => onRequestRemoval(project) : undefined}
-          />
-        </div>
-
-        {/* Draft secondary: keep Submit for Review one click away, but
-            visually quieter than Continue. */}
-        {isDraft && (
-          <button
-            onClick={() => onSubmitDraft(project)}
-            disabled={submitting}
-            className="self-start text-[11px] text-ink-faint hover:text-white transition disabled:opacity-50"
           >
-            {submitting ? "Submitting…" : "Submit for review →"}
-          </button>
-        )}
-
-        {/* Approved + executed: surface the license-view link beside
-            Manage Media without crowding the primary cluster. */}
-        {isApproved && licenseExecuted && (
-          <Link
-            href={`/license/${project.id}`}
-            className="self-start text-[11px] text-ink-faint hover:text-white transition"
-          >
-            View License →
+            {action.label}
           </Link>
-        )}
+        ) : action.kind === "button" ? (
+          <button
+            onClick={action.onClick}
+            disabled={action.busy}
+            className={
+              action.emphasis === "amber"
+                ? "w-full px-3 py-2 rounded-lg text-[13px] font-semibold text-black transition active:scale-[0.98] disabled:opacity-50"
+                : "w-full px-3 py-2 rounded-lg text-[13px] font-semibold border border-white/15 bg-white/[0.04] text-white hover:bg-white/[0.09] hover:border-white/25 transition disabled:opacity-50"
+            }
+            style={
+              action.emphasis === "amber"
+                ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                : undefined
+            }
+          >
+            {action.label}
+          </button>
+        ) : action.label ? (
+          <p className="w-full text-center px-3 py-2 rounded-lg text-[12px] text-ink-muted italic border border-white/8 bg-white/[0.02]">
+            {action.label}
+          </p>
+        ) : null}
+
+        {/* Quiet secondaries — small text links beneath the primary
+            button. Never compete visually; always reachable.
+            Live           → Request Removal
+            Drafts         → Submit for review · Delete
+            Rejected       → Delete
+            Approved/exec  → View License */}
+        <div className="flex items-center justify-between gap-3 px-0.5 min-h-[18px]">
+          <div className="flex items-center gap-3 text-[11px]">
+            {isLive && (
+              <button
+                onClick={() => onRequestRemoval(project)}
+                className="text-yellow-500/70 hover:text-yellow-400 transition"
+              >
+                Request removal
+              </button>
+            )}
+            {isDraft && (
+              <button
+                onClick={() => onSubmitDraft(project)}
+                disabled={submitting}
+                className="text-ink-faint hover:text-white transition disabled:opacity-50"
+              >
+                {submitting ? "Submitting…" : "Submit for review →"}
+              </button>
+            )}
+            {isApproved && licenseExecuted && (
+              <Link
+                href={`/license/${project.id}`}
+                className="text-ink-faint hover:text-white transition"
+              >
+                View license →
+              </Link>
+            )}
+          </div>
+
+          {canDelete && (
+            <button
+              onClick={() => onDelete(project)}
+              className="text-[11px] text-red-400/55 hover:text-red-400 transition"
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
