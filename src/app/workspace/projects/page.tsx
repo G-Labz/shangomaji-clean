@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Card, StatusBadge, Pill, ItemActions, useConfirm, statusLabel } from "../components";
+import {
+  ItemActions,
+  WorkPoster,
+  WorkStatusDot,
+  useConfirm,
+  workStateLine,
+} from "../components";
 
 type Project = {
   id: string;
@@ -12,6 +18,8 @@ type Project = {
   genres: string[] | null;
   logline: string | null;
   description: string | null;
+  cover_image_url?: string | null;
+  banner_url?: string | null;
   updated_at: string;
   removal_requested?: boolean;
   removal_request_reason?: string | null;
@@ -27,85 +35,26 @@ const FILTERS = [
   { key: "pending",  label: "Pending"  },
   { key: "draft",    label: "Drafts"   },
   { key: "rejected", label: "Rejected" },
-];
+] as const;
 
-function matchesFilter(status: string, filter: string): boolean {
+type FilterKey = typeof FILTERS[number]["key"];
+
+function matchesFilter(status: string, filter: FilterKey): boolean {
   if (filter === "all") return true;
   if (filter === "pending") return status === "pending" || status === "in_review";
   return status === filter;
 }
 
-// Authority-of-state plain English. Visible directly under the badge so the
-// creator never has to guess what their work's state means or who controls
-// the next move.
-function stateMeaning(status: string): string {
-  switch (status) {
-    case "draft":             return "Private draft. Fully editable.";
-    case "pending":           return "Submitted for review. Editing locked.";
-    case "in_review":         return "Under editorial evaluation. No changes allowed.";
-    case "approved":          return "Selected for distribution consideration. License required.";
-    case "live":              return "Under active distribution license. Managed by ShangoMaji.";
-    case "archived":          return "Removed from active catalog.";
-    case "rejected":          return "Not selected. Revise to create a new draft.";
-    case "removal_requested": return "Removal request under review. Your work remains live while ShangoMaji reviews this request. Removal is not automatic and may be denied under the active license terms.";
-    case "removed":           return "Distribution ended. This work has been removed from distribution. It is no longer eligible for restoration through the creator workspace.";
-    default:                  return "";
-  }
-}
-
-// Phase 7.3 Layer 2: subtle 2px left-edge accent so a creator can scan
-// a long catalog and see status tone before reading the badge cluster.
-// Tones mirror the cross-surface palette (emerald=live/positive,
-// amber=needs creator attention, red=terminal/negative). Quiet for
-// states that don't need a glance signal.
-function statusAccent(status: string, licenseStatus?: "executed" | "none"): string {
-  if (status === "live")              return "border-l-2 border-l-emerald-500/40";
-  if (status === "approved")
-    return licenseStatus === "executed"
-      ? "border-l-2 border-l-emerald-500/30"
-      : "border-l-2 border-l-amber-500/40";
-  if (status === "removal_requested") return "border-l-2 border-l-amber-500/40";
-  if (status === "rejected")          return "border-l-2 border-l-red-500/30";
-  if (status === "removed")           return "border-l-2 border-l-red-500/40";
-  return "";
-}
-
-// Phase 7.3: at-a-glance Stage · Next Step pair shown on every My Works
-// card. Stage is the lifecycle position in plain language; next is the
-// imperative the creator (or ShangoMaji) needs to take. Returns null
-// when both values are unknown so the card stays quiet.
-function creatorStageAndNext(
-  status: string,
-  licenseStatus?: "executed" | "none"
-): { stage: string; next: string | null } | null {
-  switch (status) {
-    case "draft":
-      return { stage: "Draft",                          next: "Submit for review" };
-    case "pending":
-      return { stage: "Submitted",                      next: "Awaiting ShangoMaji review" };
-    case "in_review":
-      return { stage: "In Review",                      next: "Awaiting decision" };
-    case "approved":
-      return licenseStatus === "executed"
-        ? { stage: "Licensed",                          next: "Awaiting ShangoMaji activation" }
-        : { stage: "Approved",                          next: "Sign distribution license" };
-    case "live":
-      return { stage: "Live",                           next: "Distribution active" };
-    case "removal_requested":
-      return { stage: "Removal under review",           next: "Awaiting decision" };
-    case "archived":
-      return { stage: "Archived",                       next: null };
-    case "rejected":
-      return { stage: "Not selected",                   next: "Revise and resubmit" };
-    case "removed":
-      return { stage: "Removed from distribution",      next: null };
-    default:
-      return null;
-  }
-}
+const EMPTY_HEADINGS: Record<FilterKey, string> = {
+  all:      "Your catalog is empty.",
+  live:     "No live works.",
+  pending:  "No works awaiting review.",
+  draft:    "No drafts.",
+  rejected: "No rejected works.",
+};
 
 export default function WorkspaceProjects() {
-  const [filter, setFilter]     = useState<string>("all");
+  const [filter, setFilter]     = useState<FilterKey>("all");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState("");
@@ -139,18 +88,22 @@ export default function WorkspaceProjects() {
     loadProjects();
   }, []);
 
+  const counts = useMemo(() => {
+    const c: Record<FilterKey, number> = { all: 0, live: 0, pending: 0, draft: 0, rejected: 0 };
+    for (const p of projects) {
+      c.all += 1;
+      if (p.status === "live")     c.live     += 1;
+      if (p.status === "pending" || p.status === "in_review") c.pending += 1;
+      if (p.status === "draft")    c.draft    += 1;
+      if (p.status === "rejected") c.rejected += 1;
+    }
+    return c;
+  }, [projects]);
+
   const filtered = useMemo(
     () => projects.filter((p) => matchesFilter(p.status, filter)),
     [filter, projects]
   );
-
-  function formatDate(iso: string) {
-    try {
-      return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    } catch {
-      return "";
-    }
-  }
 
   function showFeedback(msg: string) {
     setFeedback(msg);
@@ -185,9 +138,6 @@ export default function WorkspaceProjects() {
     }
   }
 
-  // Submit a draft for review directly from the list (draft → pending).
-  // Mirrors the edit page's Submit for Review action, so a creator never
-  // has to open the edit page just to find the submit button.
   async function handleSubmitDraft(project: Project) {
     setSubmittingId(project.id);
     try {
@@ -253,7 +203,7 @@ export default function WorkspaceProjects() {
   }
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-8 pb-12">
       {dialog}
 
       {/* Removal request modal */}
@@ -344,36 +294,53 @@ export default function WorkspaceProjects() {
         </div>
       )}
 
-      <div>
-        <h1
-          className="font-bold text-2xl text-white tracking-tight"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          My Works
-        </h1>
-        <p className="text-ink-faint text-sm mt-1">
-          Submit, track, and manage your catalog.
-        </p>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-              filter === f.key
-                ? "border-white/20 bg-white/10 text-white"
-                : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-            }`}
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <h1
+            className="font-bold text-2xl text-white tracking-tight"
+            style={{ fontFamily: "var(--font-display)" }}
           >
-            {f.label}
-          </button>
-        ))}
+            My Works
+          </h1>
+          <p className="text-ink-faint text-sm mt-1">
+            Submit, track, and manage your catalog.
+          </p>
+        </div>
+        <Link
+          href="/workspace/projects/new"
+          className="self-start md:self-auto px-4 py-2 rounded-xl text-black font-semibold text-sm transition-all active:scale-95"
+          style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
+        >
+          New Work
+        </Link>
       </div>
 
-      {/* Feedback toast */}
+      {/* Quiet text filters with counts. Active filter uses subtle
+          underline + brighter text. Counts are stable (not filtered). */}
+      <div className="flex items-center gap-5 flex-wrap border-b border-white/8 pb-3">
+        {FILTERS.map((f) => {
+          const active = filter === f.key;
+          return (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`text-xs tracking-wide transition pb-1 -mb-[13px] border-b-2 ${
+                active
+                  ? "text-white border-white/70"
+                  : "text-ink-faint border-transparent hover:text-white/85"
+              }`}
+            >
+              <span className={active ? "font-medium" : ""}>{f.label}</span>
+              <span className={`ml-1.5 ${active ? "text-white/60" : "text-ink-muted"}`}>
+                ({counts[f.key]})
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Toasts */}
       {feedback && (
         <div
           style={{
@@ -388,7 +355,6 @@ export default function WorkspaceProjects() {
           {feedback}
         </div>
       )}
-
       {error && (
         <div
           style={{
@@ -404,211 +370,269 @@ export default function WorkspaceProjects() {
         </div>
       )}
 
-      {loading && <p className="text-ink-faint text-sm">Loading projects...</p>}
+      {loading && <p className="text-ink-faint text-sm">Loading projects…</p>}
 
+      {/* Empty states */}
       {!loading && !error && filtered.length === 0 && (
-        <Card className="text-center py-8">
-          <p className="text-ink-faint text-sm">
-            {filter === "all"
-              ? "No projects yet. Create your first one."
-              : "No projects match this filter."}
+        <div className="py-16">
+          <p
+            className="text-white text-xl"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {EMPTY_HEADINGS[filter]}
           </p>
-        </Card>
+          {filter === "all" && (
+            <>
+              <p className="text-ink-faint text-sm mt-2">
+                Submit your first work to begin distribution.
+              </p>
+              <Link
+                href="/workspace/projects/new"
+                className="inline-block mt-5 px-4 py-2 rounded-xl text-black font-semibold text-sm transition-all active:scale-95"
+                style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
+              >
+                New Work
+              </Link>
+            </>
+          )}
+        </div>
       )}
 
-      <div className="grid gap-3">
-        {filtered.map((project) => {
-          const canDelete = project.status === "draft" || project.status === "rejected";
-          const isLive    = project.status === "live";
-          const isRemovalRequested = project.status === "removal_requested";
-
-          const isDraft           = project.status === "draft";
-          const isApproved        = project.status === "approved";
-          const licenseExecuted   = project.license_status === "executed";
-          const needsLicense      = isApproved && !licenseExecuted;
-          const isSubmittingThis  = submittingId === project.id;
-
-          return (
-            <Card
+      {/* Catalog grid */}
+      {!loading && filtered.length > 0 && (
+        <div className="grid gap-x-5 gap-y-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
+          {filtered.map((project) => (
+            <WorkCatalogCard
               key={project.id}
-              className={`flex flex-col gap-4 ${statusAccent(project.status, project.license_status)}`}
+              project={project}
+              submitting={submittingId === project.id}
+              onSubmitDraft={handleSubmitDraft}
+              onDelete={handleDelete}
+              onRequestRemoval={(p) => setRemovalProject(p)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────── Work Catalog Card ─────────────────────────
+   Poster-led card. Poster region is the primary visual element with a
+   thin status stripe at its base; metadata + a single primary action
+   sit beneath. Secondary actions (Edit / Delete / Request Removal)
+   remain available via ItemActions, which reads as quiet text.
+   Lifecycle/validation/API are unchanged — this is a visual
+   reorganization of existing affordances. */
+
+type PrimaryAction =
+  | { kind: "link"; label: string; href: string; emphasis?: "amber" | "neutral" }
+  | { kind: "button"; label: string; onClick: () => void; busy?: boolean; emphasis?: "amber" | "neutral" }
+  | { kind: "quiet"; label: string };
+
+function primaryAction(
+  project: Project,
+  opts: { onSubmitDraft: () => void; submitting: boolean }
+): PrimaryAction {
+  const { status, license_status } = project;
+  if (status === "live") {
+    return {
+      kind: "link",
+      label: "Manage Media",
+      href: `/workspace/projects/${project.id}/media`,
+      emphasis: "neutral",
+    };
+  }
+  if (status === "approved") {
+    if (license_status === "executed") {
+      return {
+        kind: "link",
+        label: "Manage Media",
+        href: `/workspace/projects/${project.id}/media`,
+        emphasis: "neutral",
+      };
+    }
+    return {
+      kind: "link",
+      label: "Sign License",
+      href: `/license/${project.id}`,
+      emphasis: "amber",
+    };
+  }
+  if (status === "draft") {
+    // Two natural actions: Continue (edit) is the primary visible
+    // affordance; Submit for Review is a secondary inline option below.
+    return {
+      kind: "link",
+      label: "Continue",
+      href: `/workspace/projects/${project.id}/edit`,
+      emphasis: "amber",
+    };
+  }
+  if (status === "rejected") {
+    return {
+      kind: "link",
+      label: "View Notes",
+      href: `/workspace/projects/${project.id}/edit`,
+      emphasis: "neutral",
+    };
+  }
+  if (status === "pending" || status === "in_review") {
+    return { kind: "quiet", label: "Awaiting review" };
+  }
+  if (status === "removal_requested") {
+    return { kind: "quiet", label: "Removal under review" };
+  }
+  if (status === "removed") {
+    return { kind: "quiet", label: "Distribution ended" };
+  }
+  if (status === "archived") {
+    return { kind: "quiet", label: "Archived" };
+  }
+  return { kind: "quiet", label: "" };
+}
+
+function WorkCatalogCard({
+  project,
+  submitting,
+  onSubmitDraft,
+  onDelete,
+  onRequestRemoval,
+}: {
+  project: Project;
+  submitting: boolean;
+  onSubmitDraft: (p: Project) => void;
+  onDelete: (p: Project) => void;
+  onRequestRemoval: (p: Project) => void;
+}) {
+  const isLive            = project.status === "live";
+  const isDraft           = project.status === "draft";
+  const isApproved        = project.status === "approved";
+  const isRejected        = project.status === "rejected";
+  const licenseExecuted   = project.license_status === "executed";
+  const canDelete         = isDraft || isRejected;
+
+  const action = primaryAction(project, {
+    onSubmitDraft: () => onSubmitDraft(project),
+    submitting,
+  });
+
+  const genreLine = project.genres?.slice(0, 2).join(" · ") ?? "";
+  const typeLine  = [project.project_type, genreLine].filter(Boolean).join(" · ");
+
+  return (
+    <div className="group flex flex-col gap-3">
+      <Link
+        href={
+          isDraft || isRejected
+            ? `/workspace/projects/${project.id}/edit`
+            : (isApproved || isLive)
+              ? `/workspace/projects/${project.id}/media`
+              : `/workspace/projects/${project.id}/edit`
+        }
+        className="block transition-[border-color,filter] rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+      >
+        <WorkPoster
+          title={project.title}
+          projectType={project.project_type}
+          coverUrl={project.cover_image_url}
+          bannerUrl={project.banner_url}
+          status={project.status}
+          licenseStatus={project.license_status}
+          className="group-hover:brightness-110"
+        />
+      </Link>
+
+      <div className="space-y-1.5">
+        <p className="text-white font-semibold text-[15px] leading-snug line-clamp-2">
+          {project.title}
+        </p>
+        {typeLine && (
+          <p className="text-[11px] text-ink-muted uppercase tracking-wide">{typeLine}</p>
+        )}
+        <p className="text-xs text-ink-faint flex items-center gap-2">
+          <WorkStatusDot status={project.status} licenseStatus={project.license_status} />
+          <span>{workStateLine(project.status, project.license_status)}</span>
+        </p>
+      </div>
+
+      {/* Action region — one primary visible action + quiet secondaries.
+          Drafts get an additional Submit-for-Review row directly under
+          Continue so it stays one click away without competing visually. */}
+      <div className="flex flex-col gap-2 mt-1">
+        <div className="flex items-center justify-between gap-2">
+          {action.kind === "link" ? (
+            <Link
+              href={action.href}
+              className={
+                action.emphasis === "amber"
+                  ? "px-3 py-1.5 rounded-lg text-xs font-semibold text-black transition active:scale-95"
+                  : "px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition"
+              }
+              style={
+                action.emphasis === "amber"
+                  ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                  : undefined
+              }
             >
-              <div className="flex flex-col md:flex-row md:items-start gap-4">
-                <div className="flex-1 space-y-3">
-                  {/* Identity cluster — title + state badges + Stage·Next */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <p className="text-white font-semibold text-base">{project.title}</p>
-                      <StatusBadge status={project.status} />
-                      {/* Phase 7.3: license substate sits adjacent to the
-                          Approved badge so creators read "Approved · License
-                          required" / "Approved · License executed" at a
-                          glance, without scrolling to the helper section. */}
-                      {needsLicense && (
-                        <span className="text-[11px] px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-300 border-yellow-500/30">
-                          License required
-                        </span>
-                      )}
-                      {isApproved && licenseExecuted && (
-                        <span className="text-[11px] px-2.5 py-1 rounded-full border bg-emerald-500/10 text-emerald-300 border-emerald-500/30">
-                          License executed
-                        </span>
-                      )}
-                      {project.project_type && <Pill>{project.project_type}</Pill>}
-                      {project.genres?.map((g) => <Pill key={g}>{g}</Pill>)}
-                      {isRemovalRequested && (
-                        <span className="text-[11px] px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
-                          Removal Requested
-                        </span>
-                      )}
-                    </div>
-                    {/* Phase 7.3: at-a-glance Stage · Next Step pair. Sits
-                        directly under the badge cluster so a creator reads
-                        stage + action before logline detail. */}
-                    {(() => {
-                      const sn = creatorStageAndNext(project.status, project.license_status);
-                      if (!sn) return null;
-                      return (
-                        <p className="text-xs text-white/85">
-                          <span className="text-ink-faint">Stage:</span> {sn.stage}
-                          {sn.next && (
-                            <>
-                              <span className="text-ink-muted"> · </span>
-                              <span className="text-ink-faint">Next:</span> {sn.next}
-                            </>
-                          )}
-                        </p>
-                      );
-                    })()}
-                  </div>
+              {action.label}
+            </Link>
+          ) : action.kind === "button" ? (
+            <button
+              onClick={action.onClick}
+              disabled={action.busy}
+              className={
+                action.emphasis === "amber"
+                  ? "px-3 py-1.5 rounded-lg text-xs font-semibold text-black transition active:scale-95 disabled:opacity-50"
+                  : "px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition disabled:opacity-50"
+              }
+              style={
+                action.emphasis === "amber"
+                  ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                  : undefined
+              }
+            >
+              {action.label}
+            </button>
+          ) : action.label ? (
+            <span className="text-xs text-ink-muted italic">{action.label}</span>
+          ) : (
+            <span />
+          )}
 
-                  {/* Context cluster — logline + state meaning + timestamps + state-specific notes */}
-                  <div className="space-y-1">
-                    {project.logline && (
-                      <p className="text-ink-faint text-sm leading-snug">{project.logline}</p>
-                    )}
-                    <p className="text-xs text-ink-faint italic leading-snug">
-                      {stateMeaning(project.status)}
-                    </p>
-                    <p className="text-[11px] text-ink-muted">
-                      Last updated {formatDate(project.updated_at)}
-                    </p>
-                    {isLive && (
-                      <p className="text-[11px] text-ink-muted leading-relaxed">
-                        Subject to review. Removal may be denied during an active license term.
-                      </p>
-                    )}
-                    {isRemovalRequested && (
-                      <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                        Removal request under review. Your work remains live until a decision is made.
-                      </p>
-                    )}
-                    {project.status === "removed" && (
-                      <p className="text-[11px] text-red-300/80 leading-relaxed">
-                        This work has been removed from distribution.
-                      </p>
-                    )}
-                  </div>
-                </div>
+          <ItemActions
+            editHref={
+              isDraft || isRejected
+                ? `/workspace/projects/${project.id}/edit`
+                : undefined
+            }
+            onDelete={canDelete ? () => onDelete(project) : undefined}
+            onRequestRemoval={isLive ? () => onRequestRemoval(project) : undefined}
+          />
+        </div>
 
-                {/* Phase 7.3 Layer 2: action cluster reads as a single
-                    grouped right-side affordance rather than loose
-                    buttons. Manage Media Package and ItemActions share
-                    the same row context; Submit for Review (drafts only)
-                    sits beside them but is the primary draft CTA. */}
-                <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                  {isDraft && (
-                    <button
-                      onClick={() => handleSubmitDraft(project)}
-                      disabled={isSubmittingThis}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-black transition active:scale-95 disabled:opacity-50"
-                      style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
-                    >
-                      {isSubmittingThis ? "Submitting…" : "Submit for Review"}
-                    </button>
-                  )}
-                  {/* Phase 6 Tier 2.5 — Approved works (license required +
-                      license executed sub-states) AND Live works both
-                      get a controlled media package action. This is NOT
-                      an "Edit Work" button — core metadata stays locked
-                      at the API level. The route renders only the
-                      promotional asset surface (poster / banner / stills
-                      / trailer / deliverables).
+        {/* Draft secondary: keep Submit for Review one click away, but
+            visually quieter than Continue. */}
+        {isDraft && (
+          <button
+            onClick={() => onSubmitDraft(project)}
+            disabled={submitting}
+            className="self-start text-[11px] text-ink-faint hover:text-white transition disabled:opacity-50"
+          >
+            {submitting ? "Submitting…" : "Submit for review →"}
+          </button>
+        )}
 
-                      Phase 6 Tier 2.5 Final Correction — Live now uses
-                      the same "Manage Media Package" label and the same
-                      editable surface as Approved. Founder direction:
-                      pre-launch packaging requires creators to update
-                      media on live test works. Server PUT applies the
-                      same five-key whitelist to both states. */}
-                  {(isApproved || isLive) && (
-                    <Link
-                      href={`/workspace/projects/${project.id}/media`}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/15 text-white hover:bg-white/10 transition"
-                    >
-                      Manage Media Package
-                    </Link>
-                  )}
-                  <ItemActions
-                    /* Edit is allowed only for draft (free editing) and
-                       rejected (the edit page is already read-only there
-                       and exposes Revise). All other states are read-only
-                       to the creator. */
-                    editHref={
-                      project.status === "draft" || project.status === "rejected"
-                        ? `/workspace/projects/${project.id}/edit`
-                        : undefined
-                    }
-                    onDelete={canDelete ? () => handleDelete(project) : undefined}
-                    onRequestRemoval={
-                      isLive ? () => setRemovalProject(project) : undefined
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* Approved projects: surface the license step. Without an executed
-                  license, distribution cannot be activated. */}
-              {isApproved && (
-                <div
-                  className="flex flex-col md:flex-row md:items-center gap-3 px-3 py-3 rounded-lg border"
-                  style={{
-                    borderColor: licenseExecuted
-                      ? "rgba(52,211,153,0.25)"
-                      : "rgba(245,197,24,0.3)",
-                    background: licenseExecuted
-                      ? "rgba(52,211,153,0.06)"
-                      : "rgba(245,197,24,0.06)",
-                  }}
-                >
-                  <div className="flex-1 text-sm">
-                    <p className="text-white font-medium">
-                      {licenseExecuted
-                        ? "License executed. Distribution is pending ShangoMaji activation."
-                        : "Selected for distribution consideration."}
-                    </p>
-                    <p className="text-ink-faint text-xs mt-0.5">
-                      {licenseExecuted
-                        ? "Your selected term begins when activation occurs."
-                        : "Review and sign the Standard Distribution License — this is the required next step before activation."}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/license/${project.id}`}
-                    className="px-4 py-2 rounded-lg text-xs font-semibold text-black transition active:scale-95 self-start md:self-auto"
-                    style={{
-                      background: licenseExecuted
-                        ? "rgba(255,255,255,0.85)"
-                        : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-                    }}
-                  >
-                    {licenseExecuted ? "View License" : "Review and Sign License"}
-                  </Link>
-                </div>
-              )}
-            </Card>
-          );
-        })}
+        {/* Approved + executed: surface the license-view link beside
+            Manage Media without crowding the primary cluster. */}
+        {isApproved && licenseExecuted && (
+          <Link
+            href={`/license/${project.id}`}
+            className="self-start text-[11px] text-ink-faint hover:text-white transition"
+          >
+            View License →
+          </Link>
+        )}
       </div>
     </div>
   );

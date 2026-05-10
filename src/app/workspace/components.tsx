@@ -82,6 +82,139 @@ export function Pill({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Phase 7.3 Layer 2B.1 — Catalog tone for poster status stripe + dot.
+// Encodes only what a creator needs to glance: green = good, amber =
+// creator action / attention, red = terminal/negative, neutral = quiet.
+export type WorkTone = "emerald" | "amber" | "red" | "neutral" | "blue";
+
+export function workTone(
+  status: string,
+  licenseStatus?: "executed" | "none"
+): WorkTone {
+  if (status === "live")              return "emerald";
+  if (status === "approved")          return licenseStatus === "executed" ? "emerald" : "amber";
+  if (status === "removal_requested") return "amber";
+  if (status === "rejected")          return "red";
+  if (status === "removed")           return "red";
+  if (status === "pending" || status === "in_review") return "blue";
+  if (status === "archived")          return "neutral";
+  return "neutral";
+}
+
+const STRIPE_BG: Record<WorkTone, string> = {
+  emerald: "bg-emerald-500/70",
+  amber:   "bg-amber-500/70",
+  red:     "bg-red-500/60",
+  blue:    "bg-blue-400/50",
+  neutral: "bg-white/15",
+};
+
+const DOT_BG: Record<WorkTone, string> = {
+  emerald: "bg-emerald-400",
+  amber:   "bg-amber-400",
+  red:     "bg-red-400",
+  blue:    "bg-blue-300",
+  neutral: "bg-white/40",
+};
+
+// Phase 7.3 Layer 2B.1 — single state line shown under the title. One
+// short sentence covering the lifecycle position; no editorial helper
+// text, no badges. Returns null when the state should stay quiet (we
+// always render it so creators get a consistent line).
+export function workStateLine(
+  status: string,
+  licenseStatus?: "executed" | "none"
+): string {
+  switch (status) {
+    case "live":              return "Live · Distribution active";
+    case "pending":
+    case "in_review":         return "In review · Awaiting decision";
+    case "approved":
+      return licenseStatus === "executed"
+        ? "Licensed · Awaiting activation"
+        : "Approved · License ready to sign";
+    case "draft":             return "Draft · Not submitted";
+    case "rejected":          return "Rejected · See notes";
+    case "removal_requested": return "Removal under review";
+    case "removed":           return "Removed from distribution";
+    case "archived":          return "Archived";
+    default:                  return "";
+  }
+}
+
+// Phase 7.3 Layer 2B.1 — poster region for a creator work. Renders the
+// 2:3 artwork with a thin status stripe at the bottom. Resolution order:
+// cover_image_url → banner_url (cropped) → title/type placeholder.
+// Image-only; no actions, no metadata.
+export function WorkPoster({
+  title,
+  projectType,
+  coverUrl,
+  bannerUrl,
+  status,
+  licenseStatus,
+  className = "",
+}: {
+  title: string;
+  projectType?: string | null;
+  coverUrl?: string | null;
+  bannerUrl?: string | null;
+  status: string;
+  licenseStatus?: "executed" | "none";
+  className?: string;
+}) {
+  const tone   = workTone(status, licenseStatus);
+  const stripe = STRIPE_BG[tone];
+  const src    = (coverUrl && coverUrl.trim()) || (bannerUrl && bannerUrl.trim()) || "";
+
+  return (
+    <div
+      className={`relative aspect-[2/3] w-full overflow-hidden rounded-lg border border-white/8 bg-black/40 ${className}`}
+    >
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={title}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div
+          className="absolute inset-0 flex flex-col justify-end p-4"
+          style={{
+            background:
+              "linear-gradient(160deg, rgba(40,28,24,0.95) 0%, rgba(20,14,12,0.95) 55%, rgba(10,7,6,0.98) 100%)",
+          }}
+        >
+          {projectType && (
+            <p className="text-[10px] uppercase tracking-[0.18em] text-ink-muted mb-2">
+              {projectType}
+            </p>
+          )}
+          <p
+            className="text-white text-base leading-tight line-clamp-3"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {title}
+          </p>
+        </div>
+      )}
+      <div className={`absolute inset-x-0 bottom-0 h-[3px] ${stripe}`} />
+    </div>
+  );
+}
+
+export function WorkStatusDot({
+  status,
+  licenseStatus,
+}: {
+  status: string;
+  licenseStatus?: "executed" | "none";
+}) {
+  const tone = workTone(status, licenseStatus);
+  return <span className={`inline-block h-1.5 w-1.5 rounded-full ${DOT_BG[tone]}`} />;
+}
+
 // Phase 7.3 Layer 2 — small two-state pill for readiness / context strips.
 // Tones mirror the Phase 7.1/7.2 admin diagnostic palette so creator and
 // admin surfaces share the same visual language.
