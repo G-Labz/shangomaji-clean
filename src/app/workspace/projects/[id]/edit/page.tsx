@@ -454,7 +454,7 @@ export default function EditProjectPage({ params }: PageProps) {
   const showBlockedDelete = isBlocked && projectStatus !== "removed";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-12">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12">
       {dialog}
 
       {/* Removal request modal */}
@@ -674,240 +674,276 @@ export default function EditProjectPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Edit form — semantically disabled for any non-draft state. The
-          field-level disabling is enforced by <fieldset disabled>; the
+      {/* Studio Desk — two-column on desktop, stacked on mobile.
+          Mobile source order: Identity → Release Assets → Declaration → Actions.
+          Desktop visual: Identity (top-left) | Release Assets (top-right);
+                          Declaration (bottom-left) | Actions (bottom-right, sticky).
+          Edit form is semantically disabled for any non-draft state. The
           server-side gate in PUT /api/creators/projects rejects saves
-          from non-draft states regardless. Phase 7.3 Layer 2: regrouped
-          into Work Identity + Release Assets cards mirroring New Work. */}
-      <fieldset
-        disabled={projectStatus !== "draft"}
-        style={{
-          border: "none",
-          padding: 0,
-          margin: 0,
-          opacity: projectStatus === "draft" ? 1 : 0.55,
-          pointerEvents: projectStatus === "draft" ? "auto" : "none",
-        }}
-        className="space-y-6"
-      >
-        {/* Section 1 — Work Identity */}
-        <Card className="space-y-5">
-          <SectionHeading title="Work Identity" />
-          <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Title" error={errors.title}>
-              <input
-                value={draft.title}
-                onChange={(e) => set("title")(e.target.value)}
-                placeholder="Project title"
-              />
-            </Field>
-            <Field label="Type" error={errors.type}>
-              <div className="grid grid-cols-3 gap-2">
-                {TYPES.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => set("type")(t)}
-                    type="button"
-                    className={`py-2.5 px-3 rounded-lg border text-sm transition ${
-                      draft.type === t
-                        ? "border-transparent text-black"
-                        : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                    }`}
-                    style={
-                      draft.type === t
-                        ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                        : {}
-                    }
-                  >
-                    {t}
-                  </button>
-                ))}
+          from non-draft states regardless. */}
+      <div className="lg:flex lg:items-start lg:gap-6">
+        {/* Left/main column — Work Identity + Submission Declaration */}
+        <div className="lg:flex-1 min-w-0 space-y-6">
+          <fieldset
+            disabled={projectStatus !== "draft"}
+            style={{
+              border: "none",
+              padding: 0,
+              margin: 0,
+              opacity: projectStatus === "draft" ? 1 : 0.55,
+              pointerEvents: projectStatus === "draft" ? "auto" : "none",
+            }}
+          >
+            <Card className="space-y-5">
+              <SectionHeading title="Work Identity" />
+              <div className="grid md:grid-cols-2 gap-4">
+                <Field label="Title" error={errors.title}>
+                  <input
+                    value={draft.title}
+                    onChange={(e) => set("title")(e.target.value)}
+                    placeholder="Project title"
+                  />
+                </Field>
+                <Field label="Type" error={errors.type}>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TYPES.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => set("type")(t)}
+                        type="button"
+                        className={`py-2.5 px-3 rounded-lg border text-sm transition ${
+                          draft.type === t
+                            ? "border-transparent text-black"
+                            : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                        }`}
+                        style={
+                          draft.type === t
+                            ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                            : {}
+                        }
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
               </div>
-            </Field>
-          </div>
-          <Field label="Logline" error={errors.logline} hint="One to two sentences.">
-            <input
-              value={draft.logline}
-              onChange={(e) => set("logline")(e.target.value)}
-              placeholder="A young warrior..."
-            />
-          </Field>
-          <Field label="Synopsis" hint="Optional detailed description.">
-            <textarea
-              value={draft.synopsis}
-              onChange={(e) => set("synopsis")(e.target.value)}
-              placeholder="Tell the full story..."
-              rows={4}
-            />
-          </Field>
-          <Field label="Runtime / Episode count" hint="Optional. e.g., 2h 7m, 22 min, 6 x 22min.">
-            <input
-              value={draft.runtime}
-              onChange={(e) => set("runtime")(e.target.value)}
-              placeholder="e.g., 6 x 22min"
-            />
-          </Field>
-          <Field label="Genre" error={errors.genre}>
-            <div className="flex flex-wrap gap-2">
-              {GENRES.map((g) => (
-                <button
-                  key={g}
-                  onClick={() => set("genre")(g)}
-                  type="button"
-                  className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-                    draft.genre === g
-                      ? "border-transparent text-black"
-                      : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                  }`}
-                  style={
-                    draft.genre === g
-                      ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                      : {}
-                  }
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
-          </Field>
-        </Card>
+              <Field label="Logline" error={errors.logline} hint="One to two sentences.">
+                <input
+                  value={draft.logline}
+                  onChange={(e) => set("logline")(e.target.value)}
+                  placeholder="A young warrior..."
+                />
+              </Field>
+              <Field label="Synopsis" hint="Optional detailed description.">
+                <textarea
+                  value={draft.synopsis}
+                  onChange={(e) => set("synopsis")(e.target.value)}
+                  placeholder="Tell the full story..."
+                  rows={4}
+                />
+              </Field>
+              <Field label="Runtime / Episode count" hint="Optional. e.g., 2h 7m, 22 min, 6 x 22min.">
+                <input
+                  value={draft.runtime}
+                  onChange={(e) => set("runtime")(e.target.value)}
+                  placeholder="e.g., 6 x 22min"
+                />
+              </Field>
+              <Field label="Genre" error={errors.genre}>
+                <div className="flex flex-wrap gap-2">
+                  {GENRES.map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => set("genre")(g)}
+                      type="button"
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition ${
+                        draft.genre === g
+                          ? "border-transparent text-black"
+                          : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                      }`}
+                      style={
+                        draft.genre === g
+                          ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                          : {}
+                      }
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </Card>
+          </fieldset>
 
-        {/* Section 2 — Release Assets */}
-        <Card className="space-y-6">
-          <SectionHeading
-            title="Release Assets"
-            description="These ship with your release. Add what you have; remaining items can come later."
-          />
-          <UploadField
-            label="Poster / Thumbnail"
-            hint="Square or 2:3 portrait recommended."
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            uploading={uploading["poster"]}
-            preview={
-              draft.thumbUrl ? (
-                <img src={draft.thumbUrl} alt="Poster" className="h-24 w-auto rounded-lg object-cover" />
-              ) : null
-            }
-            onFile={async (file) => {
-              try {
-                const url = await uploadFile(file, "poster");
-                set("thumbUrl")(url);
-              } catch (err: any) {
-                setErrors((p) => ({ ...p, thumbUrl: err.message }));
-              }
-            }}
-            onRemove={draft.thumbUrl ? () => set("thumbUrl")("") : undefined}
-          />
-          <UploadField
-            label="Banner"
-            hint="Wide cinematic image used in hero contexts."
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            uploading={uploading["banner"]}
-            preview={
-              draft.bannerUrl ? (
-                <img src={draft.bannerUrl} alt="Banner" className="h-16 w-full rounded-lg object-cover" />
-              ) : null
-            }
-            onFile={async (file) => {
-              try {
-                const url = await uploadFile(file, "banner");
-                set("bannerUrl")(url);
-              } catch (err: any) {
-                setErrors((p) => ({ ...p, bannerUrl: err.message }));
-              }
-            }}
-            onRemove={draft.bannerUrl ? () => set("bannerUrl")("") : undefined}
-          />
-          <Field label="Trailer URL" hint="An outbound link. Your public title page renders this as a single “Watch trailer” button.">
-            <input
-              value={draft.trailerUrl}
-              onChange={(e) => set("trailerUrl")(e.target.value)}
-              placeholder="https://youtube.com/..."
+          {/* Submission Declaration — has own disabled prop; lives outside
+              the fieldset so the integrity form's read-only branch fires
+              naturally for submitted / live / etc. states. */}
+          <Card className="space-y-4">
+            <SectionHeading
+              title="Submission Declaration"
+              description="Required for review. Drafts may be saved without it."
             />
-          </Field>
+            <SubmissionIntegrityForm
+              value={integrity}
+              onChange={setIntegrity}
+              disabled={projectStatus !== "draft"}
+              fieldError={integrityError}
+            />
+          </Card>
+        </div>
 
-          {/* Private subsection — visually separated. Server still
-              treats sample_url as creator/admin-private (no public
-              exposure). Field name and payload key unchanged. */}
-          <div className="border-t border-white/8 pt-5 space-y-2">
-            <p className="text-[11px] uppercase tracking-widest text-ink-faint inline-flex items-center gap-1.5">
-              <Lock size={11} className="opacity-70" aria-hidden="true" />
-              Private — admin reference only
-            </p>
-            <p className="text-xs text-ink-muted leading-relaxed max-w-2xl">
-              Private reference shared with ShangoMaji review only. Not part of your public release.
-            </p>
-            <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
-              <input
-                value={draft.sampleUrl}
-                onChange={(e) => set("sampleUrl")(e.target.value)}
-                placeholder="https://..."
+        {/* Right rail — Release Assets + status-conditional Actions panel */}
+        <aside className="mt-6 lg:mt-0 lg:w-[340px] lg:shrink-0 space-y-6">
+          <fieldset
+            disabled={projectStatus !== "draft"}
+            style={{
+              border: "none",
+              padding: 0,
+              margin: 0,
+              opacity: projectStatus === "draft" ? 1 : 0.55,
+              pointerEvents: projectStatus === "draft" ? "auto" : "none",
+            }}
+          >
+            <Card className="space-y-6">
+              <SectionHeading
+                title="Release Assets"
+                description="These ship with your release. Add what you have; remaining items can come later."
               />
-            </Field>
-          </div>
-        </Card>
-      </fieldset>
+              <UploadField
+                label="Poster / Thumbnail"
+                hint="Square or 2:3 portrait recommended."
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                uploading={uploading["poster"]}
+                preview={
+                  draft.thumbUrl ? (
+                    <img src={draft.thumbUrl} alt="Poster" className="h-24 w-auto rounded-lg object-cover" />
+                  ) : null
+                }
+                onFile={async (file) => {
+                  try {
+                    const url = await uploadFile(file, "poster");
+                    set("thumbUrl")(url);
+                  } catch (err: any) {
+                    setErrors((p) => ({ ...p, thumbUrl: err.message }));
+                  }
+                }}
+                onRemove={draft.thumbUrl ? () => set("thumbUrl")("") : undefined}
+              />
+              <UploadField
+                label="Banner"
+                hint="Wide cinematic image used in hero contexts."
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                uploading={uploading["banner"]}
+                preview={
+                  draft.bannerUrl ? (
+                    <img src={draft.bannerUrl} alt="Banner" className="h-16 w-full rounded-lg object-cover" />
+                  ) : null
+                }
+                onFile={async (file) => {
+                  try {
+                    const url = await uploadFile(file, "banner");
+                    set("bannerUrl")(url);
+                  } catch (err: any) {
+                    setErrors((p) => ({ ...p, bannerUrl: err.message }));
+                  }
+                }}
+                onRemove={draft.bannerUrl ? () => set("bannerUrl")("") : undefined}
+              />
+              <Field label="Trailer URL" hint="An outbound link. Your public title page renders this as a single “Watch trailer” button.">
+                <input
+                  value={draft.trailerUrl}
+                  onChange={(e) => set("trailerUrl")(e.target.value)}
+                  placeholder="https://youtube.com/..."
+                />
+              </Field>
 
-      {/* Section 3 — Submission Declaration. Lives outside the fieldset
-          because the integrity form has its own `disabled` pass-through;
-          this preserves read-only behavior on submitted / live / etc.
-          states without changing form internals. */}
-      <Card className="space-y-4">
-        <SectionHeading
-          title="Submission Declaration"
-          description="Required for review. Drafts may be saved without it."
-        />
-        <SubmissionIntegrityForm
-          value={integrity}
-          onChange={setIntegrity}
-          disabled={projectStatus !== "draft"}
-          fieldError={integrityError}
-        />
-      </Card>
+              {/* Private subsection — visually separated. Server still
+                  treats sample_url as creator/admin-private (no public
+                  exposure). Field name and payload key unchanged. */}
+              <div className="border-t border-white/8 pt-5 space-y-2">
+                <p className="text-[11px] uppercase tracking-widest text-ink-faint inline-flex items-center gap-1.5">
+                  <Lock size={11} className="opacity-70" aria-hidden="true" />
+                  Private — admin reference only
+                </p>
+                <p className="text-xs text-ink-muted leading-relaxed">
+                  Private reference shared with ShangoMaji review only. Not part of your public release.
+                </p>
+                <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
+                  <input
+                    value={draft.sampleUrl}
+                    onChange={(e) => set("sampleUrl")(e.target.value)}
+                    placeholder="https://..."
+                  />
+                </Field>
+              </div>
+            </Card>
+          </fieldset>
 
-      {/* Action bar — Save Changes and Submit are scoped strictly to drafts.
-          Other states are read-only at the UI level; the API also rejects
-          non-draft saves (see PUT /api/creators/projects). */}
-      {projectStatus === "draft" ? (
-        <div className="flex justify-end gap-3">
-          <GradientButton
-            onClick={saveProject}
-            disabled={saving || submitting}
-            className="min-w-[140px]"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
-          </GradientButton>
-
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || saving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-            style={{
-              background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-              color: "black",
-            }}
-          >
-            {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-            {submitting ? "Submitting..." : "Submit for Review"}
-          </button>
-        </div>
-      ) : projectStatus === "approved" ? (
-        <div className="flex justify-end">
-          <Link
-            href={`/license/${id}`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black transition-all active:scale-95"
-            style={{
-              background:
-                licenseStatus === "executed"
-                  ? "rgba(255,255,255,0.85)"
-                  : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-            }}
-          >
-            {licenseStatus === "executed" ? "View License" : "Sign License"}
-          </Link>
-        </div>
-      ) : null}
+          {/* Submission Actions panel — status-conditional. Pinned on
+              desktop via sticky so the creator can submit without
+              scrolling back up. Drafts get Save + Submit; approved gets
+              the license CTA; other states render no panel (the page is
+              read-only at this point and the top header / banner already
+              carry the relevant signals). */}
+          {(projectStatus === "draft" || projectStatus === "approved") && (
+            <div className="lg:sticky lg:top-[140px]">
+              <Card className="space-y-4">
+                <SectionHeading title="Submission Actions" />
+                {projectStatus === "draft" ? (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={handleSubmit}
+                        disabled={submitting || saving}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                        style={{
+                          background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                          color: "black",
+                        }}
+                      >
+                        {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                        {submitting ? "Submitting..." : "Submit for Review"}
+                      </button>
+                      <GradientButton
+                        onClick={saveProject}
+                        disabled={saving || submitting}
+                        className="w-full"
+                      >
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
+                      </GradientButton>
+                    </div>
+                    <p className="text-[11px] text-ink-muted leading-relaxed">
+                      Save to keep editing later, or submit when the required declaration is complete.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href={`/license/${id}`}
+                      className="inline-flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl text-sm font-semibold text-black transition-all active:scale-95"
+                      style={{
+                        background:
+                          licenseStatus === "executed"
+                            ? "rgba(255,255,255,0.85)"
+                            : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                      }}
+                    >
+                      {licenseStatus === "executed" ? "View License" : "Sign License"}
+                    </Link>
+                    <p className="text-[11px] text-ink-muted leading-relaxed">
+                      {licenseStatus === "executed"
+                        ? "Your license is on file. Distribution activates after ShangoMaji review."
+                        : "Sign the Standard Distribution License to enable activation."}
+                    </p>
+                  </>
+                )}
+              </Card>
+            </div>
+          )}
+        </aside>
+      </div>
 
       {errors.save && <p className="text-brand-red text-sm">{errors.save}</p>}
 
