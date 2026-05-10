@@ -2789,43 +2789,60 @@ export default function AdminPage() {
             </>
           )}
 
-          {/* Phase 8 — Secondary filter row. Mirrors the readiness deck
-              for repeat navigation but reads as subordinate controls,
-              not a competing system. Bucket keys/counts unchanged. The
-              "Showing all" / "View all" toggle on the right is the same
-              quieter secondary control as before. */}
-          <div className="flex items-center gap-1.5 mb-5 flex-wrap text-[11px]">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-neutral-600 mr-1">
-              Filter:
-            </span>
-            {BUCKET_ORDER.map((key) => (
+          {/* Phase 8A.1 — Queue filter. Sits directly under the readiness
+              deck as structured metadata/control, not a separate
+              navigation system. The single "Queue filter" eyebrow
+              labels a left-anchored chip row in which "All" is promoted
+              to the leading chip — replacing the previous loose
+              "FILTER:" label + trailing "View all/Showing all" toggle.
+              Bucket order, counts, and click behavior come from
+              BUCKET_ORDER / bucketCounts / setProjectFilter and are
+              unchanged. */}
+          <div className="mb-5">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium mb-2">
+              Queue filter
+            </p>
+            <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
               <button
-                key={key}
-                onClick={() => setProjectFilter(key)}
+                onClick={() => setProjectFilter("all")}
+                aria-pressed={projectFilter === "all"}
                 className={`px-2.5 py-1 rounded font-medium transition ${
-                  projectFilter === key
+                  projectFilter === "all"
                     ? "bg-white/10 text-white"
                     : "text-neutral-500 hover:text-white hover:bg-white/5"
                 }`}
               >
-                {BUCKET_LABELS[key]}{" "}
-                <span className={projectFilter === key ? "text-neutral-400" : "text-neutral-600"}>
-                  {bucketCounts[key]}
+                All{" "}
+                <span
+                  className={`tabular-nums ${
+                    projectFilter === "all" ? "text-neutral-400" : "text-neutral-600"
+                  }`}
+                >
+                  {totalProjects}
                 </span>
               </button>
-            ))}
-            <div className="flex-1" />
-            <button
-              onClick={() => setProjectFilter("all")}
-              className={`px-2.5 py-1 rounded transition ${
-                projectFilter === "all"
-                  ? "text-white bg-white/5"
-                  : "text-neutral-500 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              {projectFilter === "all" ? "Showing all" : "View all"}{" "}
-              <span className="text-neutral-600">{totalProjects}</span>
-            </button>
+              {BUCKET_ORDER.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setProjectFilter(key)}
+                  aria-pressed={projectFilter === key}
+                  className={`px-2.5 py-1 rounded font-medium transition ${
+                    projectFilter === key
+                      ? "bg-white/10 text-white"
+                      : "text-neutral-500 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {BUCKET_LABELS[key]}{" "}
+                  <span
+                    className={`tabular-nums ${
+                      projectFilter === key ? "text-neutral-400" : "text-neutral-600"
+                    }`}
+                  >
+                    {bucketCounts[key]}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Removal Requests banner — compact alert pointing admin at the
