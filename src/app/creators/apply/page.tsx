@@ -183,11 +183,12 @@ function Textarea({
 // Single Before You Apply policy card. Renders a visible heading + concise
 // summary, with the full approved policy text behind a per-card collapsible
 // so cards stay visually controlled when sitting side by side at lg+.
-// Visible policy section inside the Required Before Applying panel
-// (left page of the notebook surface). Heading + paragraphs, no
-// dropdown. Each section is separated by a subtle top rule so the
-// panel reads as a structured policy document rather than a wall of
-// text.
+// Visible policy section card inside the Required Before Applying
+// panel (left page of the notebook surface). Each section renders as
+// a bordered card with heading + paragraphs, so the panel reads as a
+// document made of policy cards rather than a single vertical stack
+// of paragraphs. Cards lay out in a 2-column grid at xl+ via their
+// parent wrapper; Review spans the full width.
 function PolicySection({
   title,
   children,
@@ -196,7 +197,7 @@ function PolicySection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-7 pt-5 border-t border-white/10">
+    <section className="rounded-xl border border-white/10 bg-black/25 p-5 h-full">
       <h3 className="text-[14.5px] font-semibold text-white tracking-tight leading-snug">
         {title}
       </h3>
@@ -355,7 +356,7 @@ export default function ApplyPage() {
 
   return (
     <div className="min-h-screen pt-16 pb-20 flex flex-col">
-      <div className="max-w-[1500px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-14 py-12 flex-1 w-full">
+      <div className="max-w-[1700px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-12 2xl:px-14 py-12 flex-1 w-full">
         {/* Back */}
         <Link
           href="/creators"
@@ -389,7 +390,7 @@ export default function ApplyPage() {
             Below xl the grid collapses to a single column with DOM
             order preserved (policy first, then form), matching the
             required mobile read order. */}
-        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(420px,520px)_minmax(0,1fr)] xl:gap-10 xl:items-start">
+        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(620px,700px)_minmax(0,1fr)] xl:gap-10 2xl:grid-cols-[minmax(700px,780px)_minmax(0,1fr)] 2xl:gap-12 xl:items-start">
 
         {/* ─── LEFT PAGE — Required Before Applying ───
             Full visible policy substance, no dropdowns. On xl+ it is
@@ -397,7 +398,7 @@ export default function ApplyPage() {
             content is taller than the viewport, so it behaves like a
             real notebook left page beside the form. */}
         <motion.aside
-          className="rounded-2xl border border-amber-500/15 bg-white/[0.02] p-6 sm:p-7 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto"
+          className="rounded-2xl border border-amber-500/15 bg-white/[0.02] p-6 sm:p-8"
           style={{
             backgroundImage:
               "linear-gradient(180deg, rgba(245,197,24,0.045), rgba(255,255,255,0.015) 25%, rgba(255,255,255,0) 50%)",
@@ -426,13 +427,13 @@ export default function ApplyPage() {
             ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review.
           </p>
 
-          {/* Expectations list — compact rules. Single column inside
-              the policy panel since the panel itself is a narrow
-              page-style column. */}
+          {/* Expectations — compact rules in a 2-column grid at sm+ so
+              the panel reads as a landscape page rather than a single
+              vertical list, regardless of viewport size. */}
           <p className="mt-6 text-[10px] uppercase tracking-[0.18em] text-white/55 font-semibold">
             Expectations
           </p>
-          <ul className="mt-2 space-y-1.5 text-[13px] text-white/85 leading-snug">
+          <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[13px] text-white/85 leading-snug">
             {[
               "You are submitting for review, not publication.",
               "Approval is not automatic public catalog placement.",
@@ -451,6 +452,12 @@ export default function ApplyPage() {
             ))}
           </ul>
 
+          {/* Policy sections — internal landscape grid. At xl+ the
+              panel arranges Mature + AI side by side; Review spans
+              the full width below. At smaller sizes (mobile/sm/md/lg
+              where the panel takes the full canvas width) the
+              sections stack with comfortable line length. */}
+          <div className="mt-7 grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-x-6">
           <PolicySection title="Mature Storytelling Standard">
             <p>
               ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
@@ -481,20 +488,25 @@ export default function ApplyPage() {
             </p>
           </PolicySection>
 
-          <PolicySection title="How Submissions Are Reviewed">
-            <p>
-              Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
-            </p>
-            <p>
-              A project may be rejected because it is incomplete, outside the platform’s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
-            </p>
-            <p>
-              Rejection is not a judgment of the creator’s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
-            </p>
-            <p>
-              ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
-            </p>
-          </PolicySection>
+          <div className="xl:col-span-2">
+            <PolicySection title="How Submissions Are Reviewed">
+              <p>
+                Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
+              </p>
+              <p>
+                A project may be rejected because it is incomplete, outside the platform’s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
+              </p>
+              <p>
+                Rejection is not a judgment of the creator’s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
+              </p>
+              <p>
+                ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
+              </p>
+            </PolicySection>
+          </div>
+
+          </div>
+          {/* /policy sections internal grid */}
 
           <div className="mt-7 pt-5 border-t border-white/10 space-y-2.5">
             <p className="text-[12.5px] text-white/85 leading-relaxed">
