@@ -192,22 +192,32 @@ function PolicyCard({
   summary: string;
   children: React.ReactNode;
 }) {
+  // Card anatomy:
+  //   Title — fixed weight/size, single line in most viewports.
+  //   Summary — given a min-h so all three card summaries occupy the
+  //     same vertical block on lg+, which makes the "Full policy
+  //     details" control row align horizontally across cards even
+  //     when summaries are different lengths.
+  //   Control row — uppercase small-caps treatment with a divider
+  //     above it; clearly reads as a control, not as body copy.
+  //   Expanded content — attached below the control row with clear
+  //     spacing, stays inside the same card.
   return (
     <div className="rounded-xl border border-white/15 bg-black/30 p-5 flex flex-col">
       <h3 className="text-[15px] font-semibold text-white tracking-tight leading-snug">
         {title}
       </h3>
-      <p className="mt-2 text-[13px] text-white/85 leading-relaxed">
+      <p className="mt-2 text-[13px] text-white/85 leading-relaxed lg:min-h-[8.5rem]">
         {summary}
       </p>
-      <details className="group mt-auto pt-4">
+      <details className="group mt-4">
         <summary
-          className="cursor-pointer list-none flex items-center justify-between gap-2 text-[12px] font-medium text-white/85 hover:text-white [&::-webkit-details-marker]:hidden pt-3 border-t border-white/10"
+          className="cursor-pointer list-none flex items-center justify-between gap-2 pt-3 border-t border-white/10 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/85 hover:text-white [&::-webkit-details-marker]:hidden"
         >
-          <span className="uppercase tracking-[0.1em] text-[11px]">Full policy details</span>
-          <span aria-hidden="true" className="text-white/65 text-base leading-none group-open:rotate-90 transition-transform">›</span>
+          <span>Full policy details</span>
+          <span aria-hidden="true" className="text-white/70 text-base leading-none group-open:rotate-90 transition-transform">›</span>
         </summary>
-        <div className="mt-4 space-y-2.5 text-[13px] text-white/85 leading-relaxed">
+        <div className="mt-4 pt-4 border-t border-white/5 space-y-2.5 text-[13px] text-white/85 leading-relaxed">
           {children}
         </div>
       </details>
@@ -426,8 +436,10 @@ export default function ApplyPage() {
           </p>
 
           {/* Expectation bullets — single column on mobile, two at sm,
-              three at lg so the band reads as a wide desktop summary. */}
-          <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-[13px] text-white/90 leading-relaxed">
+              three at lg so the band reads as a wide desktop summary.
+              Tight rhythm so the band reads as compact rules, not a
+              loose list. */}
+          <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 text-[13px] text-white/90 leading-snug">
             {[
               "You are submitting for review, not publication.",
               "Approval is not automatic public catalog placement.",
@@ -439,8 +451,8 @@ export default function ApplyPage() {
               "Fully AI-generated submissions are not accepted at launch.",
               "Any AI-assisted use must be disclosed.",
             ].map((line) => (
-              <li key={line} className="flex gap-2">
-                <span className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-white/55" />
+              <li key={line} className="flex gap-2.5 items-start">
+                <span className="mt-[7px] inline-block h-1 w-1 shrink-0 rounded-full bg-white/60" />
                 <span>{line}</span>
               </li>
             ))}
@@ -450,7 +462,7 @@ export default function ApplyPage() {
               Each card shows a visible summary up front and reveals the
               full approved policy text via a per-card "Read full policy"
               collapsible, so card heights stay visually controlled. */}
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start">
             <PolicyCard
               title="Mature Storytelling Standard"
               summary="R-rated themes are allowed when they serve the story. This may include violence, horror, trauma, psychological intensity, dark fantasy, strong language, and adult situations. ShangoMaji is not a children’s platform. It is also not a pornographic or sexually explicit platform."
