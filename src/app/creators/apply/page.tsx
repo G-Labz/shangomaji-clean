@@ -193,19 +193,21 @@ function PolicyCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-white/12 bg-black/30 p-4 flex flex-col">
-      <h3 className="text-[14px] font-semibold text-white tracking-tight leading-snug">
+    <div className="rounded-xl border border-white/15 bg-black/30 p-5 flex flex-col">
+      <h3 className="text-[15px] font-semibold text-white tracking-tight leading-snug">
         {title}
       </h3>
-      <p className="mt-2 text-[12.5px] text-white/80 leading-relaxed">
+      <p className="mt-2 text-[13px] text-white/85 leading-relaxed">
         {summary}
       </p>
-      <details className="mt-3 group">
-        <summary className="cursor-pointer list-none inline-flex items-center gap-1.5 text-[12px] font-medium text-white/85 hover:text-white [&::-webkit-details-marker]:hidden">
-          <span>Read full policy</span>
-          <span aria-hidden="true" className="text-white/55 group-open:rotate-90 transition-transform">›</span>
+      <details className="group mt-auto pt-4">
+        <summary
+          className="cursor-pointer list-none flex items-center justify-between gap-2 text-[12px] font-medium text-white/85 hover:text-white [&::-webkit-details-marker]:hidden pt-3 border-t border-white/10"
+        >
+          <span className="uppercase tracking-[0.1em] text-[11px]">Full policy details</span>
+          <span aria-hidden="true" className="text-white/65 text-base leading-none group-open:rotate-90 transition-transform">›</span>
         </summary>
-        <div className="mt-3 space-y-2 text-[12.5px] text-white/85 leading-relaxed">
+        <div className="mt-4 space-y-2.5 text-[13px] text-white/85 leading-relaxed">
           {children}
         </div>
       </details>
@@ -419,7 +421,7 @@ export default function ApplyPage() {
           >
             Before you apply
           </h2>
-          <p className="mt-2 max-w-3xl text-[14px] text-white/85 leading-relaxed">
+          <p className="mt-3 max-w-3xl text-[14px] text-white/90 leading-relaxed">
             ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review. Read the expectations and policies below before applying.
           </p>
 
@@ -451,7 +453,7 @@ export default function ApplyPage() {
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
             <PolicyCard
               title="Mature Storytelling Standard"
-              summary="R-rated themes — violence, horror, trauma, dark fantasy, adult situations — are allowed when they serve the story. ShangoMaji is not a children’s platform, and not a pornographic or sexually explicit platform."
+              summary="R-rated themes are allowed when they serve the story. This may include violence, horror, trauma, psychological intensity, dark fantasy, strong language, and adult situations. ShangoMaji is not a children’s platform. It is also not a pornographic or sexually explicit platform."
             >
               <p>
                 ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
@@ -505,10 +507,10 @@ export default function ApplyPage() {
           </div>
 
           <div className="mt-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="text-[12px] text-white/80 leading-relaxed max-w-3xl">
+            <p className="text-[12.5px] text-white/85 leading-relaxed max-w-3xl">
               Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
             </p>
-            <p className="text-[12px] text-white/70 shrink-0">
+            <p className="text-[12.5px] text-white/80 shrink-0">
               Questions before applying?{" "}
               <Link href="/help" className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white/60 transition">
                 Read the creator FAQ
