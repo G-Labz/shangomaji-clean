@@ -326,8 +326,8 @@ export default function ApplyPage() {
   }
 
   return (
-    <div className="min-h-screen pt-16 pb-20">
-      <div className="max-w-2xl mx-auto px-6 py-12">
+    <div className="min-h-screen pt-16 pb-20 flex flex-col">
+      <div className="max-w-2xl mx-auto px-6 py-12 flex-1 w-full">
         {/* Back */}
         <Link
           href="/creators"

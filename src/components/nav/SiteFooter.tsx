@@ -14,8 +14,12 @@ const FOOTER_LINKS: { label: string; href: string }[] = [
 export function SiteFooter() {
   return (
     <footer
-      className="border-t border-white/8 mt-24"
-      style={{ background: "rgba(7,6,8,0.65)" }}
+      className="mt-24"
+      style={{
+        background:
+          "linear-gradient(to bottom, rgba(255,255,255,0.025), rgba(7,6,8,0.65) 40%)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+      }}
     >
       <div className="max-w-[1600px] mx-auto px-6 md:px-10 py-12">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10">

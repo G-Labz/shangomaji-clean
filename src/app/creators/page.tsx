@@ -103,8 +103,9 @@ export default function CreatorsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <PageTitle title="Creators" />
+      <div className="flex-1">
       {/* ── HERO ── */}
       <section className="relative min-h-screen flex items-center overflow-hidden pt-16">
         {/* Ambient background */}
@@ -552,6 +553,7 @@ export default function CreatorsPage() {
           </motion.div>
         </div>
       </section>
+      </div>
       <SiteFooter />
     </div>
   );

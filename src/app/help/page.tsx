@@ -8,8 +8,8 @@ export default function HelpPage() {
     { q: "Who is ShangoMaji for?", a: "Anime fans who want more. Creators building the next wave. Anyone looking for something worth watching." },
   ];
   return (
-    <div className="min-h-screen pt-28 pb-20 px-6 md:px-10">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen pt-28 pb-20 px-6 md:px-10 flex flex-col">
+      <div className="max-w-2xl mx-auto flex-1 w-full">
         <p className="text-xs uppercase tracking-[0.25em] mb-4" style={{ color: "rgba(240,112,48,0.7)" }}>Support</p>
         <h1 className="text-display font-bold text-4xl md:text-5xl text-white mb-4 tracking-tight">Help / FAQ</h1>
         <p className="text-sm mb-12" style={{ color: "rgba(255,255,255,0.6)" }}>Answers for creators, members, and visitors using ShangoMaji.</p>
@@ -28,10 +28,10 @@ export default function HelpPage() {
           <h2 className="text-white font-semibold text-base mb-4">Contact</h2>
           <p className="text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
             For support or inquiries:{" "}
-            <a href="mailto:support@shangomaji.com"
+            <a href="mailto:universe@shangomaji.com"
               className="hover:text-white transition-colors"
               style={{ color: "rgba(240,112,48,0.85)" }}>
-              support@shangomaji.com
+              universe@shangomaji.com
             </a>
           </p>
         </div>
