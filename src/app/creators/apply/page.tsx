@@ -355,7 +355,7 @@ export default function ApplyPage() {
 
   return (
     <div className="min-h-screen pt-16 pb-20 flex flex-col">
-      <div className="max-w-[1700px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-12 2xl:px-14 py-12 flex-1 w-full">
+      <div className="max-w-[1700px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-12 2xl:px-10 py-12 flex-1 w-full">
         {/* Back */}
         <Link
           href="/creators"
@@ -389,7 +389,7 @@ export default function ApplyPage() {
             Below xl the grid collapses to a single column with DOM
             order preserved (policy first, then form), matching the
             required mobile read order. */}
-        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(620px,700px)_minmax(0,1fr)] xl:gap-10 2xl:grid-cols-[minmax(700px,780px)_minmax(0,1fr)] 2xl:gap-12 xl:items-start">
+        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[680px_minmax(0,1fr)] xl:gap-10 2xl:grid-cols-[780px_minmax(0,1fr)] 2xl:gap-12 xl:items-start">
 
         {/* ─── LEFT PAGE — Required Before Applying ───
             Full visible policy substance, no dropdowns. On xl+ it is
