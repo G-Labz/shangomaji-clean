@@ -372,11 +372,11 @@ export default function ApplyPage() {
           >
             ShangoMaji is a curated anime distribution label.
           </h2>
-          <p className="mt-2 text-[13px] text-white/75 leading-relaxed">
+          <p className="mt-2 text-[13px] text-white/85 leading-relaxed">
             This is not open upload, self-publishing, or instant public release. You are submitting your work for review. Read the expectations below before applying.
           </p>
 
-          <ul className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[13px] text-white/85 leading-relaxed">
+          <ul className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[13px] text-white/90 leading-relaxed">
             {[
               "You are submitting for review, not publication.",
               "Approval is not automatic public catalog placement.",
@@ -389,19 +389,19 @@ export default function ApplyPage() {
               "Any AI-assisted use must be disclosed.",
             ].map((line) => (
               <li key={line} className="flex gap-2">
-                <span className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-white/40" />
+                <span className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-white/55" />
                 <span>{line}</span>
               </li>
             ))}
           </ul>
 
           <div className="mt-5 space-y-2">
-            <details className="rounded-xl border border-white/10 bg-black/30 open:bg-black/40 transition-colors">
-              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white/90 [&::-webkit-details-marker]:hidden">
+            <details className="rounded-xl border border-white/15 bg-black/30 open:bg-black/40 transition-colors">
+              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white [&::-webkit-details-marker]:hidden">
                 <span>Mature Storytelling Standard</span>
-                <span className="text-white/55 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
+                <span className="text-white/75 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
               </summary>
-              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/75 leading-relaxed">
+              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/85 leading-relaxed">
                 <p>
                   ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
                 </p>
@@ -417,12 +417,12 @@ export default function ApplyPage() {
               </div>
             </details>
 
-            <details className="rounded-xl border border-white/10 bg-black/30 open:bg-black/40 transition-colors">
-              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white/90 [&::-webkit-details-marker]:hidden">
+            <details className="rounded-xl border border-white/15 bg-black/30 open:bg-black/40 transition-colors">
+              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white [&::-webkit-details-marker]:hidden">
                 <span>AI Use and Human Authorship</span>
-                <span className="text-white/55 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
+                <span className="text-white/75 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
               </summary>
-              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/75 leading-relaxed">
+              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/85 leading-relaxed">
                 <p>
                   At launch, ShangoMaji prioritizes human-created work. Fully AI-generated submissions are not accepted for catalog consideration at this stage.
                 </p>
@@ -438,12 +438,12 @@ export default function ApplyPage() {
               </div>
             </details>
 
-            <details className="rounded-xl border border-white/10 bg-black/30 open:bg-black/40 transition-colors">
-              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white/90 [&::-webkit-details-marker]:hidden">
+            <details className="rounded-xl border border-white/15 bg-black/30 open:bg-black/40 transition-colors">
+              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white [&::-webkit-details-marker]:hidden">
                 <span>How Submissions Are Reviewed</span>
-                <span className="text-white/55 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
+                <span className="text-white/75 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
               </summary>
-              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/75 leading-relaxed">
+              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/85 leading-relaxed">
                 <p>
                   Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
                 </p>
@@ -460,7 +460,7 @@ export default function ApplyPage() {
             </details>
           </div>
 
-          <p className="mt-5 text-[12px] text-white/65 leading-relaxed">
+          <p className="mt-5 text-[12px] text-white/80 leading-relaxed">
             Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
           </p>
         </motion.section>
