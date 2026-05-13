@@ -1,8 +1,8 @@
 export default function HelpPage() {
   const faqs = [
-    { q: "What is ShangoMaji?", a: "ShangoMaji is a curated space for anime-influenced storytelling — films, series, and creative work from invited creators." },
-    { q: "How do I get access?", a: "Creators are selected by invitation. Viewers can watch titles in the catalog and follow announcements on Discord." },
-    { q: "How do creators get featured?", a: "We spotlight creators we've selected. If you're interested in being considered, apply through the creators page." },
+    { q: "What is ShangoMaji™?", a: "ShangoMaji™ is a curated anime distribution label. Approved titles join the public catalog through review, licensing, and media readiness — not open upload or self-publishing." },
+    { q: "How do I get access?", a: "Viewers can watch titles in the public catalog and follow announcements on Discord. Creators join through application review." },
+    { q: "How do creators get into the catalog?", a: "Creators submit work for review through the creator application. Approval does not mean immediate public release — distribution requires licensing, media readiness, and ShangoMaji review." },
     { q: "Who is ShangoMaji for?", a: "Anime fans who want more. Creators building the next wave. Anyone looking for something worth watching." },
   ];
   return (
@@ -33,6 +33,10 @@ export default function HelpPage() {
             </a>
           </p>
         </div>
+
+        <p className="mt-10 pt-6 text-[11px]" style={{ color: "rgba(255,255,255,0.35)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          ShangoMaji™ is a claimed mark of GeneUs Labz.
+        </p>
       </div>
     </div>
   );

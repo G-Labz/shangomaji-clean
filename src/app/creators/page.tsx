@@ -65,12 +65,12 @@ const PROCESS_STEPS = [
   {
     number: "03",
     title: "Onboard",
-    body: "Get your creator profile, direct access, and support to launch.",
+    body: "Get your creator profile, Creator Studio access, and support to prepare your work for review.",
   },
   {
     number: "04",
-    title: "Live",
-    body: "Your work joins the catalog. Your audience starts building.",
+    title: "Release",
+    body: "Approved work moves through licensing and media readiness before joining the public catalog.",
   },
 ];
 
@@ -159,7 +159,7 @@ export default function CreatorsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              Whether you're building from culture, imagination, or something entirely new. ShangoMaji is where the next wave of anime takes form.
+              ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. Whether you're building from culture, imagination, or something entirely new, this is where the next wave of anime takes form.
             </motion.p>
             <motion.p
               className="text-sm italic mb-10"

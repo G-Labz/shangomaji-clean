@@ -344,7 +344,8 @@ export default function ApplyPage() {
           transition={{ duration: 0.45 }}
         >
           <h1 className="text-display font-bold text-4xl md:text-5xl text-white tracking-tight mb-3">
-            Apply to <span className="brand-text">ShangoMaji</span>
+            Apply to <span className="brand-text">ShangoMaji</span><span className="brand-text align-top text-[0.45em] ml-0.5" aria-hidden="true">™</span>
+            <span className="sr-only">™</span>
           </h1>
           <p className="text-ink-muted text-sm leading-relaxed">
             This isn't for everyone. Take your
@@ -370,7 +371,7 @@ export default function ApplyPage() {
             className="mt-2 text-white text-[18px] sm:text-[20px] font-semibold tracking-tight leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            ShangoMaji is a curated anime distribution label.
+            ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label.
           </h2>
           <p className="mt-2 text-[13px] text-white/85 leading-relaxed">
             This is not open upload, self-publishing, or instant public release. You are submitting your work for review. Read the expectations below before applying.
