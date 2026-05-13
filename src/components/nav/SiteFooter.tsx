@@ -25,7 +25,7 @@ export function SiteFooter() {
         {/* Top row — brand identity left, nav group centered on
             desktop with a balancing spacer on the right. Stacks on
             mobile so the brand reads first, then the link group. */}
-        <div className="flex flex-col gap-8 md:grid md:grid-cols-3 md:items-center md:gap-6">
+        <div className="flex flex-col gap-8 md:grid md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-8">
           <div>
             <p
               className="text-white text-base font-semibold tracking-tight"
@@ -41,13 +41,13 @@ export function SiteFooter() {
 
           <nav
             aria-label="Site"
-            className="flex flex-wrap gap-x-5 gap-y-2 md:justify-center"
+            className="flex flex-wrap gap-x-5 gap-y-2 md:flex-nowrap md:justify-center md:gap-x-6"
           >
             {FOOTER_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-[13px] transition-colors hover:text-white"
+                className="text-[13px] whitespace-nowrap transition-colors hover:text-white"
                 style={{ color: "rgba(255,255,255,0.65)" }}
               >
                 {l.label}
