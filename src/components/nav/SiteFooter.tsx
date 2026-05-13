@@ -55,9 +55,13 @@ export function SiteFooter() {
           style={{ borderTop: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}
         >
           <p>
-            ShangoMaji<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span> is a claimed mark of GeneUs Labz.
+            ShangoMaji<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span> is a claimed mark of GeneUs Labz<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span>.
+            <span className="sr-only">™</span>
           </p>
-          <p>© {new Date().getFullYear()} GeneUs Labz</p>
+          <p>
+            © {new Date().getFullYear()} GeneUs Labz<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span>
+            <span className="sr-only">™</span>
+          </p>
         </div>
       </div>
     </footer>
