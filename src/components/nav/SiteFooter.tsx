@@ -55,17 +55,18 @@ export function SiteFooter() {
           </nav>
         </div>
 
-        {/* Bottom row — approved trademark + copyright notice. Two
-            stacked lines act as the footer's closing signature. */}
+        {/* Bottom row — trademark notice (left) and copyright notice
+            (right) on desktop; stacks cleanly on mobile. Acts as the
+            footer's closing signature. */}
         <div
-          className="mt-10 pt-5 text-[11px] leading-relaxed space-y-1"
+          className="mt-10 pt-5 text-[11px] leading-relaxed flex flex-col gap-1 md:flex-row md:items-center md:justify-between md:gap-6"
           style={{ borderTop: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)" }}
         >
           <p>
             ShangoMaji<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span> is a claimed mark of GeneUs Labz<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span>.
             <span className="sr-only">™</span>
           </p>
-          <p>
+          <p className="md:text-right">
             © 2026 GeneUs Labz<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span>. All rights reserved.
             <span className="sr-only">™</span>
           </p>
