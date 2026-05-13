@@ -327,7 +327,7 @@ export default function ApplyPage() {
 
   return (
     <div className="min-h-screen pt-16 pb-20 flex flex-col">
-      <div className="max-w-2xl mx-auto px-6 py-12 flex-1 w-full">
+      <div className="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-14 py-12 flex-1 w-full">
         {/* Back */}
         <Link
           href="/creators"
@@ -354,12 +354,25 @@ export default function ApplyPage() {
           </p>
         </motion.div>
 
+        {/* xl+ two-zone application surface.
+            Below xl: single-column stack. DOM order is
+              policy rail → main form
+            so mobile reads "Before you apply" before the steps.
+            At xl+: `order` swaps the visual columns to
+              main form (left) / policy rail (right). */}
+        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] xl:gap-12 xl:items-start">
+
+        {/* ── Guidance rail (policy block).
+            Mobile: appears first (above the form).
+            xl+: moves to the right column via xl:order-2. */}
+        <aside className="min-w-0 xl:order-2">
+
         {/* Before You Apply — compact policy block.
             Sets expectations before the form. Copy-only; no new fields,
             validation, or payload behavior. Three expandable sections keep
             initial visual weight light so the application is not buried. */}
         <motion.section
-          className="mb-10 rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6"
+          className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.05 }}
@@ -474,6 +487,12 @@ export default function ApplyPage() {
             .
           </p>
         </motion.section>
+
+        </aside>
+
+        {/* ── Main application zone — step indicator + active form + actions.
+            xl+: takes the left (1fr) column. Mobile: stacks below the rail. */}
+        <div className="min-w-0 xl:order-1">
 
         {/* Step indicator */}
         <div className="flex items-center gap-0 mb-12">
@@ -701,14 +720,14 @@ export default function ApplyPage() {
                   </Field>
                   <Field
                     label="Project Description"
-                    hint="Briefly describe your project, including the story concept, format, current stage, intended audience, and what kind of support or opportunity you are seeking."
+                    hint="Describe your project in detail, including the story concept, format, current stage, intended audience, tone, creative goals, and what kind of support or opportunity you are seeking."
                     error={errors.logline}
                   >
                     <Textarea
                       value={form.logline}
                       onChange={set("logline")}
                       placeholder="A young archivist discovers a forgotten god — a 6-episode animated series, currently in scripts and concept art. Aimed at adult anime fans drawn to mythic storytelling. Seeking distribution, audience, and creative partnership to finish production."
-                      rows={9}
+                      rows={14}
                     />
                   </Field>
                   <Field
@@ -882,6 +901,12 @@ export default function ApplyPage() {
             {submitError}
           </p>
         )}
+
+        </div>
+        {/* /main application zone */}
+
+        </div>
+        {/* /xl+ two-zone grid */}
       </div>
       <SiteFooter />
     </div>
