@@ -183,25 +183,27 @@ function Textarea({
 // Single Before You Apply policy card. Renders a visible heading + concise
 // summary, with the full approved policy text behind a per-card collapsible
 // so cards stay visually controlled when sitting side by side at lg+.
-// Compact, non-expanding summary card used inside the Before You Apply
-// band. Summary-only by design; deeper policy reading lives on the
-// public Help / FAQ page linked at the bottom of the band.
-function PolicyCard({
+// Visible policy section inside the Required Before Applying panel
+// (left page of the notebook surface). Heading + paragraphs, no
+// dropdown. Each section is separated by a subtle top rule so the
+// panel reads as a structured policy document rather than a wall of
+// text.
+function PolicySection({
   title,
-  summary,
+  children,
 }: {
   title: string;
-  summary: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-white/15 bg-black/30 p-5 flex flex-col">
-      <h3 className="text-[15px] font-semibold text-white tracking-tight leading-snug">
+    <section className="mt-7 pt-5 border-t border-white/10">
+      <h3 className="text-[14.5px] font-semibold text-white tracking-tight leading-snug">
         {title}
       </h3>
-      <p className="mt-2 text-[13px] text-white/85 leading-relaxed">
-        {summary}
-      </p>
-    </div>
+      <div className="mt-2.5 space-y-2.5 text-[13px] text-white/85 leading-relaxed">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -353,7 +355,7 @@ export default function ApplyPage() {
 
   return (
     <div className="min-h-screen pt-16 pb-20 flex flex-col">
-      <div className="max-w-[1440px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-14 py-12 flex-1 w-full">
+      <div className="max-w-[1500px] mx-auto px-6 sm:px-8 lg:px-12 xl:px-14 py-12 flex-1 w-full">
         {/* Back */}
         <Link
           href="/creators"
@@ -380,22 +382,30 @@ export default function ApplyPage() {
           </p>
         </motion.div>
 
-        {/* ─────────────── BEFORE YOU APPLY — full-width guidance band ───────────────
-            Required-read context above the form. Three policy cards sit
-            side by side on lg+ so the desktop page no longer reads as a
-            narrow policy rail. Below lg the cards stack cleanly. Policy
-            doctrine and FAQ link preserved from prior phases. Copy-only;
-            no new fields, validation, or payload behavior. */}
-        <motion.section
-          className="mb-14 rounded-2xl border border-amber-500/15 bg-white/[0.02] p-6 sm:p-8"
+        {/* ─────────────── NOTEBOOK SURFACE ───────────────
+            At xl+ this becomes a two-page application packet:
+              Left page: Required Before Applying policy panel.
+              Right page: active application form.
+            Below xl the grid collapses to a single column with DOM
+            order preserved (policy first, then form), matching the
+            required mobile read order. */}
+        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(420px,520px)_minmax(0,1fr)] xl:gap-10 xl:items-start">
+
+        {/* ─── LEFT PAGE — Required Before Applying ───
+            Full visible policy substance, no dropdowns. On xl+ it is
+            sticky against the top nav and scrolls within itself if the
+            content is taller than the viewport, so it behaves like a
+            real notebook left page beside the form. */}
+        <motion.aside
+          className="rounded-2xl border border-amber-500/15 bg-white/[0.02] p-6 sm:p-7 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto"
           style={{
             backgroundImage:
-              "linear-gradient(180deg, rgba(245,197,24,0.045), rgba(255,255,255,0.015) 35%, rgba(255,255,255,0) 60%)",
+              "linear-gradient(180deg, rgba(245,197,24,0.045), rgba(255,255,255,0.015) 25%, rgba(255,255,255,0) 50%)",
           }}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.05 }}
-          aria-label="Before you apply"
+          aria-label="Required before applying"
         >
           {/* Required-read badge */}
           <span
@@ -407,20 +417,22 @@ export default function ApplyPage() {
           </span>
 
           <h2
-            className="mt-3 text-white text-[24px] sm:text-[30px] font-semibold tracking-tight leading-tight"
+            className="mt-3 text-white text-[24px] sm:text-[28px] font-semibold tracking-tight leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Before you apply
           </h2>
-          <p className="mt-3 max-w-3xl text-[14px] text-white/90 leading-relaxed">
-            ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review. Read the expectations and policies below before applying.
+          <p className="mt-3 text-[14px] text-white/90 leading-relaxed">
+            ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review.
           </p>
 
-          {/* Expectation bullets — single column on mobile, two at sm,
-              three at lg so the band reads as a wide desktop summary.
-              Tight rhythm so the band reads as compact rules, not a
-              loose list. */}
-          <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 text-[13px] text-white/90 leading-snug">
+          {/* Expectations list — compact rules. Single column inside
+              the policy panel since the panel itself is a narrow
+              page-style column. */}
+          <p className="mt-6 text-[10px] uppercase tracking-[0.18em] text-white/55 font-semibold">
+            Expectations
+          </p>
+          <ul className="mt-2 space-y-1.5 text-[13px] text-white/85 leading-snug">
             {[
               "You are submitting for review, not publication.",
               "Approval is not automatic public catalog placement.",
@@ -439,30 +451,56 @@ export default function ApplyPage() {
             ))}
           </ul>
 
-          {/* Policy summary cards — compact, side by side on lg+,
-              stacked on mobile. Summary-only by design. Deeper policy
-              reading lives on the public Help / FAQ page (linked
-              below); no in-page accordion duplicates that. */}
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <PolicyCard
-              title="Mature Storytelling Standard"
-              summary="Mature and R-rated themes are allowed when they serve the story. ShangoMaji is not a children’s platform and does not accept pornographic content, sexually exploitative material, or sexualized depictions of minors."
-            />
-            <PolicyCard
-              title="AI Use and Human Authorship"
-              summary="Human-created work is prioritized at launch. Fully AI-generated submissions are not accepted. Limited AI-assisted use must be disclosed and may be reviewed case by case."
-            />
-            <PolicyCard
-              title="How Submissions Are Reviewed"
-              summary="Submitting does not guarantee acceptance. Review considers project fit, originality, creative direction, quality, completeness, rights clarity, content policy alignment, and distribution readiness. ShangoMaji reserves editorial discretion."
-            />
-          </div>
+          <PolicySection title="Mature Storytelling Standard">
+            <p>
+              ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
+            </p>
+            <p>
+              ShangoMaji is not a children’s platform, and mature storytelling is not automatically disqualifying.
+            </p>
+            <p>
+              ShangoMaji is also not a pornographic or sexually explicit content platform. Pornographic content, sexually exploitative material, and sexualized depictions of minors are not accepted.
+            </p>
+            <p>
+              All mature content is reviewed in context. The question is not whether a work is intense. The question is whether the intensity belongs to the story, respects the audience, and fits the ShangoMaji catalog standard.
+            </p>
+          </PolicySection>
 
-          <div className="mt-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="text-[12.5px] text-white/85 leading-relaxed max-w-3xl">
+          <PolicySection title="AI Use and Human Authorship">
+            <p>
+              At launch, ShangoMaji prioritizes human-created work. Fully AI-generated submissions are not accepted for catalog consideration at this stage.
+            </p>
+            <p>
+              Limited AI-assisted work may be reviewed case by case, but creators must disclose how AI tools were used. This includes AI used for images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
+            </p>
+            <p>
+              Disclosure does not automatically disqualify a project. Hidden AI use, unclear authorship, or work that cannot be responsibly credited or licensed may block review.
+            </p>
+            <p>
+              The standard is simple: the work must have clear human authorship, rights clarity, and creative responsibility.
+            </p>
+          </PolicySection>
+
+          <PolicySection title="How Submissions Are Reviewed">
+            <p>
+              Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
+            </p>
+            <p>
+              A project may be rejected because it is incomplete, outside the platform’s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
+            </p>
+            <p>
+              Rejection is not a judgment of the creator’s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
+            </p>
+            <p>
+              ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
+            </p>
+          </PolicySection>
+
+          <div className="mt-7 pt-5 border-t border-white/10 space-y-2.5">
+            <p className="text-[12.5px] text-white/85 leading-relaxed">
               Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
             </p>
-            <p className="text-[12.5px] text-white/80 shrink-0">
+            <p className="text-[12.5px] text-white/75">
               Questions before applying?{" "}
               <Link href="/help" className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white/60 transition">
                 Read the creator FAQ
@@ -470,12 +508,13 @@ export default function ApplyPage() {
               .
             </p>
           </div>
-        </motion.section>
+        </motion.aside>
 
-        {/* ── Application form zone — wide but readable. Capped at
-            1040px and centered inside the page canvas so the form
-            never falls into a narrow mobile-feel column at desktop. */}
-        <div className="max-w-[1040px] mx-auto">
+        {/* ─── RIGHT PAGE — Application form ───
+            Step indicator + active step form + Back/Continue. Sized to
+            fill the right column of the notebook grid; on mobile this
+            stacks naturally below the policy panel. */}
+        <div className="min-w-0">
 
         {/* Step indicator */}
         <div className="flex items-center gap-0 mb-12">
@@ -886,7 +925,10 @@ export default function ApplyPage() {
         )}
 
         </div>
-        {/* /application form zone */}
+        {/* /right page — application form */}
+
+        </div>
+        {/* /notebook surface */}
       </div>
       <SiteFooter />
     </div>
