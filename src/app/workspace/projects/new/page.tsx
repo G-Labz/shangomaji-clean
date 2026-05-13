@@ -225,8 +225,9 @@ export default function WorkspaceNewProject() {
             >
               New Work
             </h1>
-            <p className="mt-3 text-ink-faint text-sm max-w-2xl leading-relaxed">
-              Prepare the work, declaration, and release assets for ShangoMaji review.
+            <p className="mt-3 text-ink-faint text-[14px] max-w-2xl leading-relaxed">
+              Prepare your work, declaration, and release assets for ShangoMaji review.
+              Submission is review, not publication.
             </p>
           </header>
 
@@ -272,7 +273,7 @@ export default function WorkspaceNewProject() {
                   </h2>
                 </header>
 
-                <div className="pt-7 space-y-7">
+                <div className="pt-8 space-y-8">
                   <Field label="Title" error={errors.title}>
                     <input
                       value={draft.title}
@@ -371,12 +372,12 @@ export default function WorkspaceNewProject() {
                   >
                     Release Assets
                   </h2>
-                  <p className="text-xs text-ink-faint leading-relaxed max-w-xl">
-                    These ship with your release. Add what you have; remaining items can come later.
+                  <p className="text-[13px] text-ink-faint leading-relaxed max-w-xl">
+                    Assets that ship with this release. Add what you have now; the rest can come later.
                   </p>
                 </header>
 
-                <div className="pt-7 space-y-10">
+                <div className="pt-8 space-y-10">
 
                   {/* Group 1 — Artwork.
                       3-up at xl+, 2-up at sm-md, single column on mobile.
@@ -488,9 +489,9 @@ export default function WorkspaceNewProject() {
                     </Field>
 
                     <div>
-                      <p className="text-sm font-medium text-white mb-1">Deliverables</p>
-                      <p className="text-xs text-ink-faint mb-3">
-                        Mark every asset that will ship with this release.
+                      <p className="text-[15px] font-medium text-white mb-1.5">Deliverables</p>
+                      <p className="text-[13px] text-ink-faint mb-3 leading-relaxed">
+                        Mark every asset that ships with this release.
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {DELIVERABLES.map((item) => {
@@ -524,8 +525,8 @@ export default function WorkspaceNewProject() {
                       <Lock size={11} className="opacity-70" aria-hidden="true" />
                       Private — admin reference only
                     </p>
-                    <p className="text-xs text-ink-muted leading-relaxed max-w-xl">
-                      Private reference shared with ShangoMaji review only. Not part of your public release.
+                    <p className="text-[13px] text-ink-muted leading-relaxed max-w-xl">
+                      Private reference for ShangoMaji review only. Not part of your public release.
                     </p>
                     <Field
                       label="Sample / Screener URL"
@@ -556,8 +557,8 @@ export default function WorkspaceNewProject() {
                   >
                     Submission Declaration
                   </h2>
-                  <p className="text-xs text-ink-faint leading-relaxed max-w-xl">
-                    Required for review. Drafts may be saved without it.
+                  <p className="text-[13px] text-ink-faint leading-relaxed max-w-xl">
+                    Required to submit for review. Drafts can be saved without it.
                   </p>
                 </header>
                 <div className="pt-1">
@@ -588,16 +589,16 @@ export default function WorkspaceNewProject() {
         }}
       >
         <div className="w-full mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12 xl:px-14">
-          <div className="flex items-center justify-between gap-3 sm:gap-6 h-[72px] sm:h-[80px]">
+          <div className="flex items-center justify-between gap-3 sm:gap-6 h-[78px] sm:h-[88px]">
             <div className="flex items-center gap-3 min-w-0">
               <ReadinessChip
                 tone={readyForReview ? "emerald" : "amber"}
                 label={readyForReview ? "Ready" : "Draft"}
               />
-              <p className="hidden md:block text-xs text-ink-faint truncate">
+              <p className="hidden md:block text-[13px] text-ink-faint truncate leading-snug">
                 {readyForReview
-                  ? "Ready for review · declaration complete."
-                  : "Draft mode · required declaration incomplete."}
+                  ? "Ready to submit for review · declaration complete."
+                  : "Draft mode · declaration required before review."}
               </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -605,22 +606,24 @@ export default function WorkspaceNewProject() {
                 onClick={saveDraft}
                 disabled={saving || submitting}
                 style={{
-                  padding: "10px 16px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  background: "transparent",
-                  color: "rgba(255,255,255,0.78)",
-                  fontSize: 13,
-                  fontWeight: 500,
+                  padding: "12px 20px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.22)",
+                  background: "rgba(255,255,255,0.03)",
+                  color: "rgba(255,255,255,0.85)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  letterSpacing: "0.005em",
                   cursor: saving || submitting ? "not-allowed" : "pointer",
                   opacity: saving || submitting ? 0.5 : 1,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 6,
+                  gap: 8,
+                  minHeight: 44,
                 }}
               >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
                 <span className="hidden sm:inline">
                   {saving ? "Saving…" : saved ? "Saved" : "Save Draft"}
                 </span>
@@ -632,22 +635,25 @@ export default function WorkspaceNewProject() {
                 onClick={submitForReview}
                 disabled={saving || submitting}
                 style={{
-                  padding: "11px 22px",
-                  borderRadius: 10,
+                  padding: "14px 28px",
+                  borderRadius: 12,
                   border: "none",
                   background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
                   color: "black",
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 700,
+                  letterSpacing: "0.01em",
                   cursor: saving || submitting ? "not-allowed" : "pointer",
                   opacity: saving || submitting ? 0.6 : 1,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 6,
+                  gap: 8,
+                  minHeight: 48,
+                  boxShadow: "0 6px 24px -10px rgba(245,197,24,0.45)",
                 }}
               >
-                {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 <span className="hidden sm:inline">
                   {submitting ? "Submitting…" : "Submit for Review"}
                 </span>
@@ -675,10 +681,10 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="workspace-field space-y-1.5">
-      <label className="block text-sm font-medium text-white">{label}</label>
-      {hint && <p className="text-xs text-ink-faint">{hint}</p>}
-      <div className="space-y-2">{children}</div>
+    <div className="workspace-field space-y-2">
+      <label className="block text-[15px] font-medium text-white tracking-tight">{label}</label>
+      {hint && <p className="text-[13px] text-ink-faint leading-relaxed">{hint}</p>}
+      <div className="space-y-2 pt-0.5">{children}</div>
       {error && <p className="text-xs text-brand-red flex items-center gap-1">{error}</p>}
       <style jsx global>{`
         .workspace-field input,

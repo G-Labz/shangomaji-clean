@@ -337,22 +337,22 @@ function DossierPanel({
     <section
       className={
         topRule
-          ? "py-7 border-t border-white/8 space-y-4"
-          : "pt-2 pb-7 space-y-4"
+          ? "py-8 border-t border-white/8 space-y-5"
+          : "pt-2 pb-8 space-y-5"
       }
     >
-      <header className="space-y-1.5">
+      <header className="space-y-2">
         <p className="text-[10px] uppercase tracking-[0.22em] text-ink-muted">
           Section {marker}
         </p>
         <h3
-          className="text-white text-[17px] leading-tight font-semibold tracking-tight"
+          className="text-white text-[18px] leading-tight font-semibold tracking-tight"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
         </h3>
         {helper && (
-          <p className="text-xs text-ink-faint leading-relaxed max-w-xl">{helper}</p>
+          <p className="text-[13px] text-ink-faint leading-relaxed max-w-xl">{helper}</p>
         )}
       </header>
       <div className="space-y-4">{children}</div>
@@ -369,7 +369,7 @@ function DossierField({
 }) {
   return (
     <div className="space-y-2">
-      <label className="block text-xs text-white/65 font-medium">{label}</label>
+      <label className="block text-[13px] text-white/80 font-medium leading-snug">{label}</label>
       {children}
     </div>
   );
@@ -415,7 +415,7 @@ function ChoiceGrid({
             key={opt.value}
             type="button"
             onClick={() => onSelect(opt.value)}
-            className={`text-left px-4 py-3 rounded-lg border text-[13px] transition ${
+            className={`text-left px-4 py-3.5 rounded-lg border text-[13px] leading-snug transition ${
               active
                 ? "border-amber-500/50 bg-amber-500/[0.06] text-white"
                 : "border-white/10 bg-white/[0.02] text-ink-faint hover:border-white/25 hover:text-white"
