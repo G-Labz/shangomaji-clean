@@ -12,6 +12,7 @@ import type { Genre, Title } from "@/data/mockData";
 // is theatre, not utility.
 const SORT_VISIBLE_THRESHOLD = 6;
 import { PageTitle } from "@/components/util/PageTitle";
+import { SiteFooter } from "@/components/nav/SiteFooter";
 
 type SortKey = "score" | "year" | "title";
 
@@ -233,6 +234,7 @@ export default function BrowsePage() {
           </motion.div>
         )}
       </div>
+      <SiteFooter />
     </div>
   );
 }

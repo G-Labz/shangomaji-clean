@@ -1,3 +1,5 @@
+import { SiteFooter } from "@/components/nav/SiteFooter";
+
 export default function HelpPage() {
   const faqs = [
     { q: "What is ShangoMaji™?", a: "ShangoMaji™ is a curated anime distribution label. Approved titles join the public catalog through review, licensing, and media readiness — not open upload or self-publishing." },
@@ -9,8 +11,8 @@ export default function HelpPage() {
     <div className="min-h-screen pt-28 pb-20 px-6 md:px-10">
       <div className="max-w-2xl mx-auto">
         <p className="text-xs uppercase tracking-[0.25em] mb-4" style={{ color: "rgba(240,112,48,0.7)" }}>Support</p>
-        <h1 className="text-display font-bold text-4xl md:text-5xl text-white mb-4 tracking-tight">Help & Support</h1>
-        <p className="text-sm mb-12" style={{ color: "rgba(255,255,255,0.45)" }}>Welcome to ShangoMaji support.</p>
+        <h1 className="text-display font-bold text-4xl md:text-5xl text-white mb-4 tracking-tight">Help / FAQ</h1>
+        <p className="text-sm mb-12" style={{ color: "rgba(255,255,255,0.6)" }}>Answers for creators, members, and visitors using ShangoMaji.</p>
 
         <div className="space-y-6 mb-16">
           <h2 className="text-white font-semibold text-base">Common Questions</h2>
@@ -34,10 +36,8 @@ export default function HelpPage() {
           </p>
         </div>
 
-        <p className="mt-10 pt-6 text-[11px]" style={{ color: "rgba(255,255,255,0.35)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          ShangoMaji™ is a claimed mark of GeneUs Labz.
-        </p>
       </div>
+      <SiteFooter />
     </div>
   );
 }

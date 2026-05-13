@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { PageTitle } from "@/components/util/PageTitle";
+import { SiteFooter } from "@/components/nav/SiteFooter";
 import {
   ArrowRight,
   Globe,
@@ -551,6 +552,7 @@ export default function CreatorsPage() {
           </motion.div>
         </div>
       </section>
+      <SiteFooter />
     </div>
   );
 }

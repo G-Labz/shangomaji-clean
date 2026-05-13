@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { HeroBanner } from "@/components/home/HeroBanner";
 import { ContentRow } from "@/components/home/ContentRow";
 import { PageTitle } from "@/components/util/PageTitle";
+import { SiteFooter } from "@/components/nav/SiteFooter";
 import {
   getTrending,
   getNewReleases,
@@ -140,6 +141,7 @@ export default function HomePage() {
           </div>
         )}
       </div>
+      <SiteFooter />
     </>
   );
 }

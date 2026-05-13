@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Check, Upload, AlertCircle } from "lucide-react";
+import { SiteFooter } from "@/components/nav/SiteFooter";
 import {
   validateNamePart,
   validateCity,
@@ -464,6 +465,14 @@ export default function ApplyPage() {
           <p className="mt-5 text-[12px] text-white/80 leading-relaxed">
             Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
           </p>
+
+          <p className="mt-4 text-[12px] text-white/65">
+            Questions before applying?{" "}
+            <Link href="/help" className="text-white/85 underline decoration-white/30 underline-offset-2 hover:decoration-white/60 transition">
+              Read the creator FAQ
+            </Link>
+            .
+          </p>
         </motion.section>
 
         {/* Step indicator */}
@@ -874,6 +883,7 @@ export default function ApplyPage() {
           </p>
         )}
       </div>
+      <SiteFooter />
     </div>
   );
 }
