@@ -40,15 +40,28 @@ interface FormData {
 }
 
 const GENRE_OPTIONS = [
-  "Mythology",
   "Action",
-  "Drama",
-  "Spiritual",
-  "Sci-Fi",
-  "Coming of Age",
-  "Historical",
+  "Adventure",
   "Fantasy",
+  "Sci-Fi",
+  "Supernatural",
+  "Drama",
+  "Comedy",
+  "Romance",
+  "Horror",
   "Thriller",
+  "Mystery",
+  "Slice of Life",
+  "Sports",
+  "Martial Arts",
+  "Mecha",
+  "Afrofuturism",
+  "Historical",
+  "Coming-of-Age",
+  "Psychological",
+  "Mythology-Inspired",
+  "Urban Fantasy",
+  "Other",
 ];
 
 const PROJECT_TYPES = [
@@ -216,7 +229,7 @@ export default function ApplyPage() {
       if (!form.projectTitle.trim()) e.projectTitle = "Project title is required.";
       if (!form.projectType) e.projectType = "Choose a project type.";
       if (form.genres.length === 0) e.genres = "Select at least one genre.";
-      if (!form.logline.trim()) e.logline = "A logline is required.";
+      if (!form.logline.trim()) e.logline = "A project description is required.";
     }
 
     if (step === 3) {
@@ -475,18 +488,25 @@ export default function ApplyPage() {
                       <select
                         value={form.country}
                         onChange={(e) => set("country")(e.target.value)}
-                        className="flex-1 bg-transparent px-4 py-3.5 text-white text-sm outline-none appearance-none"
+                        className="flex-1 bg-surface-raised px-4 py-3.5 text-white text-sm outline-none appearance-none cursor-pointer"
                         style={{ colorScheme: "dark" }}
                       >
-                        <option value="" disabled>
+                        <option value="" disabled style={{ background: "#1a1a1a", color: "rgba(255,255,255,0.55)" }}>
                           Select a country
                         </option>
                         {COUNTRY_LIST.map((c) => (
-                          <option key={c} value={c}>
+                          <option
+                            key={c}
+                            value={c}
+                            style={{ background: "#1a1a1a", color: "#ffffff" }}
+                          >
                             {c}
                           </option>
                         ))}
                       </select>
+                      <span className="px-3 text-ink-faint pointer-events-none select-none" aria-hidden="true">
+                        ▾
+                      </span>
                     </div>
                   </Field>
                 </div>
@@ -557,15 +577,15 @@ export default function ApplyPage() {
                     </div>
                   </Field>
                   <Field
-                    label="Logline"
-                    hint="One or two sentences. What is your story about?"
+                    label="Project Description"
+                    hint="Briefly describe your project, including the story concept, format, current stage, intended audience, and what kind of support or opportunity you are seeking."
                     error={errors.logline}
                   >
                     <Textarea
                       value={form.logline}
                       onChange={set("logline")}
-                      placeholder="A young archivist discovers…"
-                      rows={3}
+                      placeholder="A young archivist discovers a forgotten god — a 6-episode animated series, currently in scripts and concept art. Aimed at adult anime fans drawn to mythic storytelling. Seeking distribution, audience, and creative partnership to finish production."
+                      rows={9}
                     />
                   </Field>
                   <Field
