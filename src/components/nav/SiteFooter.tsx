@@ -21,9 +21,11 @@ export function SiteFooter() {
         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
       }}
     >
-      <div className="max-w-[1600px] mx-auto px-6 md:px-10 py-12">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10">
-          <div className="max-w-sm">
+      <div className="max-w-5xl mx-auto px-6 md:px-10 py-14">
+        {/* Top row — brand identity left, site links right. Stacks on
+            mobile so the brand reads first, then the link group. */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+          <div>
             <p
               className="text-white text-base font-semibold tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
@@ -31,17 +33,20 @@ export function SiteFooter() {
               ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span>
               <span className="sr-only">™</span>
             </p>
-            <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+            <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
               Curated anime distribution label.
             </p>
           </div>
 
-          <nav aria-label="Site" className="flex flex-wrap gap-x-6 gap-y-3">
+          <nav
+            aria-label="Site"
+            className="flex flex-wrap gap-x-5 gap-y-2 md:justify-end"
+          >
             {FOOTER_LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-[13px] transition-colors"
+                className="text-[13px] transition-colors hover:text-white"
                 style={{ color: "rgba(255,255,255,0.65)" }}
               >
                 {l.label}
@@ -50,16 +55,15 @@ export function SiteFooter() {
           </nav>
         </div>
 
+        {/* Bottom row — single trademark notice line. No copyright,
+            no fake legal links. Visually anchored as the footer's
+            closing signature. */}
         <div
-          className="mt-10 pt-5 flex flex-wrap items-center justify-between gap-3 text-[11px]"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }}
+          className="mt-10 pt-5 text-[11px] leading-relaxed"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)" }}
         >
           <p>
             ShangoMaji<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span> is a claimed mark of GeneUs Labz<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span>.
-            <span className="sr-only">™</span>
-          </p>
-          <p>
-            © {new Date().getFullYear()} GeneUs Labz<span className="align-top text-[0.65em] ml-0.5" aria-hidden="true">™</span>
             <span className="sr-only">™</span>
           </p>
         </div>
