@@ -180,6 +180,39 @@ function Textarea({
   );
 }
 
+// Single Before You Apply policy card. Renders a visible heading + concise
+// summary, with the full approved policy text behind a per-card collapsible
+// so cards stay visually controlled when sitting side by side at lg+.
+function PolicyCard({
+  title,
+  summary,
+  children,
+}: {
+  title: string;
+  summary: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-white/12 bg-black/30 p-4 flex flex-col">
+      <h3 className="text-[14px] font-semibold text-white tracking-tight leading-snug">
+        {title}
+      </h3>
+      <p className="mt-2 text-[12.5px] text-white/80 leading-relaxed">
+        {summary}
+      </p>
+      <details className="mt-3 group">
+        <summary className="cursor-pointer list-none inline-flex items-center gap-1.5 text-[12px] font-medium text-white/85 hover:text-white [&::-webkit-details-marker]:hidden">
+          <span>Read full policy</span>
+          <span aria-hidden="true" className="text-white/55 group-open:rotate-90 transition-transform">›</span>
+        </summary>
+        <div className="mt-3 space-y-2 text-[12.5px] text-white/85 leading-relaxed">
+          {children}
+        </div>
+      </details>
+    </div>
+  );
+}
+
 export default function ApplyPage() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(emptyForm);
@@ -354,44 +387,45 @@ export default function ApplyPage() {
           </p>
         </motion.div>
 
-        {/* xl+ two-zone application surface.
-            Below xl: single-column stack. DOM order is
-              policy rail → main form
-            so mobile reads "Before you apply" before the steps.
-            At xl+: `order` swaps the visual columns to
-              main form (left) / policy rail (right). */}
-        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] xl:gap-12 xl:items-start">
-
-        {/* ── Guidance rail (policy block).
-            Mobile: appears first (above the form).
-            xl+: moves to the right column via xl:order-2. */}
-        <aside className="min-w-0 xl:order-2">
-
-        {/* Before You Apply — compact policy block.
-            Sets expectations before the form. Copy-only; no new fields,
-            validation, or payload behavior. Three expandable sections keep
-            initial visual weight light so the application is not buried. */}
+        {/* ─────────────── BEFORE YOU APPLY — full-width guidance band ───────────────
+            Required-read context above the form. Three policy cards sit
+            side by side on lg+ so the desktop page no longer reads as a
+            narrow policy rail. Below lg the cards stack cleanly. Policy
+            doctrine and FAQ link preserved from prior phases. Copy-only;
+            no new fields, validation, or payload behavior. */}
         <motion.section
-          className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6"
+          className="mb-14 rounded-2xl border border-amber-500/15 bg-white/[0.02] p-6 sm:p-8"
+          style={{
+            backgroundImage:
+              "linear-gradient(180deg, rgba(245,197,24,0.045), rgba(255,255,255,0.015) 35%, rgba(255,255,255,0) 60%)",
+          }}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.05 }}
           aria-label="Before you apply"
         >
-          <p className="text-[10px] uppercase tracking-[0.22em] text-ink-faint">
-            Before you apply
-          </p>
+          {/* Required-read badge */}
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/[0.08] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
+            style={{ color: "#f5c518" }}
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#f5c518" }} />
+            Required before applying
+          </span>
+
           <h2
-            className="mt-2 text-white text-[18px] sm:text-[20px] font-semibold tracking-tight leading-tight"
+            className="mt-3 text-white text-[24px] sm:text-[30px] font-semibold tracking-tight leading-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label.
+            Before you apply
           </h2>
-          <p className="mt-2 text-[13px] text-white/85 leading-relaxed">
-            This is not open upload, self-publishing, or instant public release. You are submitting your work for review. Read the expectations below before applying.
+          <p className="mt-2 max-w-3xl text-[14px] text-white/85 leading-relaxed">
+            ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review. Read the expectations and policies below before applying.
           </p>
 
-          <ul className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[13px] text-white/90 leading-relaxed">
+          {/* Expectation bullets — single column on mobile, two at sm,
+              three at lg so the band reads as a wide desktop summary. */}
+          <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-[13px] text-white/90 leading-relaxed">
             {[
               "You are submitting for review, not publication.",
               "Approval is not automatic public catalog placement.",
@@ -410,89 +444,84 @@ export default function ApplyPage() {
             ))}
           </ul>
 
-          <div className="mt-5 space-y-2">
-            <details className="rounded-xl border border-white/15 bg-black/30 open:bg-black/40 transition-colors">
-              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white [&::-webkit-details-marker]:hidden">
-                <span>Mature Storytelling Standard</span>
-                <span className="text-white/75 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
-              </summary>
-              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/85 leading-relaxed">
-                <p>
-                  ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
-                </p>
-                <p>
-                  ShangoMaji is not a children’s platform, and mature storytelling is not automatically disqualifying.
-                </p>
-                <p>
-                  ShangoMaji is also not a pornographic or sexually explicit content platform. Pornographic content, sexually exploitative material, and sexualized depictions of minors are not accepted.
-                </p>
-                <p>
-                  All mature content is reviewed in context. The question is not whether a work is intense. The question is whether the intensity belongs to the story, respects the audience, and fits the ShangoMaji catalog standard.
-                </p>
-              </div>
-            </details>
+          {/* Policy cards — side by side on lg+, stacked on mobile.
+              Each card shows a visible summary up front and reveals the
+              full approved policy text via a per-card "Read full policy"
+              collapsible, so card heights stay visually controlled. */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <PolicyCard
+              title="Mature Storytelling Standard"
+              summary="R-rated themes — violence, horror, trauma, dark fantasy, adult situations — are allowed when they serve the story. ShangoMaji is not a children’s platform, and not a pornographic or sexually explicit platform."
+            >
+              <p>
+                ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
+              </p>
+              <p>
+                ShangoMaji is not a children’s platform, and mature storytelling is not automatically disqualifying.
+              </p>
+              <p>
+                ShangoMaji is also not a pornographic or sexually explicit content platform. Pornographic content, sexually exploitative material, and sexualized depictions of minors are not accepted.
+              </p>
+              <p>
+                All mature content is reviewed in context. The question is not whether a work is intense. The question is whether the intensity belongs to the story, respects the audience, and fits the ShangoMaji catalog standard.
+              </p>
+            </PolicyCard>
 
-            <details className="rounded-xl border border-white/15 bg-black/30 open:bg-black/40 transition-colors">
-              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white [&::-webkit-details-marker]:hidden">
-                <span>AI Use and Human Authorship</span>
-                <span className="text-white/75 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
-              </summary>
-              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/85 leading-relaxed">
-                <p>
-                  At launch, ShangoMaji prioritizes human-created work. Fully AI-generated submissions are not accepted for catalog consideration at this stage.
-                </p>
-                <p>
-                  Limited AI-assisted work may be reviewed case by case, but creators must disclose how AI tools were used. This includes AI used for images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
-                </p>
-                <p>
-                  Disclosure does not automatically disqualify a project. Hidden AI use, unclear authorship, or work that cannot be responsibly credited or licensed may block review.
-                </p>
-                <p>
-                  The standard is simple: the work must have clear human authorship, rights clarity, and creative responsibility.
-                </p>
-              </div>
-            </details>
+            <PolicyCard
+              title="AI Use and Human Authorship"
+              summary="Human-created work is prioritized at launch. Fully AI-generated submissions are not accepted. Limited AI-assisted use must be disclosed. Hidden AI use can block review."
+            >
+              <p>
+                At launch, ShangoMaji prioritizes human-created work. Fully AI-generated submissions are not accepted for catalog consideration at this stage.
+              </p>
+              <p>
+                Limited AI-assisted work may be reviewed case by case, but creators must disclose how AI tools were used. This includes AI used for images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
+              </p>
+              <p>
+                Disclosure does not automatically disqualify a project. Hidden AI use, unclear authorship, or work that cannot be responsibly credited or licensed may block review.
+              </p>
+              <p>
+                The standard is simple: the work must have clear human authorship, rights clarity, and creative responsibility.
+              </p>
+            </PolicyCard>
 
-            <details className="rounded-xl border border-white/15 bg-black/30 open:bg-black/40 transition-colors">
-              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white [&::-webkit-details-marker]:hidden">
-                <span>How Submissions Are Reviewed</span>
-                <span className="text-white/75 text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
-              </summary>
-              <div className="px-4 pb-4 space-y-2 text-[13px] text-white/85 leading-relaxed">
-                <p>
-                  Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
-                </p>
-                <p>
-                  A project may be rejected because it is incomplete, outside the platform’s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
-                </p>
-                <p>
-                  Rejection is not a judgment of the creator’s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
-                </p>
-                <p>
-                  ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
-                </p>
-              </div>
-            </details>
+            <PolicyCard
+              title="How Submissions Are Reviewed"
+              summary="Submitting does not guarantee acceptance. Review weighs project fit, originality, creative direction, quality, rights clarity, content policy alignment, and distribution readiness. ShangoMaji reserves editorial discretion."
+            >
+              <p>
+                Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
+              </p>
+              <p>
+                A project may be rejected because it is incomplete, outside the platform’s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
+              </p>
+              <p>
+                Rejection is not a judgment of the creator’s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
+              </p>
+              <p>
+                ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
+              </p>
+            </PolicyCard>
           </div>
 
-          <p className="mt-5 text-[12px] text-white/80 leading-relaxed">
-            Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
-          </p>
-
-          <p className="mt-4 text-[12px] text-white/65">
-            Questions before applying?{" "}
-            <Link href="/help" className="text-white/85 underline decoration-white/30 underline-offset-2 hover:decoration-white/60 transition">
-              Read the creator FAQ
-            </Link>
-            .
-          </p>
+          <div className="mt-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-[12px] text-white/80 leading-relaxed max-w-3xl">
+              Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
+            </p>
+            <p className="text-[12px] text-white/70 shrink-0">
+              Questions before applying?{" "}
+              <Link href="/help" className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white/60 transition">
+                Read the creator FAQ
+              </Link>
+              .
+            </p>
+          </div>
         </motion.section>
 
-        </aside>
-
-        {/* ── Main application zone — step indicator + active form + actions.
-            xl+: takes the left (1fr) column. Mobile: stacks below the rail. */}
-        <div className="min-w-0 xl:order-1">
+        {/* ── Application form zone — wide but readable. Capped at
+            1040px and centered inside the page canvas so the form
+            never falls into a narrow mobile-feel column at desktop. */}
+        <div className="max-w-[1040px] mx-auto">
 
         {/* Step indicator */}
         <div className="flex items-center gap-0 mb-12">
@@ -903,10 +932,7 @@ export default function ApplyPage() {
         )}
 
         </div>
-        {/* /main application zone */}
-
-        </div>
-        {/* /xl+ two-zone grid */}
+        {/* /application form zone */}
       </div>
       <SiteFooter />
     </div>
