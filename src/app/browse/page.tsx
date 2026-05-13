@@ -123,7 +123,7 @@ export default function BrowsePage() {
   const showSort = liveCatalog.length >= SORT_VISIBLE_THRESHOLD;
 
   return (
-    <div className="min-h-screen pt-16">
+    <div className="min-h-screen pt-16 flex flex-col">
       <PageTitle title="Browse" />
       {/* Page header */}
       <div className="max-w-[1600px] mx-auto px-6 md:px-10 pt-10 pb-6">
@@ -170,7 +170,7 @@ export default function BrowsePage() {
       />
 
       {/* Grid */}
-      <div className="max-w-[1600px] mx-auto px-6 md:px-10 py-10">
+      <div className="max-w-[1600px] mx-auto px-6 md:px-10 py-10 flex-1 w-full">
         {filtered.length === 0 ? (
           // When zero titles exist at all (mock disabled in production AND
           // no creator titles yet), show the prepared-catalog empty state

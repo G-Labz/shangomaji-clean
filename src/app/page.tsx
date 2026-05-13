@@ -85,11 +85,11 @@ export default function HomePage() {
   const heroTitles = trending.length > 0 ? trending : creatorTitles;
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <PageTitle title="ShangoMaji" raw />
       {heroTitles.length > 0 && <HeroBanner titles={heroTitles} />}
 
-      <div className="pt-10">
+      <div className="pt-10 flex-1">
         {trending.length > 0 && (
           <ContentRow label="Trending Now" titles={trending} variant="landscape" />
         )}
@@ -142,6 +142,6 @@ export default function HomePage() {
         )}
       </div>
       <SiteFooter />
-    </>
+    </div>
   );
 }
