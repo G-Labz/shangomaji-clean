@@ -22,9 +22,10 @@ export function SiteFooter() {
       }}
     >
       <div className="max-w-5xl mx-auto px-6 md:px-10 py-14">
-        {/* Top row — brand identity left, site links right. Stacks on
+        {/* Top row — brand identity left, nav group centered on
+            desktop with a balancing spacer on the right. Stacks on
             mobile so the brand reads first, then the link group. */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+        <div className="flex flex-col gap-8 md:grid md:grid-cols-3 md:items-center md:gap-6">
           <div>
             <p
               className="text-white text-base font-semibold tracking-tight"
@@ -40,7 +41,7 @@ export function SiteFooter() {
 
           <nav
             aria-label="Site"
-            className="flex flex-wrap gap-x-5 gap-y-2 md:justify-end"
+            className="flex flex-wrap gap-x-5 gap-y-2 md:justify-center"
           >
             {FOOTER_LINKS.map((l) => (
               <Link
@@ -53,6 +54,11 @@ export function SiteFooter() {
               </Link>
             ))}
           </nav>
+
+          {/* Right-side spacer keeps the centered nav visually
+              balanced against the brand block. Hidden on mobile so
+              the stacked layout stays compact. */}
+          <div className="hidden md:block" aria-hidden="true" />
         </div>
 
         {/* Bottom row — trademark notice (left) and copyright notice
