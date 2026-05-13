@@ -183,9 +183,9 @@ function Textarea({
 // Single Before You Apply policy card. Renders a visible heading + concise
 // summary, with the full approved policy text behind a per-card collapsible
 // so cards stay visually controlled when sitting side by side at lg+.
-// Compact, non-expanding summary card. Long-form policy text lives in
-// the full-width PolicyDetails accordion below the card grid so desktop
-// readers get a proper reading column instead of narrow card text.
+// Compact, non-expanding summary card used inside the Before You Apply
+// band. Summary-only by design; deeper policy reading lives on the
+// public Help / FAQ page linked at the bottom of the band.
 function PolicyCard({
   title,
   summary,
@@ -205,31 +205,6 @@ function PolicyCard({
   );
 }
 
-// Full-width policy details panel. Sits below the policy summary cards
-// inside the Before You Apply band. Native <details> so no React state
-// is added. The expanded body uses a max-w-3xl reading column for line
-// length even though the panel itself spans the full band width.
-function PolicyDetails({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <details className="group">
-      <summary
-        className="cursor-pointer list-none flex items-center justify-between gap-3 px-5 py-4 text-[14px] font-semibold text-white hover:bg-white/[0.025] transition-colors [&::-webkit-details-marker]:hidden"
-      >
-        <span>{title}</span>
-        <span aria-hidden="true" className="text-white/70 text-lg leading-none group-open:rotate-90 transition-transform shrink-0">›</span>
-      </summary>
-      <div className="px-5 pb-5 pt-1 max-w-3xl space-y-3 text-[13.5px] text-white/85 leading-relaxed">
-        {children}
-      </div>
-    </details>
-  );
-}
 
 export default function ApplyPage() {
   const [step, setStep] = useState(1);
@@ -465,80 +440,22 @@ export default function ApplyPage() {
           </ul>
 
           {/* Policy summary cards — compact, side by side on lg+,
-              stacked on mobile. The cards no longer expand. Long-form
-              policy text lives in the full-width accordion below so
-              desktop readers get a proper wide reading column instead
-              of long text trapped inside a skinny 3-column slot. */}
+              stacked on mobile. Summary-only by design. Deeper policy
+              reading lives on the public Help / FAQ page (linked
+              below); no in-page accordion duplicates that. */}
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
             <PolicyCard
               title="Mature Storytelling Standard"
-              summary="R-rated themes are allowed when they serve the story. This may include violence, horror, trauma, psychological intensity, dark fantasy, strong language, and adult situations. ShangoMaji is not a children’s platform. It is also not a pornographic or sexually explicit platform."
+              summary="Mature and R-rated themes are allowed when they serve the story. ShangoMaji is not a children’s platform and does not accept pornographic content, sexually exploitative material, or sexualized depictions of minors."
             />
             <PolicyCard
               title="AI Use and Human Authorship"
-              summary="Human-created work is prioritized at launch. Fully AI-generated submissions are not accepted. Limited AI-assisted use must be disclosed. Hidden AI use can block review."
+              summary="Human-created work is prioritized at launch. Fully AI-generated submissions are not accepted. Limited AI-assisted use must be disclosed and may be reviewed case by case."
             />
             <PolicyCard
               title="How Submissions Are Reviewed"
-              summary="Submitting does not guarantee acceptance. Review weighs project fit, originality, creative direction, quality, rights clarity, content policy alignment, and distribution readiness. ShangoMaji reserves editorial discretion."
+              summary="Submitting does not guarantee acceptance. Review considers project fit, originality, creative direction, quality, completeness, rights clarity, content policy alignment, and distribution readiness. ShangoMaji reserves editorial discretion."
             />
-          </div>
-
-          {/* Full-width policy details accordion.
-              Each topic expands into a full-width panel inside the
-              band, so the long policy text uses a comfortable desktop
-              reading width (capped at max-w-3xl for line length) rather
-              than being squeezed into a narrow card column. Native
-              <details>, no React state. */}
-          <div className="mt-5 rounded-xl border border-white/10 bg-black/25 divide-y divide-white/10">
-            <p className="px-5 pt-4 pb-2 text-[10px] uppercase tracking-[0.18em] text-white/55 font-semibold">
-              Full policy details
-            </p>
-
-            <PolicyDetails title="Mature Storytelling Standard">
-              <p>
-                ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
-              </p>
-              <p>
-                ShangoMaji is not a children’s platform, and mature storytelling is not automatically disqualifying.
-              </p>
-              <p>
-                ShangoMaji is also not a pornographic or sexually explicit content platform. Pornographic content, sexually exploitative material, and sexualized depictions of minors are not accepted.
-              </p>
-              <p>
-                All mature content is reviewed in context. The question is not whether a work is intense. The question is whether the intensity belongs to the story, respects the audience, and fits the ShangoMaji catalog standard.
-              </p>
-            </PolicyDetails>
-
-            <PolicyDetails title="AI Use and Human Authorship">
-              <p>
-                At launch, ShangoMaji prioritizes human-created work. Fully AI-generated submissions are not accepted for catalog consideration at this stage.
-              </p>
-              <p>
-                Limited AI-assisted work may be reviewed case by case, but creators must disclose how AI tools were used. This includes AI used for images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
-              </p>
-              <p>
-                Disclosure does not automatically disqualify a project. Hidden AI use, unclear authorship, or work that cannot be responsibly credited or licensed may block review.
-              </p>
-              <p>
-                The standard is simple: the work must have clear human authorship, rights clarity, and creative responsibility.
-              </p>
-            </PolicyDetails>
-
-            <PolicyDetails title="How Submissions Are Reviewed">
-              <p>
-                Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
-              </p>
-              <p>
-                A project may be rejected because it is incomplete, outside the platform’s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
-              </p>
-              <p>
-                Rejection is not a judgment of the creator’s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
-              </p>
-              <p>
-                ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
-              </p>
-            </PolicyDetails>
           </div>
 
           <div className="mt-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
