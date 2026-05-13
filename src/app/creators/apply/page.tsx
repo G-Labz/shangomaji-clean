@@ -352,6 +352,119 @@ export default function ApplyPage() {
           </p>
         </motion.div>
 
+        {/* Before You Apply — compact policy block.
+            Sets expectations before the form. Copy-only; no new fields,
+            validation, or payload behavior. Three expandable sections keep
+            initial visual weight light so the application is not buried. */}
+        <motion.section
+          className="mb-10 rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:p-6"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
+          aria-label="Before you apply"
+        >
+          <p className="text-[10px] uppercase tracking-[0.22em] text-ink-faint">
+            Before you apply
+          </p>
+          <h2
+            className="mt-2 text-white text-[18px] sm:text-[20px] font-semibold tracking-tight leading-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            ShangoMaji is a curated anime distribution label.
+          </h2>
+          <p className="mt-2 text-[13px] text-ink-faint leading-relaxed">
+            This is not open upload, self-publishing, or instant public release. You are submitting your work for review — read the expectations below before applying.
+          </p>
+
+          <ul className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[13px] text-white/80 leading-relaxed">
+            {[
+              "You are submitting for review, not publication.",
+              "Approval is not automatic public catalog placement.",
+              "Distribution requires licensing, media readiness, and ShangoMaji review.",
+              "Creators retain ownership of their work.",
+              "ShangoMaji controls public catalog inclusion and release readiness.",
+              "Mature storytelling is allowed when it serves the work.",
+              "Pornographic or sexually exploitative content is not accepted.",
+              "Fully AI-generated submissions are not accepted at launch.",
+              "Any AI-assisted use must be disclosed.",
+            ].map((line) => (
+              <li key={line} className="flex gap-2">
+                <span className="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-ink-faint" />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-5 space-y-2">
+            <details className="rounded-xl border border-white/8 bg-black/30 open:bg-black/40 transition-colors">
+              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white/85 [&::-webkit-details-marker]:hidden">
+                <span>Mature Storytelling Standard</span>
+                <span className="text-ink-faint text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
+              </summary>
+              <div className="px-4 pb-4 space-y-2 text-[13px] text-ink-faint leading-relaxed">
+                <p>
+                  ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
+                </p>
+                <p>
+                  ShangoMaji is not a children’s platform, and mature storytelling is not automatically disqualifying.
+                </p>
+                <p>
+                  ShangoMaji is also not a pornographic or sexually explicit content platform. Pornographic content, sexually exploitative material, and sexualized depictions of minors are not accepted.
+                </p>
+                <p>
+                  All mature content is reviewed in context. The question is not whether a work is intense — it is whether the intensity belongs to the story, respects the audience, and fits the ShangoMaji catalog standard.
+                </p>
+              </div>
+            </details>
+
+            <details className="rounded-xl border border-white/8 bg-black/30 open:bg-black/40 transition-colors">
+              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white/85 [&::-webkit-details-marker]:hidden">
+                <span>AI Use and Human Authorship</span>
+                <span className="text-ink-faint text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
+              </summary>
+              <div className="px-4 pb-4 space-y-2 text-[13px] text-ink-faint leading-relaxed">
+                <p>
+                  At launch, ShangoMaji prioritizes human-created work. Fully AI-generated submissions are not accepted for catalog consideration at this stage.
+                </p>
+                <p>
+                  Limited AI-assisted work may be reviewed case by case, but creators must disclose how AI tools were used — images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
+                </p>
+                <p>
+                  Disclosure does not automatically disqualify a project. Hidden AI use, unclear authorship, or work that cannot be responsibly credited or licensed may block review.
+                </p>
+                <p>
+                  The standard is simple: the work must have clear human authorship, rights clarity, and creative responsibility.
+                </p>
+              </div>
+            </details>
+
+            <details className="rounded-xl border border-white/8 bg-black/30 open:bg-black/40 transition-colors">
+              <summary className="flex items-center justify-between cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-white/85 [&::-webkit-details-marker]:hidden">
+                <span>How Submissions Are Reviewed</span>
+                <span className="text-ink-faint text-base leading-none select-none before:content-['+'] open:before:content-['–']" />
+              </summary>
+              <div className="px-4 pb-4 space-y-2 text-[13px] text-ink-faint leading-relaxed">
+                <p>
+                  Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
+                </p>
+                <p>
+                  A project may be rejected because it is incomplete, outside the platform’s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
+                </p>
+                <p>
+                  Rejection is not a judgment of the creator’s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
+                </p>
+                <p>
+                  ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
+                </p>
+              </div>
+            </details>
+          </div>
+
+          <p className="mt-5 text-[12px] text-ink-faint leading-relaxed">
+            Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
+          </p>
+        </motion.section>
+
         {/* Step indicator */}
         <div className="flex items-center gap-0 mb-12">
           {STEPS.map((s, i) => (
