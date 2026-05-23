@@ -144,7 +144,7 @@ export default function MemberSignupPage() {
         <p style={eyebrow}>Member</p>
         <h1 style={heading}>Create your Member account</h1>
         <p style={lead}>
-          Your ShangoMaji Member account for the audience side of ShangoMaji.
+          Your account for watching on ShangoMaji.
         </p>
 
         {error && <div style={errorBox}>{error}</div>}
