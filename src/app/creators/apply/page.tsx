@@ -272,17 +272,87 @@ function PolicyCard({
   );
 }
 
-// Mini process strip rendered inside the Before You Apply panel.
-// Communicates the path that follows a complete submission so the policy
-// cards below sit inside a clear shape: Review → License → Media
-// Readiness → Release Decision. Two-column grid on the panel; stacks on
-// the narrowest screens.
+// Mini process strip rendered inside the Required Before Applying band.
+// Communicates the path that follows a complete submission so creators
+// see the full lifecycle alongside the rules: Review → License → Media
+// Readiness → Release Decision.
 const PANEL_PROCESS = [
   { n: "01", title: "Review", body: "Editorial review of fit, originality, and rights clarity." },
   { n: "02", title: "License", body: "Signed agreement granting distribution rights." },
   { n: "03", title: "Media Readiness", body: "Materials prepared and aligned for catalog release." },
   { n: "04", title: "Release Decision", body: "Editorial placement, timing, and public visibility." },
 ];
+
+// Compact commitment card used in the side column of the application
+// workspace. Surfaces the load-bearing trust commitments next to the
+// form so a creator filling it out can glance at them without scrolling
+// to the full policy section below. Intentionally tight — full policy
+// substance still lives in the PolicyCards beneath the workspace.
+type Commitment = {
+  icon: React.ElementType;
+  title: string;
+  body: string;
+};
+
+const KEY_COMMITMENTS: Commitment[] = [
+  {
+    icon: ShieldCheck,
+    title: "You keep your work",
+    body: "Submitting does not transfer copyright. Approval does not transfer copyright.",
+  },
+  {
+    icon: Sparkles,
+    title: "No AI training",
+    body: "ShangoMaji will not use creator-submitted materials to train generative AI models.",
+  },
+  {
+    icon: FileSearch,
+    title: "Review, not publication",
+    body: "Submission is review. Approval moves into licensing and media readiness, not automatic release.",
+  },
+  {
+    icon: Coins,
+    title: "Revenue lives in the agreement",
+    body: "No promised payouts at this stage. Where revenue applies, the terms are in the signed agreement.",
+  },
+];
+
+function CommitmentCard({ commitment }: { commitment: Commitment }) {
+  const Icon = commitment.icon;
+  return (
+    <article
+      className="rounded-2xl border border-white/10 bg-white/[0.02] p-5"
+      style={{
+        backgroundImage:
+          "linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0) 60%)",
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(229,62,42,0.16), rgba(245,197,24,0.16))",
+            border: "1px solid rgba(245,197,24,0.22)",
+          }}
+        >
+          <Icon size={13} className="brand-text" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-white font-semibold text-[13.5px] leading-snug">
+            {commitment.title}
+          </p>
+          <p
+            className="mt-1.5 text-[12.5px] leading-relaxed"
+            style={{ color: "rgba(255,255,255,0.7)" }}
+          >
+            {commitment.body}
+          </p>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 
 export default function ApplyPage() {
@@ -459,283 +529,141 @@ export default function ApplyPage() {
           </p>
         </motion.div>
 
-        {/* ─────────────── NOTEBOOK SURFACE ───────────────
-            At xl+ this becomes a two-page application packet:
-              Left page: Required Before Applying policy panel.
-              Right page: active application form.
-            Below xl the grid collapses to a single column with DOM
-            order preserved (policy first, then form), matching the
-            required mobile read order. */}
-        <div className="grid grid-cols-1 gap-10 xl:grid-cols-[680px_minmax(0,1fr)] xl:gap-10 2xl:grid-cols-[780px_minmax(0,1fr)] 2xl:gap-12 xl:items-start">
-
-        {/* ─── LEFT PAGE — Required Before Applying ───
-            Full visible policy substance, no dropdowns. On xl+ it is
-            sticky against the top nav and scrolls within itself if the
-            content is taller than the viewport, so it behaves like a
-            real notebook left page beside the form. */}
-        <motion.aside
-          className="rounded-2xl border border-amber-500/15 bg-white/[0.02] p-6 sm:p-8"
+        {/* ─────────────── REQUIRED BEFORE APPLYING BAND ───────────────
+            Full-width orientation band at the top of the canvas. Carries
+            the identity block, the Review Rules card, and the mini
+            process strip. Strong but compact — does not contain the full
+            six policy cards (those live in the dedicated Policy Details
+            section below the workspace). */}
+        <motion.section
+          className="rounded-2xl border border-amber-500/15 bg-white/[0.02] p-6 sm:p-8 lg:p-10 mb-10"
           style={{
             backgroundImage:
-              "linear-gradient(180deg, rgba(245,197,24,0.045), rgba(255,255,255,0.015) 25%, rgba(255,255,255,0) 50%)",
+              "linear-gradient(180deg, rgba(245,197,24,0.045), rgba(255,255,255,0.015) 25%, rgba(255,255,255,0) 55%)",
           }}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.05 }}
           aria-label="Required before applying"
         >
-          {/* Required-read badge */}
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/[0.08] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
-            style={{ color: "#f5c518" }}
-          >
-            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#f5c518" }} />
-            Required before applying
-          </span>
-
-          <h2
-            className="mt-3 text-white text-[24px] sm:text-[28px] font-semibold tracking-tight leading-tight"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Before you apply
-          </h2>
-          <p className="mt-3 text-[14px] text-white/90 leading-relaxed">
-            ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review.
-          </p>
-          <p className="mt-2 text-[13px] text-white/70 leading-relaxed">
-            Launch review priority is video-first and animation-facing work: animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable.
-          </p>
-
-          {/* ── Review Rules card ──
-              The expectations list, lifted into its own dedicated card so
-              the rules read as a deliberate review standard rather than a
-              loose policy preamble. Gold-accented dots, two-column on the
-              wider panel, full visibility (no dropdowns). All rule
-              meanings preserved from the prior list. */}
-          <section
-            className="mt-7 rounded-2xl border border-amber-500/25 p-5 sm:p-6"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(245,197,24,0.06), rgba(255,255,255,0.015) 65%)",
-            }}
-            aria-label="Review rules"
-          >
-            <div className="flex items-center gap-2.5 mb-4">
-              <ShieldCheck size={15} className="text-brand-yellow" />
-              <p
-                className="text-[10px] uppercase tracking-[0.22em] font-semibold"
-                style={{ color: "rgba(245,197,24,0.9)" }}
-              >
-                Review rules
-              </p>
-            </div>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-              <RuleItem>Submitting for review, not publication.</RuleItem>
-              <RuleItem>Approval is not automatic catalog placement.</RuleItem>
-              <RuleItem>Distribution requires licensing, media readiness, and ShangoMaji review.</RuleItem>
-              <RuleItem>Creators retain ownership of their work.</RuleItem>
-              <RuleItem>ShangoMaji controls catalog inclusion and release readiness.</RuleItem>
-              <RuleItem>
-                <span className="text-white font-medium">
-                  ShangoMaji will not use creator-submitted materials to train generative AI models.
-                </span>
-              </RuleItem>
-              <RuleItem>Mature storytelling is allowed when it serves the work.</RuleItem>
-              <RuleItem>Pornographic or sexually exploitative content is not accepted.</RuleItem>
-              <RuleItem>Primarily or fully AI-generated submissions are not accepted at launch.</RuleItem>
-              <RuleItem>Any AI-assisted use must be disclosed.</RuleItem>
-            </ul>
-          </section>
-
-          {/* ── Mini process strip ──
-              After-submission path in four compact steps so the policy
-              cards below sit inside a clear shape. Two-column grid on the
-              panel; stacks on the narrowest screens. Lightweight by
-              design so it does not duplicate the deeper Review Timing and
-              License cards that follow. */}
-          <section className="mt-7" aria-label="After submission">
-            <p
-              className="text-[10px] uppercase tracking-[0.22em] font-semibold mb-3.5"
-              style={{ color: "rgba(245,197,24,0.78)" }}
+          {/* Identity block — badge + heading + intro + launch-priority */}
+          <div className="max-w-3xl">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/[0.08] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
+              style={{ color: "#f5c518" }}
             >
-              After a complete submission
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: "#f5c518" }}
+              />
+              Required before applying
+            </span>
+
+            <h2
+              className="mt-3 text-white text-[26px] sm:text-[30px] lg:text-[34px] font-semibold tracking-tight leading-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Before you apply
+            </h2>
+            <p className="mt-3 text-[14.5px] text-white/90 leading-relaxed">
+              ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review.
             </p>
-            <ol className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {PANEL_PROCESS.map((p, i) => (
-                <li
-                  key={p.n}
-                  className="relative rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3.5"
-                >
-                  <div className="flex items-baseline gap-2.5">
-                    <span
-                      className="text-[10px] font-mono tracking-widest"
-                      style={{ color: "rgba(245,197,24,0.7)" }}
-                    >
-                      {p.n}
-                    </span>
-                    <p className="text-white font-semibold text-[13px] leading-tight">
-                      {p.title}
-                    </p>
-                  </div>
-                  <p
-                    className="mt-1.5 text-[12.5px] leading-snug"
-                    style={{ color: "rgba(255,255,255,0.65)" }}
-                  >
-                    {p.body}
-                  </p>
-                </li>
-              ))}
-            </ol>
-            <p
-              className="mt-3 text-[12px]"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-            >
-              No same-day approval. No automated path from submit to public.
+            <p className="mt-2 text-[13.5px] text-white/70 leading-relaxed">
+              Launch review priority is video-first and animation-facing work: animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable.
             </p>
-          </section>
-
-          {/* ── Policy cards ──
-              Each policy area is its own intentional card with eyebrow,
-              icon, heading, and body. All approved Phase 10G substance is
-              preserved verbatim in meaning. No dropdowns. */}
-          <div className="mt-8 space-y-4">
-            <PolicyCard
-              icon={Flame}
-              eyebrow="Standard"
-              title="Mature Storytelling"
-            >
-              <p>
-                ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
-              </p>
-              <p>
-                ShangoMaji is not a children&rsquo;s platform, and mature storytelling is not automatically disqualifying.
-              </p>
-              <p>
-                ShangoMaji is also not a pornographic or sexually explicit content platform. Pornographic content, sexually exploitative material, and sexualized depictions of minors are not accepted.
-              </p>
-              <p>
-                All mature content is reviewed in context. The question is not whether a work is intense. The question is whether the intensity belongs to the story, respects the audience, and fits the ShangoMaji catalog standard.
-              </p>
-            </PolicyCard>
-
-            <PolicyCard
-              icon={Sparkles}
-              eyebrow="AI"
-              title="AI and Human Authorship"
-            >
-              <p className="text-white font-medium">
-                ShangoMaji will not use creator-submitted materials to train generative AI models.
-              </p>
-              <p>
-                That commitment applies to applications, samples, finished work, and anything else creators send through the platform.
-              </p>
-              <p>
-                At launch, ShangoMaji prioritizes human-created work. Primarily or fully AI-generated submissions are not accepted for catalog consideration at this stage.
-              </p>
-              <p>
-                Limited AI-assisted work may be reviewed case by case when the use is disclosed, human authorship is clear, and the rights posture is clean. This includes AI used for images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
-              </p>
-              <p>
-                Disclosure does not automatically disqualify a project. Hidden or undisclosed AI use may block review, licensing, or release, and may trigger rejection or removal review depending on stage.
-              </p>
-              <p>
-                The standard is not anti-tool. It is pro-creator: clear human authorship, rights clarity, and creative responsibility.
-              </p>
-            </PolicyCard>
-
-            <PolicyCard
-              icon={FileSearch}
-              eyebrow="Review"
-              title="How Submissions Are Reviewed"
-            >
-              <p>
-                Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
-              </p>
-              <p>
-                A project may be rejected because it is incomplete, outside the platform&rsquo;s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
-              </p>
-              <p>
-                Rejection is not a judgment of the creator&rsquo;s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
-              </p>
-              <p>
-                ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
-              </p>
-            </PolicyCard>
-
-            <PolicyCard
-              icon={Timer}
-              eyebrow="Timing"
-              title="Review Timing"
-            >
-              <p>
-                Applications are reviewed in cycles. Early review windows may take several weeks. There is no same-day or instant approval.
-              </p>
-              <p>
-                Incomplete submissions may be returned for completion. Complete submissions receive an outcome. Submission is review, not publication. Approval moves the work into licensing and media-readiness review, not into automatic public release.
-              </p>
-            </PolicyCard>
-
-            <PolicyCard
-              icon={ScrollText}
-              eyebrow="License"
-              title="License and What You Keep"
-            >
-              <p>
-                Creators retain ownership of their work. Submitting does not transfer copyright. Approval does not transfer copyright. ShangoMaji acquires distribution rights only through a signed agreement.
-              </p>
-              <p>
-                The agreement spells out rights granted, term, removal process, revenue terms where applicable, and what the creator keeps. You receive the agreement before you sign it. You have time to review it. You may ask process questions.
-              </p>
-              <p>
-                ShangoMaji cannot provide legal advice. For binding decisions about your work, consult your own lawyer. The agreement is written to be readable, and the process is not designed to rush you.
-              </p>
-            </PolicyCard>
-
-            <PolicyCard
-              icon={Coins}
-              eyebrow="Revenue"
-              title="Payment and Revenue"
-            >
-              <p>
-                ShangoMaji is still defining its full creator economics model. Accepted works will not enter public catalog distribution without a signed agreement that explains the applicable rights, term, revenue terms, reporting expectations, and payment structure where revenue share applies.
-              </p>
-              <p>
-                No creator should assume submission or approval creates immediate payment. There are no promised payouts and no published revenue-share percentages at this stage. Everything binding lives in the signed agreement.
-              </p>
-            </PolicyCard>
           </div>
 
-          {/* ── Closing strip ──
-              A clean, intentional close: a reminder line, then the FAQ
-              pointer. Sits inside its own subtle band so it does not read
-              as an afterthought below the policy cards. */}
-          <section
-            className="mt-8 rounded-2xl border border-white/10 p-5 sm:p-6"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0) 70%)",
-            }}
-          >
-            <p className="text-[13px] text-white/85 leading-relaxed">
-              Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
-            </p>
-            <p className="mt-3 text-[12.5px] text-white/70">
-              Questions before applying?{" "}
-              <Link
-                href="/help"
-                className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white/60 transition"
-              >
-                Read the creator FAQ
-              </Link>
-              .
-            </p>
-          </section>
-        </motion.aside>
+          {/* Band interior — two-column on lg+: Review Rules left, process strip right. */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] gap-6 lg:gap-8 items-start">
+            {/* Review Rules card */}
+            <section
+              className="rounded-2xl border border-amber-500/25 p-5 sm:p-6"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(245,197,24,0.06), rgba(255,255,255,0.015) 65%)",
+              }}
+              aria-label="Review rules"
+            >
+              <div className="flex items-center gap-2.5 mb-4">
+                <ShieldCheck size={15} className="text-brand-yellow" />
+                <p
+                  className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+                  style={{ color: "rgba(245,197,24,0.9)" }}
+                >
+                  Review rules
+                </p>
+              </div>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                <RuleItem>Submitting for review, not publication.</RuleItem>
+                <RuleItem>Approval is not automatic catalog placement.</RuleItem>
+                <RuleItem>Distribution requires licensing, media readiness, and ShangoMaji review.</RuleItem>
+                <RuleItem>Creators retain ownership of their work.</RuleItem>
+                <RuleItem>ShangoMaji controls catalog inclusion and release readiness.</RuleItem>
+                <RuleItem>
+                  <span className="text-white font-medium">
+                    ShangoMaji will not use creator-submitted materials to train generative AI models.
+                  </span>
+                </RuleItem>
+                <RuleItem>Mature storytelling is allowed when it serves the work.</RuleItem>
+                <RuleItem>Pornographic or sexually exploitative content is not accepted.</RuleItem>
+                <RuleItem>Primarily or fully AI-generated submissions are not accepted at launch.</RuleItem>
+                <RuleItem>Any AI-assisted use must be disclosed.</RuleItem>
+              </ul>
+            </section>
 
-        {/* ─── RIGHT PAGE — Application form ───
-            Step indicator + active step form + Back/Continue. Sized to
-            fill the right column of the notebook grid; on mobile this
-            stacks naturally below the policy panel. */}
+            {/* Mini process strip */}
+            <section aria-label="After submission">
+              <p
+                className="text-[10px] uppercase tracking-[0.22em] font-semibold mb-3.5"
+                style={{ color: "rgba(245,197,24,0.78)" }}
+              >
+                After a complete submission
+              </p>
+              <ol className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {PANEL_PROCESS.map((p) => (
+                  <li
+                    key={p.n}
+                    className="relative rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3.5"
+                  >
+                    <div className="flex items-baseline gap-2.5">
+                      <span
+                        className="text-[10px] font-mono tracking-widest"
+                        style={{ color: "rgba(245,197,24,0.7)" }}
+                      >
+                        {p.n}
+                      </span>
+                      <p className="text-white font-semibold text-[13px] leading-tight">
+                        {p.title}
+                      </p>
+                    </div>
+                    <p
+                      className="mt-1.5 text-[12.5px] leading-snug"
+                      style={{ color: "rgba(255,255,255,0.65)" }}
+                    >
+                      {p.body}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+              <p
+                className="mt-3 text-[12px]"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
+                No same-day approval. No automated path from submit to public.
+              </p>
+            </section>
+          </div>
+        </motion.section>
+
+        {/* ─────────────── APPLICATION WORKSPACE ───────────────
+            Form column is primary; side column carries compact
+            commitments so the creator can scan trust posture while
+            filling out the form. On mobile this stacks form-first,
+            commitments below. Full policy details live in their own
+            section below this workspace. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-8 lg:gap-10 items-start">
+
+        {/* ─── Form column — primary ─── */}
         <div className="min-w-0">
 
         {/* Step indicator */}
@@ -1157,10 +1085,202 @@ export default function ApplyPage() {
         )}
 
         </div>
-        {/* /right page — application form */}
+        {/* /form column */}
+
+        {/* ─── Side column — Key Commitments ───
+            Compact trust commitments visible alongside the form. Sticky
+            on lg+ so the commitments stay in view while the creator
+            scrolls through long form steps. Not a substitute for the
+            full Policy Details section below — these are scan anchors,
+            not detail. */}
+        <aside className="lg:sticky lg:top-24" aria-label="Key commitments">
+          <p
+            className="text-[10px] uppercase tracking-[0.22em] font-semibold mb-3.5"
+            style={{ color: "rgba(245,197,24,0.78)" }}
+          >
+            Key commitments
+          </p>
+          <div className="space-y-3">
+            {KEY_COMMITMENTS.map((c) => (
+              <CommitmentCard key={c.title} commitment={c} />
+            ))}
+          </div>
+          <p className="mt-4 text-[12px] text-white/55 leading-relaxed">
+            Full policy details below.{" "}
+            <Link
+              href="/help"
+              className="text-white/85 underline decoration-white/25 underline-offset-2 hover:decoration-white/50 transition"
+            >
+              Read the FAQ
+            </Link>
+            .
+          </p>
+        </aside>
 
         </div>
-        {/* /notebook surface */}
+        {/* /application workspace */}
+
+        {/* ─────────────── FULL POLICY DETAILS ───────────────
+            All six policy cards from 10G.4, placed in a wider section
+            below the workspace so the policy content uses the canvas
+            properly instead of being trapped in a skinny side rail.
+            Two-column grid on lg+; stacks on mobile. No dropdowns. */}
+        <section className="mt-20 lg:mt-24" aria-label="Full policy details">
+          <div className="mb-8 lg:mb-10 max-w-3xl">
+            <p
+              className="text-[10px] uppercase tracking-[0.22em] font-semibold"
+              style={{ color: "rgba(245,197,24,0.78)" }}
+            >
+              Full policy details
+            </p>
+            <h2
+              className="mt-3 text-white text-3xl md:text-4xl font-semibold tracking-tight leading-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Read before you submit.
+            </h2>
+            <p
+              className="mt-3 text-[14.5px] leading-relaxed"
+              style={{ color: "rgba(255,255,255,0.72)" }}
+            >
+              The full policy substance behind each rule above. Nothing
+              hidden, nothing in a dropdown. If a section here does not
+              describe how you want to release your work, ShangoMaji may
+              not be the right home for it.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
+            <PolicyCard
+              icon={Flame}
+              eyebrow="Standard"
+              title="Mature Storytelling"
+            >
+              <p>
+                ShangoMaji accepts serious anime and anime-inspired works with mature themes when those themes serve the story. A project may include violence, horror, blood, grief, trauma, psychological intensity, strong language, dark fantasy, adult situations, or other R-rated material when handled with purpose and creative control.
+              </p>
+              <p>
+                ShangoMaji is not a children&rsquo;s platform, and mature storytelling is not automatically disqualifying.
+              </p>
+              <p>
+                ShangoMaji is also not a pornographic or sexually explicit content platform. Pornographic content, sexually exploitative material, and sexualized depictions of minors are not accepted.
+              </p>
+              <p>
+                All mature content is reviewed in context. The question is not whether a work is intense. The question is whether the intensity belongs to the story, respects the audience, and fits the ShangoMaji catalog standard.
+              </p>
+            </PolicyCard>
+
+            <PolicyCard
+              icon={Sparkles}
+              eyebrow="AI"
+              title="AI and Human Authorship"
+            >
+              <p className="text-white font-medium">
+                ShangoMaji will not use creator-submitted materials to train generative AI models.
+              </p>
+              <p>
+                That commitment applies to applications, samples, finished work, and anything else creators send through the platform.
+              </p>
+              <p>
+                At launch, ShangoMaji prioritizes human-created work. Primarily or fully AI-generated submissions are not accepted for catalog consideration at this stage.
+              </p>
+              <p>
+                Limited AI-assisted work may be reviewed case by case when the use is disclosed, human authorship is clear, and the rights posture is clean. This includes AI used for images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
+              </p>
+              <p>
+                Disclosure does not automatically disqualify a project. Hidden or undisclosed AI use may block review, licensing, or release, and may trigger rejection or removal review depending on stage.
+              </p>
+              <p>
+                The standard is not anti-tool. It is pro-creator: clear human authorship, rights clarity, and creative responsibility.
+              </p>
+            </PolicyCard>
+
+            <PolicyCard
+              icon={FileSearch}
+              eyebrow="Review"
+              title="How Submissions Are Reviewed"
+            >
+              <p>
+                Submitting a project does not guarantee acceptance. ShangoMaji reviews submissions based on project fit, originality, creative direction, quality of materials, completeness, rights clarity, content policy alignment, and whether the work can be responsibly reviewed, licensed, and prepared for distribution.
+              </p>
+              <p>
+                A project may be rejected because it is incomplete, outside the platform&rsquo;s focus, unclear in rights ownership, not ready for review, not aligned with the catalog standard, or not suitable for distribution at this time.
+              </p>
+              <p>
+                Rejection is not a judgment of the creator&rsquo;s worth. It means the submitted project does not currently meet the standard or timing required for ShangoMaji review, licensing, or catalog consideration.
+              </p>
+              <p>
+                ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
+              </p>
+            </PolicyCard>
+
+            <PolicyCard
+              icon={Timer}
+              eyebrow="Timing"
+              title="Review Timing"
+            >
+              <p>
+                Applications are reviewed in cycles. Early review windows may take several weeks. There is no same-day or instant approval.
+              </p>
+              <p>
+                Incomplete submissions may be returned for completion. Complete submissions receive an outcome. Submission is review, not publication. Approval moves the work into licensing and media-readiness review, not into automatic public release.
+              </p>
+            </PolicyCard>
+
+            <PolicyCard
+              icon={ScrollText}
+              eyebrow="License"
+              title="License and What You Keep"
+            >
+              <p>
+                Creators retain ownership of their work. Submitting does not transfer copyright. Approval does not transfer copyright. ShangoMaji acquires distribution rights only through a signed agreement.
+              </p>
+              <p>
+                The agreement spells out rights granted, term, removal process, revenue terms where applicable, and what the creator keeps. You receive the agreement before you sign it. You have time to review it. You may ask process questions.
+              </p>
+              <p>
+                ShangoMaji cannot provide legal advice. For binding decisions about your work, consult your own lawyer. The agreement is written to be readable, and the process is not designed to rush you.
+              </p>
+            </PolicyCard>
+
+            <PolicyCard
+              icon={Coins}
+              eyebrow="Revenue"
+              title="Payment and Revenue"
+            >
+              <p>
+                ShangoMaji is still defining its full creator economics model. Accepted works will not enter public catalog distribution without a signed agreement that explains the applicable rights, term, revenue terms, reporting expectations, and payment structure where revenue share applies.
+              </p>
+              <p>
+                No creator should assume submission or approval creates immediate payment. There are no promised payouts and no published revenue-share percentages at this stage. Everything binding lives in the signed agreement.
+              </p>
+            </PolicyCard>
+          </div>
+        </section>
+
+        {/* ─── Closing strip ───
+            Clean intentional close, sized to the canvas. */}
+        <section
+          className="mt-12 lg:mt-14 rounded-2xl border border-white/10 p-6 lg:p-8"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0) 70%)",
+          }}
+        >
+          <p className="text-[13.5px] text-white/85 leading-relaxed max-w-3xl">
+            Apply only if you are ready to present your work clearly, disclose rights and collaborators honestly, and move through a serious review process.
+          </p>
+          <p className="mt-3 text-[13px] text-white/70">
+            Questions before applying?{" "}
+            <Link
+              href="/help"
+              className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white/60 transition"
+            >
+              Read the creator FAQ
+            </Link>
+            .
+          </p>
+        </section>
       </div>
       <SiteFooter />
     </div>
