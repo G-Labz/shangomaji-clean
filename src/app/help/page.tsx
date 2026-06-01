@@ -18,7 +18,7 @@ const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "What kind of work is ShangoMaji reviewing at launch?",
-        a: "Launch review priority is creator-owned anime-inspired video and animation-facing work — animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable. Visual story and adaptation packages may be referenced for future development pathways, but ShangoMaji is not launching as a comic publishing platform or Webtoon-style reader.",
+        a: "Launch review priority is creator-owned anime-inspired video and animation-facing work: animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable. Visual story and adaptation packages may be referenced for future development pathways, but ShangoMaji is not launching as a comic publishing platform or Webtoon-style reader.",
       },
       {
         q: "What is ShangoMaji not?",
@@ -68,7 +68,7 @@ const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "Why this stance on AI?",
-        a: "The standard is not anti-tool. It is pro-creator. ShangoMaji protects human authorship, rights clarity, and creative responsibility — the things a curated catalog depends on.",
+        a: "The standard is not anti-tool. It is pro-creator. ShangoMaji protects the things a curated catalog depends on: human authorship, rights clarity, and creative responsibility.",
       },
     ],
   },
@@ -85,7 +85,7 @@ const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "Do I get to read the agreement before signing?",
-        a: "Yes. You receive the agreement before you sign. You have time to read it. You can ask process questions. ShangoMaji cannot give legal advice — for binding decisions, consult your own lawyer — but the document is written to be readable and the process is not designed to rush you.",
+        a: "Yes. You receive the agreement before you sign. You have time to read it. You can ask process questions. ShangoMaji cannot give legal advice. For binding decisions, consult your own lawyer. The document is written to be readable, and the process is not designed to rush you.",
       },
       {
         q: "What if I want my work taken down later?",
@@ -115,7 +115,7 @@ const FAQ_GROUPS: FaqGroup[] = [
     items: [
       {
         q: "Will there be comments, ratings, likes, or followers?",
-        a: "Not at launch. ShangoMaji is not an open social network — it is a controlled catalog. Audience response may inform future product and reporting decisions. Audience metrics do not decide catalog inclusion. Controlled creator-following or audience-signal mechanics may be considered in a future phase if they support catalog trust and do not replace editorial authority.",
+        a: "Not at launch. ShangoMaji is not an open social network. It is a controlled catalog. Audience response may inform future product and reporting decisions, but audience metrics do not decide catalog inclusion. Controlled creator-following or audience-signal mechanics may be considered in a future phase if they support catalog trust and do not replace editorial authority.",
       },
       {
         q: "Why curated instead of open?",

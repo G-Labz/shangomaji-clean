@@ -67,7 +67,7 @@ const CALLOUTS: Callout[] = [
     eyebrow: "Revenue",
     title: "Revenue terms live in the signed agreement.",
     body:
-      "No promised payouts and no published revenue-share percentages at this stage. Where revenue applies, the structure is defined by the signed agreement — not by marketing copy.",
+      "No promised payouts and no published revenue-share percentages at this stage. Where revenue applies, the terms are defined by the signed agreement, not by marketing copy.",
   },
 ];
 
@@ -129,14 +129,14 @@ const TRUST_PAIRS: TrustPair[] = [
       title: "A curated distribution label.",
       body: [
         "ShangoMaji is a curated label for creator-owned anime and anime-inspired work. Every title in the public catalog passes through review, licensing, and media readiness before release.",
-        "Launch review priority is creator-owned video and animation-facing work — animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable.",
+        "Launch review priority is creator-owned video and animation-facing work: animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable.",
       ],
     },
     right: {
       eyebrow: "Why this is different",
       title: "Not open upload. Not a feed.",
       body: [
-        "Open-upload platforms scale by accepting almost anything. ShangoMaji scales by accepting work that fits the catalog. The trade-off is intentional — it is what makes acceptance worth something to the creator and to the audience.",
+        "Open-upload platforms scale by accepting almost anything. ShangoMaji scales by accepting work that fits the catalog. The trade-off is intentional. It is what makes acceptance worth something to the creator and to the audience.",
         "If the goal is to publish anything to anyone immediately, ShangoMaji is the wrong tool. If the goal is a reviewed, licensed, intentional release inside a curated catalog, this is what ShangoMaji is for.",
       ],
     },
@@ -148,7 +148,7 @@ const TRUST_PAIRS: TrustPair[] = [
       body: [
         "Creators retain ownership of their work by default. ShangoMaji does not take copyright as a condition of submission or approval.",
         "Where ShangoMaji distributes a work, the rights are acquired only through a signed agreement. The agreement spells out what rights are granted, for how long, on what terms, and what the creator keeps.",
-        "You receive the agreement before you sign it. You have time to read it. You can ask process questions. ShangoMaji cannot give legal advice — for binding decisions, your lawyer is your lawyer — but the document is written to be readable, and the process is not designed to rush you.",
+        "You receive the agreement before you sign it. You have time to read it. You can ask process questions. ShangoMaji cannot give legal advice. For binding decisions, your lawyer is your lawyer. The document is written to be readable, and the process is not designed to rush you.",
       ],
     },
     right: {
@@ -185,7 +185,7 @@ const TRUST_PAIRS: TrustPair[] = [
       title: "Review is a process, not a moment.",
       body: [
         "Submission is review, not publication. Applications are reviewed in cycles. Early review windows may take several weeks. Incomplete submissions may be returned for completion. Complete submissions receive an outcome.",
-        "Approval moves the work into licensing and media-readiness review — not into automatic public release. A title only joins the public catalog after license, materials, and release readiness are aligned. There is no same-day approval and no automated path from submit to public.",
+        "Approval moves the work into licensing and media-readiness review, not into automatic public release. A title only joins the public catalog after license, materials, and release readiness are aligned. There is no same-day approval and no automated path from submit to public.",
       ],
     },
     right: {
@@ -302,9 +302,9 @@ export default function TrustPage() {
                 ShangoMaji is a curated anime distribution label. This page
                 explains what the platform protects, what creators keep, what
                 ShangoMaji controls, and how the relationship between creator
-                and label is structured. Read it before applying. If the
-                trade-offs do not fit the work you want to release,
-                ShangoMaji may not be the right home for it — and that is
+                and label is structured. Read it before you apply. If the
+                trade-offs here do not fit the work you want to release,
+                ShangoMaji may not be the right home for it, and that is
                 useful to know in advance.
               </p>
             </motion.div>
@@ -438,8 +438,8 @@ export default function TrustPage() {
               style={{ color: "rgba(255,255,255,0.72)" }}
             >
               Five distinct stages. No same-day approval. No automated path
-              from submit to public. Each step exists because it protects
-              someone — the creator, the catalog, or the audience.
+              from submit to public. Each step exists to protect someone:
+              the creator, the catalog, or the audience.
             </p>
           </motion.div>
 

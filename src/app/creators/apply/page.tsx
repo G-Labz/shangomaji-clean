@@ -433,7 +433,7 @@ export default function ApplyPage() {
             ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review.
           </p>
           <p className="mt-2 text-[13px] text-white/70 leading-relaxed">
-            Launch review priority is video-first and animation-facing work — animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable.
+            Launch review priority is video-first and animation-facing work: animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable.
           </p>
 
           {/* Expectations — compact rules in a 2-column grid at sm+ so
@@ -521,7 +521,7 @@ export default function ApplyPage() {
               Applications are reviewed in cycles. Early review windows may take several weeks. There is no same-day or instant approval.
             </p>
             <p>
-              Incomplete submissions may be returned for completion. Complete submissions receive an outcome. Submission is review, not publication. Approval moves the work into licensing and media-readiness review — not into automatic public release.
+              Incomplete submissions may be returned for completion. Complete submissions receive an outcome. Submission is review, not publication. Approval moves the work into licensing and media-readiness review, not into automatic public release.
             </p>
           </PolicySection>
 
@@ -742,7 +742,7 @@ export default function ApplyPage() {
                   </Field>
                   <Field
                     label="Project Type"
-                    hint="Launch review priority is video-first and animation-facing work — animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable. Visual / Adaptation is for visual story projects with strong adaptation or video-development potential. ShangoMaji is not launching as a comic publishing platform or Webtoon-style reader."
+                    hint="Launch review priority is video-first and animation-facing work: animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable. Visual / Adaptation is for visual story projects with strong adaptation or video-development potential. ShangoMaji is not launching as a comic publishing platform or Webtoon-style reader."
                     error={errors.projectType}
                   >
                     <div className="grid grid-cols-3 gap-2">
@@ -890,7 +890,7 @@ export default function ApplyPage() {
                       Your Links
                     </h2>
                     <p className="text-ink-faint text-sm leading-relaxed">
-                      All link fields are optional — leave any blank if you
+                      All link fields are optional. Leave any blank if you
                       do not have them. Review the summary below, then click{" "}
                       <span className="text-white font-medium">Submit Application</span>{" "}
                       to send your application for review.
