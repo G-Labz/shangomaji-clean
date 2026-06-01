@@ -21,6 +21,7 @@ import { SiteFooter } from "@/components/nav/SiteFooter";
 import {
   validateNamePart,
   validateCreditedName,
+  validateEmailAddress,
   validateCity,
   validateRegion,
   validateCountry,
@@ -394,8 +395,8 @@ export default function ApplyPage() {
 
       if (!form.handle.trim()) e.handle = "Handle is required.";
 
-      if (!form.email.trim()) e.email = "Email is required.";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email address.";
+      const emailRes = validateEmailAddress(form.email);
+      if (!emailRes.ok) e.email = emailRes.error.message;
 
       const cityRes = validateCity(form.city);
       if (!cityRes.ok) e.city = cityRes.error.message;

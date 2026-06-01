@@ -184,6 +184,64 @@ export function validateRegion(
   return { ok: true, value };
 }
 
+// Practical email validator for creator intake. Not a full RFC 5322
+// parser — application-level checks only. Catches the cases founders
+// actually see in intake (typo addresses, missing TLD, double @,
+// trailing dot, consecutive dots) without rejecting legitimate creator
+// emails like `name+tag@domain.com` or `studio-name@domain.co`.
+//
+// Rules:
+//   - required (empty / whitespace-only rejected with "Email is required.")
+//   - no whitespace anywhere
+//   - exactly one @ separating non-empty local and domain
+//   - domain must contain at least one dot
+//   - TLD (final dot-segment) must be at least 2 characters
+//   - no leading dot, no trailing dot, no consecutive dots anywhere
+//   - local must not end in dot; domain must not start with dot
+//
+// Returns the trimmed + lowercased value on success so callers can use
+// it directly for insert/lookup without re-normalizing.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+export function validateEmailAddress(
+  raw: unknown,
+): { ok: true; value: string } | { ok: false; error: FieldError } {
+  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+
+  if (value.length === 0) {
+    return {
+      ok: false,
+      error: { field: "email", message: "Email is required." },
+    };
+  }
+
+  if (value.startsWith(".") || value.endsWith(".") || value.includes("..")) {
+    return {
+      ok: false,
+      error: { field: "email", message: "Enter a valid email address." },
+    };
+  }
+
+  if (!EMAIL_REGEX.test(value)) {
+    return {
+      ok: false,
+      error: { field: "email", message: "Enter a valid email address." },
+    };
+  }
+
+  const atIndex = value.indexOf("@");
+  const local   = value.slice(0, atIndex);
+  const domain  = value.slice(atIndex + 1);
+  if (local.endsWith(".") || domain.startsWith(".")) {
+    return {
+      ok: false,
+      error: { field: "email", message: "Enter a valid email address." },
+    };
+  }
+
+  return { ok: true, value };
+}
+
 // Validates the Public / Credited Name field. Required for new
 // submissions (Phase 10K). Field error code is `credited_name` so it
 // maps directly to the DB column. Existing application rows submitted

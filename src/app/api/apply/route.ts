@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import {
   validateNamePart,
   validateCreditedName,
+  validateEmailAddress,
   validateCity,
   validateRegion,
   validateCountry,
@@ -69,14 +70,18 @@ export async function POST(req: NextRequest) {
 
     // ── Other required fields (existing behavior preserved) ─────────────
     const handle = typeof body.handle === "string" ? body.handle.trim() : "";
-    const email  = typeof body.email  === "string" ? body.email.trim().toLowerCase() : "";
 
     if (!handle) {
       return NextResponse.json({ error: "Handle is required.", field: "handle" }, { status: 422 });
     }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "A valid email is required.", field: "email" }, { status: 422 });
-    }
+
+    // Phase 10K.1 — Email validation moved to the shared validator so
+    // the frontend Step 1 check and this server-side gate use exactly
+    // the same rules. The validator trims + lowercases the address;
+    // we reuse the returned value for the insert + duplicate check.
+    const emailRes = validateEmailAddress(body.email);
+    if (!emailRes.ok) return reject(emailRes.error);
+    const email = emailRes.value;
 
     // Duplicate-application guard. Email is already lowercased + trimmed
     // above, so we compare against the same normalized form. Raw Supabase
