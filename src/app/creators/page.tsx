@@ -161,7 +161,7 @@ export default function CreatorsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. Whether you're building from culture, imagination, or something entirely new, this is where the next wave of anime takes form.
+              ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label for creator-owned anime-inspired video and animation-facing work. Whether you're building from culture, imagination, or something entirely new, this is where the next wave takes form.
             </motion.p>
             <motion.p
               className="text-sm italic mb-10"
