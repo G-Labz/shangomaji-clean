@@ -65,11 +65,18 @@ const GENRE_OPTIONS = [
   "Other",
 ];
 
+// Project type values are persisted to the database and used downstream
+// by admin review and license generation. We do not rename the `value`
+// keys (that would be a backend/data change). We only update the visible
+// labels so the public copy matches launch positioning: video-first /
+// animation-facing work. The legacy "manga" value is presented as
+// "Visual / Adaptation" with helper copy that clarifies ShangoMaji is
+// not launching as a comic publishing platform or Webtoon-style reader.
 const PROJECT_TYPES = [
   { value: "series", label: "Series" },
   { value: "movie", label: "Feature Film" },
   { value: "short", label: "Short Film" },
-  { value: "manga", label: "Manga / Graphic Novel" },
+  { value: "manga", label: "Visual / Adaptation" },
   { value: "concept", label: "Concept / Pitch" },
 ];
 
@@ -425,6 +432,9 @@ export default function ApplyPage() {
           <p className="mt-3 text-[14px] text-white/90 leading-relaxed">
             ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label. This is not open upload, self-publishing, or instant public release. You are submitting your work for review.
           </p>
+          <p className="mt-2 text-[13px] text-white/70 leading-relaxed">
+            Launch review priority is video-first and animation-facing work — animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable.
+          </p>
 
           {/* Expectations — compact rules in a 2-column grid at sm+ so
               the panel reads as a landscape page rather than a single
@@ -439,9 +449,10 @@ export default function ApplyPage() {
               "Distribution requires licensing, media readiness, and ShangoMaji review.",
               "Creators retain ownership of their work.",
               "ShangoMaji controls public catalog inclusion and release readiness.",
+              "ShangoMaji will not use creator-submitted materials to train generative AI models.",
               "Mature storytelling is allowed when it serves the work.",
               "Pornographic or sexually exploitative content is not accepted.",
-              "Fully AI-generated submissions are not accepted at launch.",
+              "Primarily or fully AI-generated submissions are not accepted at launch.",
               "Any AI-assisted use must be disclosed.",
             ].map((line) => (
               <li key={line} className="flex gap-2.5 items-start">
@@ -470,17 +481,23 @@ export default function ApplyPage() {
           </PolicySection>
 
           <PolicySection title="AI Use and Human Authorship">
-            <p>
-              At launch, ShangoMaji prioritizes human-created work. Fully AI-generated submissions are not accepted for catalog consideration at this stage.
+            <p className="text-white font-medium">
+              ShangoMaji will not use creator-submitted materials to train generative AI models.
             </p>
             <p>
-              Limited AI-assisted work may be reviewed case by case, but creators must disclose how AI tools were used. This includes AI used for images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
+              That commitment applies to applications, samples, finished work, and anything else creators send through the platform.
             </p>
             <p>
-              Disclosure does not automatically disqualify a project. Hidden AI use, unclear authorship, or work that cannot be responsibly credited or licensed may block review.
+              At launch, ShangoMaji prioritizes human-created work. Primarily or fully AI-generated submissions are not accepted for catalog consideration at this stage.
             </p>
             <p>
-              The standard is simple: the work must have clear human authorship, rights clarity, and creative responsibility.
+              Limited AI-assisted work may be reviewed case by case when the use is disclosed, human authorship is clear, and the rights posture is clean. This includes AI used for images, animation, writing, voices, music, editing, reference generation, concept development, or any other material part of the project.
+            </p>
+            <p>
+              Disclosure does not automatically disqualify a project. Hidden or undisclosed AI use may block review, licensing, or release, and may trigger rejection or removal review depending on stage.
+            </p>
+            <p>
+              The standard is not anti-tool. It is pro-creator: clear human authorship, rights clarity, and creative responsibility.
             </p>
           </PolicySection>
 
@@ -496,6 +513,36 @@ export default function ApplyPage() {
             </p>
             <p>
               ShangoMaji reserves editorial discretion over review decisions, catalog fit, public visibility, and distribution readiness.
+            </p>
+          </PolicySection>
+
+          <PolicySection title="Review Timing">
+            <p>
+              Applications are reviewed in cycles. Early review windows may take several weeks. There is no same-day or instant approval.
+            </p>
+            <p>
+              Incomplete submissions may be returned for completion. Complete submissions receive an outcome. Submission is review, not publication. Approval moves the work into licensing and media-readiness review — not into automatic public release.
+            </p>
+          </PolicySection>
+
+          <PolicySection title="License and What You Keep">
+            <p>
+              Creators retain ownership of their work. Submitting does not transfer copyright. Approval does not transfer copyright. ShangoMaji acquires distribution rights only through a signed agreement.
+            </p>
+            <p>
+              The agreement spells out rights granted, term, removal process, revenue terms where applicable, and what the creator keeps. You receive the agreement before you sign it. You have time to review it. You may ask process questions.
+            </p>
+            <p>
+              ShangoMaji cannot provide legal advice. For binding decisions about your work, consult your own lawyer. The agreement is written to be readable, and the process is not designed to rush you.
+            </p>
+          </PolicySection>
+
+          <PolicySection title="Payment and Revenue">
+            <p>
+              ShangoMaji is still defining its full creator economics model. Accepted works will not enter public catalog distribution without a signed agreement that explains the applicable rights, term, revenue terms, reporting expectations, and payment structure where revenue share applies.
+            </p>
+            <p>
+              No creator should assume submission or approval creates immediate payment. There are no promised payouts and no published revenue-share percentages at this stage. Everything binding lives in the signed agreement.
             </p>
           </PolicySection>
 
@@ -693,7 +740,11 @@ export default function ApplyPage() {
                   <Field label="Project Title" error={errors.projectTitle}>
                     <Input value={form.projectTitle} onChange={set("projectTitle")} placeholder="What is your project called?" />
                   </Field>
-                  <Field label="Project Type" error={errors.projectType}>
+                  <Field
+                    label="Project Type"
+                    hint="Launch review priority is video-first and animation-facing work — animated shorts, pilots, trailers, animatics, anime-inspired short films, and motion-comic style video where applicable. Visual / Adaptation is for visual story projects with strong adaptation or video-development potential. ShangoMaji is not launching as a comic publishing platform or Webtoon-style reader."
+                    error={errors.projectType}
+                  >
                     <div className="grid grid-cols-3 gap-2">
                       {PROJECT_TYPES.map((pt) => (
                         <button
@@ -787,7 +838,7 @@ export default function ApplyPage() {
                       Your Vision
                     </h2>
                     <p className="text-ink-faint text-sm">
-                      This is the part that actually matters to us.
+                      Tell us how the work is built, why it matters, and how it fits ShangoMaji's review standard.
                     </p>
                   </div>
                   <Field
@@ -832,11 +883,17 @@ export default function ApplyPage() {
               {step === 4 && (
                 <div className="space-y-6">
                   <div className="mb-6">
+                    <p className="text-xs mb-3" style={{ color: "rgba(240,112,48,0.7)" }}>
+                      Final step
+                    </p>
                     <h2 className="text-white font-semibold text-xl mb-1">
                       Your Links
                     </h2>
-                    <p className="text-ink-faint text-sm">
-                      All optional.
+                    <p className="text-ink-faint text-sm leading-relaxed">
+                      All link fields are optional — leave any blank if you
+                      do not have them. Review the summary below, then click{" "}
+                      <span className="text-white font-medium">Submit Application</span>{" "}
+                      to send your application for review.
                     </p>
                   </div>
                   <Field label="Instagram">
