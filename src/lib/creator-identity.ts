@@ -23,6 +23,22 @@ const CITY_PLACEHOLDERS = new Set([
 
 const REGION_PLACEHOLDERS = CITY_PLACEHOLDERS;
 
+// Credited / public name placeholders. Catches the obvious filler cases
+// without rejecting genuine studio / pen / brand names. We do NOT reuse
+// NAME_PLACEHOLDERS because a credited name may legitimately be something
+// like "Creator" inside a stage name (e.g. "The Creator") but a creator
+// who literally types "creator" alone is filling in a placeholder.
+const CREDITED_NAME_PLACEHOLDERS = new Set([
+  "test", "tester", "testing",
+  "none", "n/a", "na",
+  "asdf", "qwerty",
+  "fake", "anonymous", "anon",
+  "name", "my name",
+  "public name", "credited name", "credit name",
+  "creator", "applicant", "studio", "my studio",
+  "x", "xx", "xxx",
+]);
+
 // Allowed characters in a name part: letters (incl. accented), space inside a
 // part is not allowed (parts are split on whitespace by callers when needed),
 // hyphen, apostrophe, period (e.g. "St."). Constructed via `new RegExp` so the
@@ -32,6 +48,19 @@ const NAME_PART_REGEX = new RegExp("^[\\p{L}][\\p{L}'.\\-’]*$", "u");
 // Allowed characters for a city / region: letters (incl. accented), spaces,
 // hyphens, apostrophes, periods, commas. Numeric-only is rejected.
 const LOCATION_REGEX  = new RegExp("^[\\p{L}][\\p{L} '.\\-’,]*$", "u");
+
+// Allowed characters for a credited / public name: letters (incl. accented),
+// digits, spaces, hyphens, apostrophes, periods, commas, ampersand, slash.
+// First character must be a letter or digit so leading punctuation is
+// rejected. This is intentionally more permissive than NAME_PART_REGEX
+// because legitimate credited names include studio names ("Studio Kairo"),
+// numeric stylization ("47 Films"), ampersands ("Boba & Co."), and
+// slash-stylized forms ("Y/N Studios"). Internal whitespace is allowed —
+// a credited name is a single multi-word field, not a structured name.
+const CREDITED_NAME_REGEX = new RegExp(
+  "^[\\p{L}\\p{N}][\\p{L}\\p{N} '.\\-’&,/]*$",
+  "u",
+);
 
 export type FieldError = { field: string; message: string };
 
@@ -148,6 +177,49 @@ export function validateRegion(
       error: {
         field:   "region",
         message: "State, province, or region uses unsupported characters.",
+      },
+    };
+  }
+
+  return { ok: true, value };
+}
+
+// Validates the Public / Credited Name field. Required for new
+// submissions (Phase 10K). Field error code is `credited_name` so it
+// maps directly to the DB column. Existing application rows submitted
+// before this field existed may legitimately be missing this value —
+// the validator only runs on the apply path, not on display.
+export function validateCreditedName(
+  raw: unknown,
+): { ok: true; value: string } | { ok: false; error: FieldError } {
+  const value = clean(raw);
+
+  if (value.length < 2) {
+    return {
+      ok: false,
+      error: {
+        field: "credited_name",
+        message: "Public / credited name is required.",
+      },
+    };
+  }
+
+  if (CREDITED_NAME_PLACEHOLDERS.has(value.toLowerCase())) {
+    return {
+      ok: false,
+      error: {
+        field: "credited_name",
+        message: "Enter the name you want associated with your work.",
+      },
+    };
+  }
+
+  if (!CREDITED_NAME_REGEX.test(value)) {
+    return {
+      ok: false,
+      error: {
+        field: "credited_name",
+        message: "Credited name uses unsupported characters.",
       },
     };
   }

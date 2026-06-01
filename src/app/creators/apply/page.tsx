@@ -20,6 +20,7 @@ import {
 import { SiteFooter } from "@/components/nav/SiteFooter";
 import {
   validateNamePart,
+  validateCreditedName,
   validateCity,
   validateRegion,
   validateCountry,
@@ -31,6 +32,7 @@ interface FormData {
   // Step 1 — About You (structured identity)
   firstName: string;
   lastName: string;
+  creditedName: string;
   handle: string;
   email: string;
   city: string;
@@ -103,6 +105,7 @@ const STEPS = [
 const emptyForm: FormData = {
   firstName: "",
   lastName: "",
+  creditedName: "",
   handle: "",
   email: "",
   city: "",
@@ -385,6 +388,9 @@ export default function ApplyPage() {
 
       const lastRes = validateNamePart(form.lastName, "last_name");
       if (!lastRes.ok) e.lastName = lastRes.error.message;
+
+      const creditedRes = validateCreditedName(form.creditedName);
+      if (!creditedRes.ok) e.creditedName = creditedRes.error.message;
 
       if (!form.handle.trim()) e.handle = "Handle is required.";
 
@@ -733,7 +739,7 @@ export default function ApplyPage() {
                       About You
                     </h2>
                     <p className="text-ink-faint text-sm">
-                      Use your real legal name. This identity is used on the distribution license you sign later.
+                      Your legal name is used for review and licensing. Your public / credited name is how you want to be credited if accepted. Your legal name is not automatically shown publicly.
                     </p>
                   </div>
 
@@ -753,6 +759,18 @@ export default function ApplyPage() {
                       />
                     </Field>
                   </div>
+
+                  <Field
+                    label="Public / Credited Name"
+                    hint="The name you want associated with your work if accepted. This may be your creator name, studio name, pen name, brand name, or legal name. Your legal name is used for review and licensing and is not automatically shown publicly."
+                    error={errors.creditedName}
+                  >
+                    <Input
+                      value={form.creditedName}
+                      onChange={set("creditedName")}
+                      placeholder="e.g. Studio Kairo, Kay Boo, Marlon Merritt"
+                    />
+                  </Field>
 
                   <Field
                     label="Creator Handle"
@@ -1034,12 +1052,13 @@ export default function ApplyPage() {
                       Review
                     </p>
                     {[
-                      { label: "Name",     value: `${form.firstName} ${form.lastName}`.trim() },
-                      { label: "Handle",   value: form.handle ? `@${form.handle}` : "" },
-                      { label: "Location", value: [form.city, form.region, form.country].filter(Boolean).join(", ") },
-                      { label: "Project",  value: form.projectTitle },
-                      { label: "Type",     value: form.projectType },
-                      { label: "Genres",   value: form.genres.join(", ") },
+                      { label: "Legal Name", value: `${form.firstName} ${form.lastName}`.trim() },
+                      { label: "Credited",   value: form.creditedName },
+                      { label: "Handle",     value: form.handle ? `@${form.handle}` : "" },
+                      { label: "Location",   value: [form.city, form.region, form.country].filter(Boolean).join(", ") },
+                      { label: "Project",    value: form.projectTitle },
+                      { label: "Type",       value: form.projectType },
+                      { label: "Genres",     value: form.genres.join(", ") },
                     ].map(({ label, value }) => value ? (
                       <div key={label} className="flex justify-between text-sm gap-4">
                         <span className="text-ink-faint flex-shrink-0">{label}</span>

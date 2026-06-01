@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
   validateNamePart,
+  validateCreditedName,
   validateCity,
   validateRegion,
   validateCountry,
@@ -36,6 +37,14 @@ export async function POST(req: NextRequest) {
     const lastNameRes = validateNamePart(body.lastName, "last_name");
     if (!lastNameRes.ok) return reject(lastNameRes.error);
 
+    // Phase 10K — Public / Credited Name. Required for new submissions.
+    // The legal first/last names remain authoritative for review and
+    // licensing; this captures how the creator wants to be credited if
+    // accepted (creator name, studio name, pen name, brand name, or
+    // legal name). Validation is strict at insert time only.
+    const creditedNameRes = validateCreditedName(body.creditedName);
+    if (!creditedNameRes.ok) return reject(creditedNameRes.error);
+
     const cityRes = validateCity(body.city);
     if (!cityRes.ok) return reject(cityRes.error);
 
@@ -45,11 +54,12 @@ export async function POST(req: NextRequest) {
     const countryRes = validateCountry(body.country);
     if (!countryRes.ok) return reject(countryRes.error);
 
-    const firstName = firstNameRes.value;
-    const lastName  = lastNameRes.value;
-    const city      = cityRes.value;
-    const region    = regionRes.value;
-    const country   = countryRes.value;
+    const firstName    = firstNameRes.value;
+    const lastName     = lastNameRes.value;
+    const creditedName = creditedNameRes.value;
+    const city         = cityRes.value;
+    const region       = regionRes.value;
+    const country      = countryRes.value;
 
     // Compose legacy fields so existing consumers (admin list, license fallback,
     // public catalog credit, current hydration mappers) keep working without
@@ -93,8 +103,9 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase.from("creator_applications").insert([
       {
         // Structured identity (new)
-        first_name: firstName,
-        last_name:  lastName,
+        first_name:    firstName,
+        last_name:     lastName,
+        credited_name: creditedName,
         city,
         region,
         country,

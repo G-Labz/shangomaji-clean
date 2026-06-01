@@ -15,6 +15,10 @@ interface Application {
   status: string;
   approved_creator: boolean;
   name: string;
+  // Phase 10K — Public / Credited Name. Required for new submissions
+  // (validated at the apply API + form). Older rows submitted before
+  // Phase 10K may be null; admin display falls back to "Not provided".
+  credited_name: string | null;
   handle: string;
   email: string;
   origin: string;
@@ -824,9 +828,13 @@ export default function AdminPage() {
     return (
       <div className="space-y-4">
         {/* HEADER — applicant identity (priority 1).
-            Phase 8 polish: eyebrow, larger applicant name, distinct
-            handle/email rail, and a status + submitted-date row that
-            anchors the panel as the decision surface. */}
+            Phase 10K: legal name remains the primary identifier (used
+            for review, rights verification, and licensing). The Public
+            / Credited Name is surfaced immediately beneath as a
+            distinct identity row so admin sees both at a glance.
+            Older rows submitted before Phase 10K may have a null
+            credited_name; we render "Not provided" rather than mutate
+            old data. */}
         <div className="pb-3 border-b border-white/8">
           <p className="text-[10px] uppercase tracking-[0.24em] text-orange-400/80 font-semibold mb-2">
             Selected Application
@@ -837,7 +845,22 @@ export default function AdminPage() {
           >
             {app.name || "—"}
           </h2>
-          <p className="text-xs text-neutral-400 break-words mt-1.5">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500 font-semibold mt-1">
+            Legal name
+          </p>
+
+          <div className="mt-3 pt-3 border-t border-white/10">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-amber-400/75 font-semibold">
+              Public / Credited Name
+            </p>
+            <p className="text-base text-white mt-1 break-words">
+              {app.credited_name?.trim()
+                ? app.credited_name
+                : <span className="text-neutral-500 italic">Not provided</span>}
+            </p>
+          </div>
+
+          <p className="text-xs text-neutral-400 break-words mt-3">
             {app.handle ? `@${app.handle}` : "no handle"}
             {app.email ? ` · ${app.email}` : ""}
           </p>
