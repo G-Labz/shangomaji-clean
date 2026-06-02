@@ -3,7 +3,11 @@
 // The accepted_version column in creator_onboarding records which version
 // was in force at the moment the creator clicked Accept.
 
-export const ONBOARDING_TERMS_VERSION = "v1";
+// v2 (Phase 10J-D): "Future distribution structure" reworded to the disclosed
+// No Revenue Launch Phase posture. accepted_version is stamped per row at
+// acceptance (creator_onboarding.accepted_version), so existing v1 acceptances
+// keep their recorded wording and only new acceptances record v2.
+export const ONBOARDING_TERMS_VERSION = "v2";
 
 export type TermsSection = {
   heading: string;
@@ -40,9 +44,9 @@ export const ONBOARDING_TERMS: TermsSection[] = [
       "If outside interest in your title emerges, whether distribution, licensing, or adaptation, ShangoMaji expects the first conversation. This is a mutual relationship.",
   },
   {
-    heading: "Future distribution structure",
+    heading: "No Revenue Launch Phase",
     body:
-      "Revenue and distribution models will evolve. Changes will be communicated clearly before they take effect. Participation in those structures is part of being an active creator on ShangoMaji.",
+      "ShangoMaji is in a disclosed No Revenue Launch Phase. No creator payment and no revenue share is promised or assumed at launch. Submission, review, approval, onboarding, catalog placement, visibility, follows, or audience signal do not create payment. You keep ownership of your work. If a monetized phase is ever introduced, it requires a written agreement or executed addendum that defines the terms before they apply — nothing is automatic.",
   },
   {
     heading: "Participation rules",

@@ -225,6 +225,30 @@ export default function LicensePage() {
         Read the terms, select your term length, acknowledge each item, and sign.
       </p>
 
+      {/* Phase 10J-D — No Revenue Launch Phase disclosure. Page-level only; this is
+          NOT part of SDL_SECTIONS, so it is not baked into the executed receipt and
+          cannot mutate historical receipts. SDL body/version/acks are unchanged. */}
+      <div
+        style={{
+          marginBottom: 28,
+          padding: 14,
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.03)",
+          borderRadius: 10,
+        }}
+      >
+        <p style={{ color: "white", fontWeight: 600, fontSize: 13, margin: "0 0 6px" }}>
+          No Revenue Launch Phase
+        </p>
+        <p style={{ ...bodyText, fontSize: 13, margin: 0 }}>
+          No creator payment and no revenue share is promised or assumed at launch.
+          Signing this license grants distribution rights; it does not create payment.
+          Submission, approval, catalog placement, visibility, follows, or audience signal
+          do not create payment. Any future monetization would require a written agreement
+          or executed addendum before it applies. You retain ownership of your work.
+        </p>
+      </div>
+
       {/* SDL full text */}
       <Card>
         {SDL_SECTIONS.map((s) => (

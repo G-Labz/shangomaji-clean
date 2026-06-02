@@ -37,7 +37,7 @@ const PRINCIPLES: Principle[] = [
   "ShangoMaji will not train AI on creator-submitted materials.",
   "Submission is review, not publication.",
   "Catalog inclusion is editorial, not algorithmic.",
-  "Revenue terms live in the signed agreement.",
+  "No creator payment is promised or assumed at launch.",
 ];
 
 type Callout = {
@@ -65,9 +65,9 @@ const CALLOUTS: Callout[] = [
   {
     icon: ScrollText,
     eyebrow: "Revenue",
-    title: "Revenue terms live in the signed agreement.",
+    title: "No Revenue Launch Phase.",
     body:
-      "No promised payouts and no published revenue-share percentages at this stage. Where revenue applies, the terms are defined by the signed agreement, not by marketing copy.",
+      "No creator payment and no revenue share is promised or assumed at launch. Submission, approval, catalog placement, visibility, follows, or audience signal do not create payment. Any future monetization would require a written agreement or executed addendum before it applies.",
   },
 ];
 
@@ -541,7 +541,7 @@ export default function TrustPage() {
                   className="mt-3 text-white font-semibold tracking-tight text-2xl leading-snug"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
-                  Conservative. Honest. Written down.
+                  No Revenue Launch Phase.
                 </h3>
               </div>
               <div
@@ -549,19 +549,18 @@ export default function TrustPage() {
                 style={{ color: "rgba(255,255,255,0.78)" }}
               >
                 <p>
-                  ShangoMaji is still defining its full creator economics
-                  model. Accepted works will not enter public catalog
-                  distribution without a signed agreement that explains the
-                  applicable rights, term, revenue terms, reporting
-                  expectations, and payment structure where revenue share
-                  applies.
+                  ShangoMaji is in a disclosed No Revenue Launch Phase. No
+                  creator payment and no revenue share is promised or assumed
+                  at launch. Submission, review, approval, onboarding, catalog
+                  placement, visibility, follows, or audience signal do not
+                  create payment. You retain ownership of your work.
                 </p>
                 <p>
-                  No creator should assume that submission or approval
-                  creates immediate payment. There are no promised payouts,
-                  no published revenue-share percentages, and no implied
-                  monetization from acceptance alone at this stage.
-                  Everything binding lives in the signed agreement.
+                  If a monetized phase is ever introduced, it requires a
+                  written agreement or executed addendum that defines the terms
+                  before they apply &mdash; nothing is automatic. Sponsorship or
+                  partner development is institutional revenue work and does
+                  not automatically create creator payment.
                 </p>
               </div>
             </div>

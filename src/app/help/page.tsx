@@ -98,15 +98,15 @@ const FAQ_GROUPS: FaqGroup[] = [
     items: [
       {
         q: "Does ShangoMaji pay creators?",
-        a: "ShangoMaji is still defining its full creator economics model. Accepted works will not enter public catalog distribution without a signed agreement that explains the applicable rights, term, revenue terms, reporting expectations, and payment structure where revenue share applies. No creator should assume submission or approval creates immediate payment.",
+        a: "Not at launch. ShangoMaji is in a disclosed No Revenue Launch Phase: no creator payment and no revenue share is promised or assumed. Submission, review, approval, onboarding, catalog placement, visibility, follows, or audience signal do not create payment. You keep ownership of your work.",
       },
       {
-        q: "Why isn't there a published revenue-share percentage?",
-        a: "Because the economics are still being finalized and binding terms belong in a signed agreement, not in a marketing line. ShangoMaji would rather under-promise upfront than publish a number that does not survive the agreement.",
+        q: "Could payment exist later?",
+        a: "Only if a monetized phase is introduced in the future, and only through a written agreement or executed addendum that defines the terms before they apply. Nothing is automatic. You retain ownership either way.",
       },
       {
-        q: "Does acceptance mean I'm getting paid?",
-        a: "No. Acceptance means the work is moving into licensing and media-readiness review. Payment terms, where applicable, live in the signed agreement.",
+        q: "Does acceptance, catalog placement, or audience interest mean I'm getting paid?",
+        a: "No. Acceptance moves the work into licensing and media-readiness review. Catalog placement, visibility, follows, and audience signal are not payment and do not trigger payment. Sponsorship or partner development is institutional revenue work and does not automatically create creator payment.",
       },
     ],
   },
