@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-browser";
 import type { TitleSummary } from "@/lib/title-summaries";
+import type { FollowedWorldSummary } from "@/lib/worlds";
 import { PosterArt } from "@/components/artwork/Artwork";
 import { PageTitle } from "@/components/util/PageTitle";
 
@@ -45,6 +46,11 @@ export default function AccountPage() {
 
   const [savedTitles, setSavedTitles] = useState<TitleSummary[] | null>(null);
   const [recent, setRecent]           = useState<RecentProgress>(null);
+  // Phase 10I.3 — private "Following" preview (Worlds the viewer follows).
+  // null = not yet loaded. Private to the viewer; no counts, no "followers",
+  // no social graph. Sourced from the same /api/members/following route that
+  // backs the title-page button and the /my-list Following section.
+  const [following, setFollowing]     = useState<FollowedWorldSummary[] | null>(null);
 
   async function loadProfile() {
     setLoading(true);
@@ -73,6 +79,17 @@ export default function AccountPage() {
     }
   }
 
+  async function loadFollowing() {
+    try {
+      const res = await fetch("/api/members/following", { cache: "no-store" });
+      if (!res.ok) { setFollowing([]); return; }
+      const data = await res.json();
+      setFollowing(Array.isArray(data?.following) ? data.following.slice(0, 4) : []);
+    } catch {
+      setFollowing([]);
+    }
+  }
+
   async function loadRecent() {
     try {
       const res = await fetch("/api/members/progress?recent=1", { cache: "no-store" });
@@ -87,6 +104,7 @@ export default function AccountPage() {
   useEffect(() => {
     loadProfile();
     loadSavedPreview();
+    loadFollowing();
     loadRecent();
   }, []);
 
@@ -137,7 +155,7 @@ export default function AccountPage() {
       <PageTitle title="Account" />
       <div style={card}>
         <h1 style={heading}>Member Account</h1>
-        <p style={lead}>Your saved titles live here.</p>
+        <p style={lead}>Your saved titles and the worlds you follow live here.</p>
 
         {error && <div style={errorBox}>{error}</div>}
         {/* savedMessage banner removed in Phase 5 final correction —
@@ -191,6 +209,64 @@ export default function AccountPage() {
               }}
             >
               Nothing saved yet.{" "}
+              <Link href="/browse" style={{ color: "rgba(245,197,24,0.9)", textDecoration: "none", fontWeight: 600 }}>
+                Browse Catalog →
+              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* ── Following preview ─────────────────────────────────────── */}
+        {/* Phase 10I.3 — private "Following" preview, mirroring the My List
+            preview above. Worlds the viewer follows, sourced from the same
+            /api/members/following route the title-page button and /my-list
+            use, so state stays consistent across all three surfaces. Private
+            to the viewer: no public counts, no "followers", and this is not
+            "Follow This World". When the member follows nothing we keep a
+            single quiet line so the account never reads as broken. */}
+        <section style={section}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <h2 style={sectionHeading}>Following</h2>
+            {following && following.length > 0 && (
+              <Link href="/my-list" style={{ fontSize: 12, color: "rgba(245,197,24,0.85)", textDecoration: "none", fontWeight: 600 }}>
+                See all →
+              </Link>
+            )}
+          </div>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "-8px 0 14px" }}>
+            Worlds you follow. Private to you.
+          </p>
+          {following && following.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+              {following.map((w) => (
+                <Link key={w.worldId} href={`/title/${w.slug}`} style={{ display: "block", textDecoration: "none" }}>
+                  <div style={{ position: "relative", aspectRatio: "2/3", borderRadius: 10, overflow: "hidden", background: "rgba(255,255,255,0.04)" }}>
+                    <PosterArt
+                      src={w.posterUrl}
+                      alt={w.title}
+                      title={w.title}
+                      sizes="160px"
+                    />
+                  </div>
+                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", margin: "6px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {w.title}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding:      "16px 14px",
+                borderRadius: 12,
+                background:   "rgba(20,16,16,0.45)",
+                border:       "1px solid rgba(255,255,255,0.06)",
+                color:        "rgba(255,255,255,0.55)",
+                fontSize:     13,
+                lineHeight:   1.55,
+              }}
+            >
+              Follow a world to get updates here.{" "}
               <Link href="/browse" style={{ color: "rgba(245,197,24,0.9)", textDecoration: "none", fontWeight: 600 }}>
                 Browse Catalog →
               </Link>
