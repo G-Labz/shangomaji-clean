@@ -36,6 +36,21 @@ interface Application {
   website: string;
 }
 
+// Phase 10I.5 — admin-only World follow inspection row (read-only). Shape
+// mirrors GET /api/admin/worlds. `followCount` is the PRIVATE follow tally,
+// surfaced ONLY in this internal admin panel — never on any public surface.
+interface AdminWorld {
+  id:             string;
+  name:           string;
+  status:         string;
+  creatorEmail:   string | null;
+  primaryTitleId: string | null;
+  titleName:      string | null;
+  titleSlug:      string | null;
+  createdAt:      string;
+  followCount:    number;
+}
+
 export default function AdminPage() {
   const [password, setPassword]     = useState("");
   const [authed, setAuthed]         = useState(false);
@@ -46,7 +61,7 @@ export default function AdminPage() {
   const [filter, setFilter]         = useState<"all" | "pending" | "accepted" | "rejected" | "archived">("all");
   const [showRejected, setShowRejected] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [view, setView]             = useState<"applications" | "projects">("applications");
+  const [view, setView]             = useState<"applications" | "projects" | "worlds">("applications");
   const [projectList, setProjectList]   = useState<any[]>([]);
   // Works tab navigation by Mission Control bucket (Phase 7.2). Buckets
   // describe operational next-step rather than raw DB status, and are
@@ -56,6 +71,11 @@ export default function AdminPage() {
   const [projectFilter, setProjectFilter] = useState<BucketKey | "all">("all");
   const [projectLoading, setProjectLoading] = useState(false);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
+
+  // Phase 10I.5 — admin-only World follow inspection (read-only). Worlds and
+  // their PRIVATE follow counts are inspected here and nowhere public.
+  const [worldsList, setWorldsList]       = useState<AdminWorld[]>([]);
+  const [worldsLoading, setWorldsLoading] = useState(false);
 
   // Phase 7.3 — Mission Control architecture: command-detail selection.
   // The desktop layout renders the queue on the left and a single command
@@ -323,6 +343,21 @@ export default function AdminPage() {
       alert(e.message);
     } finally {
       setProjectLoading(false);
+    }
+  }
+
+  // Phase 10I.5 — load admin-only World follow inspection rows (read-only).
+  async function loadWorlds() {
+    setWorldsLoading(true);
+    try {
+      const res = await fetch("/api/admin/worlds", { headers });
+      if (!res.ok) throw new Error("Failed to load worlds");
+      const data = await res.json();
+      setWorldsList(Array.isArray(data.worlds) ? data.worlds : []);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setWorldsLoading(false);
     }
   }
 
@@ -2545,6 +2580,24 @@ export default function AdminPage() {
             </span>
           )}
         </button>
+        <button
+          onClick={() => {
+            setView("worlds");
+            if (worldsList.length === 0) loadWorlds();
+          }}
+          className={`px-4 py-2.5 -mb-px text-sm font-medium transition border-b-2 ${
+            view === "worlds"
+              ? "text-white border-orange-500/60"
+              : "text-neutral-500 hover:text-white border-transparent"
+          }`}
+        >
+          Worlds
+          {worldsList.length > 0 && (
+            <span className="ml-2 text-[10px] text-neutral-600 font-normal">
+              {worldsList.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ── Applications tab ── */}
@@ -3014,6 +3067,15 @@ export default function AdminPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── Worlds tab (Phase 10I.5 — admin-only, read-only inspection) ── */}
+      {view === "worlds" && (
+        <WorldsInspectionPanel
+          worlds={worldsList}
+          loading={worldsLoading}
+          onRefresh={loadWorlds}
+        />
       )}
       </div>
     </div>
@@ -3513,5 +3575,121 @@ function Field({
         <p className="text-white text-sm whitespace-pre-wrap">{value}</p>
       )}
     </div>
+  );
+}
+
+// Phase 10I.5 — Admin-only, read-only World follow inspection panel.
+//
+// Surfaces every World created by the Follow Updates foundation alongside its
+// PRIVATE follow count. Internal control surface only: counts here are never
+// rendered on any public page; there are NO editing controls (no merge /
+// rename / delete / status / assign / promote / publish); and rows are ordered
+// chronologically — deliberately NOT ranked by follow count, so this reads as
+// an inventory, not a leaderboard. The only interactions are Refresh (re-fetch)
+// and opening a title in a new tab.
+function WorldsInspectionPanel({
+  worlds,
+  loading,
+  onRefresh,
+}: {
+  worlds: AdminWorld[];
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <section>
+      <div className="flex items-end justify-between gap-3 mb-4 flex-wrap">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.24em] text-orange-400/80 font-semibold mb-1">
+            Internal only
+          </p>
+          <h2
+            className="text-xl font-semibold text-white leading-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            World follow inspection
+          </h2>
+          <p className="text-xs text-neutral-500 mt-1">
+            Private follows — never shown publicly. Read-only.
+          </p>
+        </div>
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="text-xs font-medium px-3 py-2 rounded-md border border-white/10 text-neutral-400 hover:text-white hover:border-white/20 transition disabled:opacity-50"
+        >
+          {loading ? "Loading…" : "Refresh"}
+        </button>
+      </div>
+
+      {loading && worlds.length === 0 ? (
+        <p className="text-neutral-500 text-sm py-12 text-center">Loading worlds…</p>
+      ) : worlds.length === 0 ? (
+        <div className="rounded-lg border border-white/8 bg-white/[0.02] px-6 py-12 text-center">
+          <p className="text-white text-sm font-medium">No worlds yet.</p>
+          <p className="text-neutral-500 text-xs mt-1">
+            A World is created the first time a member follows a title.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-white/8">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-[0.18em] text-neutral-500 border-b border-white/8 bg-white/[0.02]">
+                <th className="px-4 py-3 font-medium">World / Title</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Creator</th>
+                <th className="px-4 py-3 font-medium text-right whitespace-nowrap">Private follows</th>
+                <th className="px-4 py-3 font-medium">Created</th>
+                <th className="px-4 py-3 font-medium">World ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {worlds.map((w) => (
+                <tr
+                  key={w.id}
+                  className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition"
+                >
+                  <td className="px-4 py-3 align-top">
+                    <p className="text-white font-medium break-words">
+                      {w.titleName || w.name || "—"}
+                    </p>
+                    {w.titleSlug ? (
+                      <a
+                        href={`/title/${w.titleSlug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2 break-all"
+                      >
+                        /title/{w.titleSlug}
+                      </a>
+                    ) : (
+                      <span className="text-neutral-600 text-xs">no public title</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 align-top">
+                    <span className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-neutral-300">
+                      {w.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 align-top text-neutral-400 break-all">
+                    {w.creatorEmail || "—"}
+                  </td>
+                  <td className="px-4 py-3 align-top text-right text-white tabular-nums">
+                    {w.followCount}
+                  </td>
+                  <td className="px-4 py-3 align-top text-neutral-500 tabular-nums whitespace-nowrap">
+                    {new Date(w.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3 align-top">
+                    <code className="text-[10px] text-neutral-500 break-all">{w.id}</code>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
