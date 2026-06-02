@@ -13,6 +13,7 @@ import {
   Tv,
   Film,
   ChevronLeft,
+  Globe,
 } from "lucide-react";
 import { getTitleBySlug, titles } from "@/data/mockData";
 import { ContentRow } from "@/components/home/ContentRow";
@@ -201,13 +202,17 @@ export default function TitlePage({ params }: PageProps) {
           </div>
 
           {/* CTA */}
-          <div className="flex items-center gap-3 flex-wrap mb-8">
+          <div className="flex items-center gap-3 flex-wrap mb-2">
             <TitlePlayCta slug={title.slug} type={title.type} />
             <SaveButton slug={title.slug} />
+            <FollowUpdatesButton slug={title.slug} />
             <button className="p-3.5 glass rounded-xl text-ink-muted hover:text-white hover:bg-white/10 transition-all duration-200">
               <Share2 size={16} />
             </button>
           </div>
+          <p className="text-[11px] mb-8" style={{ color: "rgba(255,255,255,0.4)" }}>
+            Get updates if this world grows.
+          </p>
 
           {/* Phase 6 Tier 1 — trailer outbound link.
               Renders only when a real, creator-supplied trailer URL is
@@ -440,22 +445,31 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
             </div>
           )}
 
-          {/* Watch CTA — only when playable media is bound to this title */}
-          <div className="flex items-center gap-3 flex-wrap mb-8">
+          {/* Watch CTA — only when playable media is bound to this title.
+              Follow Updates is available regardless of playability so a
+              viewer can follow a world that has not yet released media. */}
+          <div className="flex items-center gap-3 flex-wrap mb-2">
             {title.playable ? (
               <>
                 <TitlePlayCta slug={title.slug} type={title.type === "series" ? "series" : "movie"} />
                 <SaveButton slug={title.slug} />
+                <FollowUpdatesButton slug={title.slug} />
               </>
             ) : (
-              <span
-                className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs uppercase tracking-widest"
-                style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.06)" }}
-              >
-                Coming soon
-              </span>
+              <>
+                <span
+                  className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs uppercase tracking-widest"
+                  style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  Coming soon
+                </span>
+                <FollowUpdatesButton slug={title.slug} />
+              </>
             )}
           </div>
+          <p className="text-[11px] mb-8" style={{ color: "rgba(255,255,255,0.4)" }}>
+            Get updates if this world grows.
+          </p>
 
           {/* Phase 6 Tier 1 — trailer outbound link on the creator
               fallback branch. Same rules as above: rendered only if
@@ -707,6 +721,76 @@ function SaveButton({ slug }: { slug: string }) {
     >
       {saved ? <Check size={16} /> : <Plus size={16} />}
       {saved ? "Saved" : "Save"}
+    </button>
+  );
+}
+
+// Phase 10I.2 — Follow Updates.
+//
+// Records a PRIVATE follow against the title's World (member_world_follows),
+// not the Title. Mirrors SaveButton: detect current state by reading the
+// member's private following list, toggle via POST/DELETE, route signed-out
+// users to /login or /signup. There is no count, no "followers" language,
+// and this is not "Follow This World". On mock/dev titles with no backing
+// World the API returns 404 and the action is a quiet no-op, exactly like
+// SaveButton.
+function FollowUpdatesButton({ slug }: { slug: string }) {
+  const [following, setFollowing] = useState(false);
+  const [pending, setPending]     = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/members/following", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const worlds: Array<{ slug?: string }> = Array.isArray(data?.following) ? data.following : [];
+        if (worlds.some((w) => w.slug === slug)) setFollowing(true);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  async function toggle() {
+    if (pending) return;
+    setPending(true);
+    try {
+      const res = await fetch("/api/members/following", {
+        method:  following ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ slug }),
+      });
+      if (res.status === 401) {
+        const r = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login?redirect=${r}`;
+        return;
+      }
+      if (res.status === 403) {
+        const r = encodeURIComponent(window.location.pathname);
+        window.location.href = `/signup?redirect=${r}`;
+        return;
+      }
+      if (res.ok) setFollowing(!following);
+    } catch { /* noop */ }
+    finally { setPending(false); }
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={pending}
+      className="flex items-center gap-2.5 px-5 py-3.5 rounded-xl font-medium text-sm active:scale-95 transition-all duration-200"
+      style={{
+        opacity: pending ? 0.6 : 1,
+        color: following ? "#f5c518" : "rgba(255,255,255,0.92)",
+        background: following ? "rgba(245,197,24,0.08)" : "rgba(255,255,255,0.04)",
+        border: following ? "1px solid rgba(245,197,24,0.35)" : "1px solid rgba(255,255,255,0.12)",
+      }}
+    >
+      {following ? <Check size={16} /> : <Globe size={16} />}
+      {following ? "Following" : "Follow Updates"}
     </button>
   );
 }
