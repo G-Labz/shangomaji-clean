@@ -66,7 +66,7 @@ export default function SearchPage() {
           ) : trending.length > 0 ? (
             <div className="-mx-6 md:-mx-10">
               <ContentRow
-                label="Trending Searches"
+                label="Featured"
                 titles={trending}
                 variant="landscape"
               />

@@ -15,8 +15,12 @@ import { isWithinNewWindow } from "@/lib/new-badge";
 //   • Saved state shows a checkmark instead of plus.
 //   • The legacy thumbs-up/like button has been removed from the
 //     production surface per Phase 4 cleanup.
-//   • "0% Match" / "null Seasons" production artifacts are removed —
-//     score and seasons render only when meaningful.
+//   • Phase 10I.1 — Audience Signal doctrine cleanup. The numeric
+//     `score` value is no longer rendered to the audience anywhere on
+//     the card. ShangoMaji is not a popularity-driven catalog and
+//     audience metrics do not govern visibility. The field stays on
+//     the Title type so backend/API/data plumbing is untouched, but
+//     the hover meta surfaces only year and (for series) seasons.
 
 interface TitleCardProps {
   title: Title;
@@ -31,8 +35,7 @@ export function TitleCard({
 }: TitleCardProps) {
   const isPoster = variant === "poster";
   const isOriginal = title.studio === "ShangoMaji Originals";
-  const hasMeaningfulScore = typeof title.score === "number" && title.score > 0;
-  const hasSeasons         = title.type === "series" && typeof title.seasons === "number" && title.seasons > 0;
+  const hasSeasons = title.type === "series" && typeof title.seasons === "number" && title.seasons > 0;
   // Phase 5 — NEW badge driven by date, not the legacy hand-flag. The
   // mock catalog ships a few `isNew: true` rows; we still gate them by
   // (year ≈ current year) so the badge reads honestly even there.
@@ -143,21 +146,13 @@ export function TitleCard({
                 {saved ? <Check size={14} /> : <Plus size={14} />}
               </button>
             </div>
-            {(hasMeaningfulScore || title.year || hasSeasons) && (
+            {(title.year || hasSeasons) && (
               <div className="flex items-center gap-2 text-[10px]" style={{ color: "rgba(255,255,255,0.6)" }}>
                 {title.year ? <span>{title.year}</span> : null}
                 {hasSeasons ? (
                   <>
                     {title.year ? <span>·</span> : null}
                     <span>{title.seasons}S</span>
-                  </>
-                ) : null}
-                {hasMeaningfulScore ? (
-                  <>
-                    {(title.year || hasSeasons) ? <span>·</span> : null}
-                    <span style={{ background: "linear-gradient(90deg,#e53e2a,#f5c518)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text", fontWeight:700 }}>
-                      {title.score}
-                    </span>
                   </>
                 ) : null}
               </div>

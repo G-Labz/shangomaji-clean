@@ -20,13 +20,18 @@ interface FilterBarProps {
   onGenreChange: (g: Genre | "All") => void;
   activeType: "all" | "movie" | "series";
   onTypeChange: (t: "all" | "movie" | "series") => void;
-  sortBy: "score" | "year" | "title";
-  onSortChange: (s: "score" | "year" | "title") => void;
+  sortBy: "year" | "title";
+  onSortChange: (s: "year" | "title") => void;
   /**
    * Phase 6 Tier 1 — when false, the sort cluster is hidden. Set by the
    * caller when the live catalog is too small for sort controls to mean
-   * anything (avoids "Top Rated / Newest / A-Z" over a 1-row catalog).
+   * anything (avoids "Newest / A-Z" over a 1-row catalog).
    * Default true preserves prior behavior for any non-Browse caller.
+   *
+   * Phase 10I.1 — the "Top Rated" sort option was removed. ShangoMaji
+   * is not a popularity-ranked catalog, so a score-based sort would
+   * imply a public ranking that does not exist. Newest and A–Z remain
+   * because they are neutral, deterministic orderings.
    */
   showSort?: boolean;
 }
@@ -38,9 +43,8 @@ const TYPE_OPTIONS = [
 ] as const;
 
 const SORT_OPTIONS = [
-  { label: "Top Rated", value: "score" },
-  { label: "Newest",    value: "year"  },
-  { label: "A–Z",       value: "title" },
+  { label: "Newest", value: "year"  },
+  { label: "A–Z",    value: "title" },
 ] as const;
 
 function GenreChip({

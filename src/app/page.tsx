@@ -91,7 +91,7 @@ export default function HomePage() {
 
       <div className="pt-10 flex-1">
         {trending.length > 0 && (
-          <ContentRow label="Trending Now" titles={trending} variant="landscape" />
+          <ContentRow label="In Rotation" titles={trending} variant="landscape" />
         )}
         {newReleases.length > 0 && (
           <ContentRow label="New Releases" titles={newReleases} />

@@ -9,7 +9,6 @@ import {
   Plus,
   Check,
   Share2,
-  Star,
   Clock,
   Tv,
   Film,
@@ -125,9 +124,12 @@ export default function TitlePage({ params }: PageProps) {
                     · New
                   </span>
                 )}
-                {title.isTrending && (
-                  <span className="text-ink-muted text-xs">· Trending</span>
-                )}
+                {/* Phase 10I.1 — Audience Signal cleanup. Public
+                    "Trending" labels are removed from creator-facing
+                    and audience-facing surfaces. ShangoMaji is not a
+                    popularity-driven platform; visibility is editorial,
+                    not algorithmic. The data field stays on Title for
+                    backend/data compatibility. */}
               </div>
             );
           })()}
@@ -145,17 +147,12 @@ export default function TitlePage({ params }: PageProps) {
             </p>
           )}
 
-          {/* Stats row */}
+          {/* Stats row. Phase 10I.1: numeric `score` is no longer
+              rendered. ShangoMaji does not display popularity scores
+              or audience-generated ratings on public surfaces. Year,
+              content rating (TV-MA / PG-13 style classification), and
+              format remain. */}
           <div className="flex items-center gap-4 flex-wrap text-sm mb-5">
-            {typeof title.score === "number" && title.score > 0 && (
-              <>
-                <div className="flex items-center gap-1.5">
-                  <Star size={14} className="text-brand-yellow fill-brand-yellow" />
-                  <span className="brand-text font-semibold">{title.score}</span>
-                </div>
-                <span className="text-ink-faint">·</span>
-              </>
-            )}
             <span className="text-ink-muted">{title.year}</span>
             {title.rating ? (
               <>

@@ -143,7 +143,11 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                     ? title.runtime.trim()
                     : null;
                 const formatLabel = seasonsLabel || lengthLabel;
-                if (!showNew && !title.isTrending && !formatLabel) return null;
+                // Phase 10I.1 — Audience Signal cleanup: the "Trending"
+                // chip is removed from the hero badge row. ShangoMaji
+                // is not a trending/popularity surface. New (date-driven)
+                // and the format label (seasons / runtime) remain.
+                if (!showNew && !formatLabel) return null;
                 return (
                   <div className="flex items-center gap-2.5 mb-5">
                     {showNew && (
@@ -155,14 +159,9 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                           backgroundClip: "text",
                         }}>New</span>
                     )}
-                    {title.isTrending && (
-                      <span className="text-white/40 text-xs uppercase tracking-widest">
-                        {showNew ? "· " : ""}Trending
-                      </span>
-                    )}
                     {formatLabel && (
                       <span className="text-white/25 text-xs">
-                        {(showNew || title.isTrending) ? "· " : ""}{formatLabel}
+                        {showNew ? "· " : ""}{formatLabel}
                       </span>
                     )}
                   </div>
@@ -192,12 +191,16 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                 </p>
               )}
 
-              {/* Meta — only render dots between fields that actually exist. */}
+              {/* Meta — only render dots between fields that actually
+                  exist. Phase 10I.1 cleanup: numeric `score` is no
+                  longer rendered to the audience. ShangoMaji is not a
+                  popularity-driven catalog. Year and content rating
+                  (TV-MA / PG-13 style classification) remain because
+                  they are editorial metadata, not crowd metrics. */}
               {(() => {
                 const hasYear = typeof title.year === "number" && title.year > 0;
                 const hasRating = typeof title.rating === "string" && title.rating.trim().length > 0;
-                const hasScore = typeof title.score === "number" && title.score > 0;
-                if (!hasYear && !hasRating && !hasScore) return null;
+                if (!hasYear && !hasRating) return null;
                 return (
                   <div className="flex items-center gap-3 text-sm mb-5 flex-wrap">
                     {hasYear && <span className="text-white/40">{title.year}</span>}
@@ -209,24 +212,6 @@ export function HeroBanner({ titles }: HeroBannerProps) {
                         style={{ borderColor: "rgba(255,255,255,0.12)" }}>
                         {title.rating}
                       </span>
-                    )}
-                    {hasScore && (
-                      <>
-                        {(hasYear || hasRating) && (
-                          <span className="w-1 h-1 rounded-full" style={{ background: "rgba(245,197,24,0.6)" }} />
-                        )}
-                        <span
-                          className="font-bold"
-                          style={{
-                            background: "linear-gradient(90deg, #f07030, #f5c518)",
-                            WebkitBackgroundClip: "text",
-                            WebkitTextFillColor: "transparent",
-                            backgroundClip: "text",
-                          }}
-                        >
-                          {title.score}
-                        </span>
-                      </>
                     )}
                   </div>
                 );

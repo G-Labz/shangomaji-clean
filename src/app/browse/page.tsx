@@ -8,13 +8,18 @@ import { titles, allGenres } from "@/data/mockData";
 import type { Genre, Title } from "@/data/mockData";
 
 // Phase 6 Tier 1 — sort controls are hidden when the live catalog is
-// smaller than this threshold. Sorting six items by score / year / A-Z
-// is theatre, not utility.
+// smaller than this threshold. Sorting a handful of items by year or
+// A-Z is theatre, not utility.
+//
+// Phase 10I.1 — the score-based "Top Rated" sort was removed. ShangoMaji
+// is not a popularity-ranked catalog, so a sort that implies a public
+// ranking is doctrine-incorrect. Only neutral, deterministic orderings
+// (newest first, A–Z) remain.
 const SORT_VISIBLE_THRESHOLD = 6;
 import { PageTitle } from "@/components/util/PageTitle";
 import { SiteFooter } from "@/components/nav/SiteFooter";
 
-type SortKey = "score" | "year" | "title";
+type SortKey = "year" | "title";
 
 const container = {
   hidden: {},
@@ -35,7 +40,7 @@ export default function BrowsePage() {
   const [creatorTitlesError, setCreatorTitlesError] = useState<string | null>(null);
   const [activeGenre, setActiveGenre] = useState<Genre | "All">("All");
   const [activeType, setActiveType] = useState<"all" | "movie" | "series">("all");
-  const [sortBy, setSortBy] = useState<SortKey>("score");
+  const [sortBy, setSortBy] = useState<SortKey>("year");
 
   useEffect(() => {
     async function loadCreatorTitles() {
@@ -112,7 +117,6 @@ export default function BrowsePage() {
     }
 
     list.sort((a, b) => {
-      if (sortBy === "score") return b.score - a.score;
       if (sortBy === "year") return b.year - a.year;
       return a.title.localeCompare(b.title);
     });
