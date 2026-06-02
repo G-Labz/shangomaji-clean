@@ -63,10 +63,11 @@ export const creators: Creator[] = [
     bannerUrl: pic(1001, 1920, 600),
     genres: ["Mythology & Gods", "Martial Worlds", "Futures & Sci-Fi"],
     influences: ["Osamu Tezuka", "Jean-Michel Basquiat", "Hayao Miyazaki"],
+    // Phase 10I.4 — vanity metrics (Followers / Total Views) and work counts
+    // removed. ShangoMaji exposes no public follower, view, or title counts.
+    // Non-count, non-vanity descriptors only.
     stats: [
-      { label: "Followers", value: "42.8K" },
-      { label: "Total Views", value: "1.2M" },
-      { label: "Titles", value: "3" },
+      { label: "Catalog", value: "Creator-owned world" },
       { label: "Member Since", value: "2022" },
     ],
     titles: [
@@ -118,9 +119,7 @@ export const creators: Creator[] = [
     genres: ["Mythology & Gods", "Spirits & the Unseen"],
     influences: ["Naoki Urasawa", "Toni Morrison", "Moebius"],
     stats: [
-      { label: "Followers", value: "31.4K" },
-      { label: "Total Views", value: "890K" },
-      { label: "Titles", value: "2" },
+      { label: "Catalog", value: "Creator-owned world" },
       { label: "Member Since", value: "2023" },
     ],
     titles: [
@@ -171,9 +170,7 @@ export const creators: Creator[] = [
     genres: ["Martial Worlds", "Spirits & the Unseen"],
     influences: ["Yoshiaki Kawajiri", "Lee 'Scratch' Perry", "Akira Toriyama"],
     stats: [
-      { label: "Followers", value: "58.2K" },
-      { label: "Total Views", value: "2.1M" },
-      { label: "Titles", value: "2" },
+      { label: "Catalog", value: "Creator-owned world" },
       { label: "Member Since", value: "2022" },
     ],
     titles: [
@@ -226,9 +223,7 @@ export const creators: Creator[] = [
     genres: ["Spirits & the Unseen", "Coming of Age"],
     influences: ["Satoshi Kon", "Chimamanda Ngozi Adichie", "Katsuhiro Otomo"],
     stats: [
-      { label: "Followers", value: "24.6K" },
-      { label: "Total Views", value: "670K" },
-      { label: "Titles", value: "1" },
+      { label: "Catalog", value: "Creator-owned world" },
       { label: "Member Since", value: "2023" },
     ],
     titles: [

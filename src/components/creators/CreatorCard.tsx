@@ -85,15 +85,15 @@ export function CreatorCard({ creator, variant = "default" }: CreatorCardProps) 
           "{creator.tagline}"
         </p>
 
-        {/* Stats row */}
-        <div className="mt-2 px-0.5 flex gap-4">
-          {creator.stats.slice(0, 2).map((s) => (
-            <div key={s.label}>
-              <p className="text-white text-xs font-semibold">{s.value}</p>
-              <p className="text-ink-faint text-[10px]">{s.label}</p>
-            </div>
-          ))}
-        </div>
+        {/* Phase 10I.4 — public-contradiction cleanup. This row previously
+            rendered vanity metrics (Followers / Total Views) from the mock
+            dataset. ShangoMaji shows no public follower or view counts, so
+            the metric row is replaced with a quiet, non-count creator
+            descriptor. (This component is not currently mounted anywhere;
+            the edit removes the latent contradiction at its source.) */}
+        <p className="mt-2 px-0.5 text-[10px] uppercase tracking-widest text-ink-faint">
+          Creator-owned world
+        </p>
       </Link>
     </motion.div>
   );
