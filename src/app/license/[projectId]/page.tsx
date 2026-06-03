@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase-browser";
 import {
   SDL_ACKS,
   SDL_SECTIONS,
@@ -33,6 +34,11 @@ type ApiState = {
   license: LicenseRow | null;
   suggestedSignerName: string | null;
   error: string | null;
+  // Phase 10J-G — HTTP status of the load error (401 not signed in, 403 wrong
+  // account) so the page can show precise sign-in guidance, plus the caller's
+  // own authenticated email returned by the API for the wrong-account message.
+  errorStatus: number | null;
+  authedEmail: string | null;
   loading: boolean;
 };
 
@@ -45,6 +51,8 @@ export default function LicensePage() {
     license: null,
     suggestedSignerName: null,
     error:   null,
+    errorStatus: null,
+    authedEmail: null,
     loading: true,
   });
 
@@ -62,13 +70,18 @@ export default function LicensePage() {
 
   useEffect(() => {
     if (!projectId) return;
-    setState((s) => ({ ...s, loading: true, error: null }));
+    setState((s) => ({ ...s, loading: true, error: null, errorStatus: null, authedEmail: null }));
     fetch(`/api/licenses?projectId=${encodeURIComponent(projectId)}`, {
       credentials: "include",
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data?.error || "Could not load license state");
+        if (!r.ok) {
+          const e: any = new Error(data?.error || "Could not load license state");
+          e.status = r.status;
+          e.authenticatedEmail = data?.authenticatedEmail ?? null;
+          throw e;
+        }
         return data;
       })
       .then((data) => {
@@ -81,6 +94,8 @@ export default function LicensePage() {
           license: data.license ?? null,
           suggestedSignerName: suggested,
           error:   null,
+          errorStatus: null,
+          authedEmail: null,
           loading: false,
         });
         if (!data.license && suggested) {
@@ -93,6 +108,8 @@ export default function LicensePage() {
           license: null,
           suggestedSignerName: null,
           error:   err.message || "Could not load license state",
+          errorStatus: typeof err.status === "number" ? err.status : null,
+          authedEmail: err.authenticatedEmail ?? null,
           loading: false,
         });
       });
@@ -149,6 +166,63 @@ export default function LicensePage() {
     return <Shell><p style={faintText}>Loading license…</p></Shell>;
   }
   if (state.error) {
+    const loginHref = `/creators/login?redirect=${encodeURIComponent(`/license/${projectId}`)}`;
+
+    // 401 — no creator session. Guide them to sign in with the account that
+    // received the license email, then return here. (CTA, not auto-redirect.)
+    if (state.errorStatus === 401) {
+      return (
+        <Shell>
+          <Eyebrow>{SDL_VERSION}</Eyebrow>
+          <h1 style={titleStyle}>Sign in to review your license</h1>
+          <p style={{ ...bodyText, marginBottom: 20 }}>
+            This license is tied to your ShangoMaji creator account. Sign in with the
+            creator account that received this license email to review and sign.
+          </p>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <a href={loginHref} style={primaryBtn}>Sign in to continue</a>
+            <BackLink />
+          </div>
+        </Shell>
+      );
+    }
+
+    // 403 — signed in, but not as the creator this license belongs to. Offer to
+    // sign out and switch accounts (signing out first avoids a redirect loop).
+    if (state.errorStatus === 403) {
+      return (
+        <Shell>
+          <Eyebrow>{SDL_VERSION}</Eyebrow>
+          <h1 style={titleStyle}>Wrong account</h1>
+          <p style={{ ...bodyText, marginBottom: 20 }}>
+            {state.authedEmail ? (
+              <>
+                You&rsquo;re signed in as{" "}
+                <strong style={{ color: "white" }}>{state.authedEmail}</strong>, but this
+                license belongs to a different creator account.{" "}
+              </>
+            ) : (
+              <>You&rsquo;re signed in with an account that doesn&rsquo;t match this license. </>
+            )}
+            Sign in with the creator account that received this license email.
+          </p>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={async () => {
+                try { await createClient().auth.signOut(); } catch { /* ignore */ }
+                window.location.href = loginHref;
+              }}
+              style={primaryBtn}
+            >
+              Sign out and switch account
+            </button>
+            <BackLink />
+          </div>
+        </Shell>
+      );
+    }
+
+    // Any other error (project not found, server error, etc.).
     return (
       <Shell>
         <Eyebrow>{SDL_VERSION}</Eyebrow>

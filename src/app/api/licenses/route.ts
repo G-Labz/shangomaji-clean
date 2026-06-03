@@ -42,7 +42,10 @@ export async function GET(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user?.email) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Not authenticated", code: "not_authenticated" },
+      { status: 401 }
+    );
   }
 
   const projectId = new URL(req.url).searchParams.get("projectId");
@@ -65,7 +68,17 @@ export async function GET(req: NextRequest) {
   }
 
   if ((project.creator_email ?? "").trim().toLowerCase() !== email) {
-    return NextResponse.json({ error: "Not authorized for this project" }, { status: 403 });
+    return NextResponse.json(
+      {
+        error: "Not authorized for this project",
+        code: "not_authorized",
+        // The caller's own authenticated email — safe to echo back (they own
+        // it) so the page can render a precise "wrong account" message. The
+        // project's creator_email is deliberately NOT disclosed.
+        authenticatedEmail: email,
+      },
+      { status: 403 }
+    );
   }
 
   const { data: license, error: licErr } = await admin

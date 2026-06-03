@@ -34,6 +34,20 @@ type AccessState =
   | { kind: "session_no_application"; email: string; isMember: boolean }
   | { kind: "session_approved" }; // transient: routing to /workspace
 
+// Phase 10J-G — honor a safe internal ?redirect=… (e.g. /license/{id}) so a
+// creator arriving from the license email returns to the license page after
+// signing in. Internal root-relative paths only — never an absolute or
+// protocol-relative URL (open-redirect guard). Falls back to /workspace.
+function getSafeRedirect(): string | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get("redirect");
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return null;   // must be root-relative
+  if (raw.startsWith("//")) return null;   // not protocol-relative
+  if (raw.includes("\\")) return null;     // no backslash tricks
+  return raw;
+}
+
 export default function CreatorAccessPage() {
   const router   = useRouter();
   const supabase = createClient();
@@ -61,7 +75,9 @@ export default function CreatorAccessPage() {
       const data = await res.json();
       if (data?.approved) {
         setState({ kind: "session_approved" });
-        router.replace("/workspace");
+        // Phase 10J-G — return to the license page (or other safe internal
+        // path) when one was provided; otherwise the workspace as before.
+        router.replace(getSafeRedirect() ?? "/workspace");
         return;
       }
 

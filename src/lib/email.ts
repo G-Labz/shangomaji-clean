@@ -339,6 +339,8 @@ Before ShangoMaji can activate distribution, you must execute the Standard Distr
 
 Distribution is not yet live. The term begins only when ShangoMaji activates distribution.
 
+Sign in with the ShangoMaji creator account connected to this email before reviewing and signing.
+
 Review and sign the license:
 ${opts.licenseUrl}
 
@@ -374,6 +376,9 @@ ${opts.licenseUrl}
                 </p>
                 <p style="margin:0 0 16px;color:rgba(255,255,255,0.55);font-size:13px;line-height:1.6;">
                   Distribution is not yet live. Your selected term begins only when ShangoMaji activates distribution.
+                </p>
+                <p style="margin:0 0 16px;color:rgba(255,255,255,0.7);font-size:14px;line-height:1.6;">
+                  Sign in with the ShangoMaji creator account connected to this email before reviewing and signing.
                 </p>
               </td>
             </tr>
