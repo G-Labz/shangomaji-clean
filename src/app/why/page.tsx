@@ -67,7 +67,7 @@ const CALLOUTS: Callout[] = [
     eyebrow: "Revenue",
     title: "No Revenue Launch Phase.",
     body:
-      "No creator payment or revenue share is promised or assumed at launch. Approval, placement, and audience signal don't change that. If a monetized phase is ever introduced, it arrives in writing — never by default.",
+      "No creator payment or revenue share is promised or assumed at launch. Approval, placement, and audience signal don't change that. If a monetized phase is ever introduced, it arrives in writing. Never by default.",
   },
 ];
 
@@ -302,7 +302,7 @@ export default function TrustPage() {
                 ShangoMaji is a curated anime distribution label. Creators
                 keep what they own. We are clear about what we control, and
                 the terms are in writing before anyone signs. Read this
-                before you apply — if the trade-offs do not fit the work you
+                before you apply. If the trade-offs do not fit the work you
                 want to release, that is worth knowing now.
               </p>
             </motion.div>
@@ -557,8 +557,8 @@ export default function TrustPage() {
                   If a monetized phase is ever introduced, it requires a
                   written agreement or executed addendum that defines the terms
                   before they apply &mdash; nothing is automatic. Sponsorship
-                  and partner deals are business the label pursues on its own
-                  — they do not automatically create creator payment.
+                  and partner deals are business the label pursues on its own.
+                  They do not automatically create creator payment.
                 </p>
               </div>
             </div>

@@ -38,7 +38,7 @@ const PILLARS = [
   {
     icon: Layers,
     title: "Perspective Matters",
-    body: "Anime doesn't have to come from one place or look one way. Different origins, different eyes — that's the catalog we're building.",
+    body: "Anime doesn't have to come from one place or look one way. Different origins, different eyes. That's the catalog we're building.",
   },
   {
     icon: Users,
@@ -48,7 +48,7 @@ const PILLARS = [
   {
     icon: Zap,
     title: "Ownership First",
-    body: "You own your work — submitting and signing with ShangoMaji doesn't change that.",
+    body: "You own your work. Submitting and signing with ShangoMaji does not change that.",
   },
 ];
 
@@ -161,7 +161,7 @@ export default function CreatorsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label for creator-owned anime-inspired video and animation-facing work. Whether you're building from culture, memory, or pure imagination, this is where that work gets a real home — reviewed, licensed, and released on purpose.
+              ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label for creator-owned anime-inspired video and animation-facing work. Whether you're building from culture, memory, or pure imagination, this is where that work gets a real home, reviewed, licensed, and released on purpose.
             </motion.p>
             <motion.p
               className="text-sm italic mb-10"

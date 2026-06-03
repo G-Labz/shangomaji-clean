@@ -317,7 +317,7 @@ const KEY_COMMITMENTS: Commitment[] = [
   {
     icon: Coins,
     title: "Revenue lives in the agreement",
-    body: "No creator payment is promised at launch. If revenue ever applies, the terms live in a signed agreement — never by default.",
+    body: "No creator payment is promised at launch. If revenue ever applies, the terms live in a signed agreement. Never by default.",
   },
 ];
 
