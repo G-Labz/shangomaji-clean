@@ -80,11 +80,17 @@ export async function GET(req: NextRequest) {
   if (allIds.length) {
     const { data: licenseRows } = await supabase
       .from("creator_licenses")
-      .select("id, project_id, status, term_years, signer_legal_name, signer_email, signed_at, term_start, term_end, pdf_url, identity_certification_version")
+      .select("id, project_id, status, term_years, signer_legal_name, signer_email, signed_at, term_start, term_end, pdf_url, identity_certification_version, sdl_version, sdl_terms_snapshot")
       .in("project_id", allIds)
       .eq("status", "executed");
     for (const l of licenseRows ?? []) {
-      licensesByProject.set(l.project_id, l);
+      // Phase 10J-F: surface the SDL version tag and whether an immutable
+      // snapshot exists, but don't ship the full snapshot JSON to the client.
+      const { sdl_terms_snapshot, ...rest } = l as any;
+      licensesByProject.set(l.project_id, {
+        ...rest,
+        sdl_snapshot_stored: sdl_terms_snapshot != null,
+      });
     }
   }
 

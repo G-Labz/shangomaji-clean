@@ -174,3 +174,61 @@ export const SDL_ACKS: SDLAck[] = [
     label: "I confirm I have authority to execute this license for this work.",
   },
 ];
+
+// ── SDL version registry (Phase 10J-F) ───────────────────────────────────
+//
+// Receipt integrity foundation. Every executed license is stamped with the
+// SDL version in force at signing (creator_licenses.sdl_version) and an
+// immutable snapshot of the exact terms shown (creator_licenses.
+// sdl_terms_snapshot). The receipt renderer reads those, never the live
+// constants — so editing this file can never rewrite a historical receipt.
+//
+// FREEZE RULE: once any creator has signed under a version, that version's
+// entry is immutable. A wording change is a NEW version (e.g. "SDL-v2") with
+// a new entry and a bumped CURRENT_SDL_VERSION. Never edit an existing
+// entry's text, or legacy rows that resolve through the registry (those with
+// no stored snapshot) would silently change.
+
+export type SDLVersionEntry = {
+  version:  string;
+  title:    string;
+  sections: SDLSection[];
+  acks:     SDLAck[];
+};
+
+// The SDL version stamped onto new executions.
+export const CURRENT_SDL_VERSION = SDL_VERSION;
+
+// Frozen registry of all SDL versions ever in force. The SDL-v1 entry
+// references the constants above by design — they ARE the v1 text — and must
+// not be edited (see FREEZE RULE).
+export const SDL_VERSIONS: Record<string, SDLVersionEntry> = {
+  [SDL_VERSION]: {
+    version:  SDL_VERSION,
+    title:    SDL_TITLE,
+    sections: SDL_SECTIONS,
+    acks:     SDL_ACKS,
+  },
+};
+
+// Resolve an SDL version entry by its tag. Null / unknown / legacy tags fall
+// back to SDL-v1 — the canonical text every pre-versioning row signed. Never
+// throws; the receipt route depends on that.
+export function getSdlByVersion(version: string | null | undefined): SDLVersionEntry {
+  if (version && Object.prototype.hasOwnProperty.call(SDL_VERSIONS, version)) {
+    return SDL_VERSIONS[version];
+  }
+  return SDL_VERSIONS[CURRENT_SDL_VERSION];
+}
+
+// Build the immutable per-row snapshot stored at execution time. Deep-copies
+// the registry entry so the stored JSON can never alias the live arrays.
+export function buildSdlSnapshot(version: string = CURRENT_SDL_VERSION): SDLVersionEntry {
+  const entry = getSdlByVersion(version);
+  return {
+    version:  entry.version,
+    title:    entry.title,
+    sections: entry.sections.map((s) => ({ ...s })),
+    acks:     entry.acks.map((a) => ({ ...a })),
+  };
+}

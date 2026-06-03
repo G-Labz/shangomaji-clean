@@ -6,6 +6,8 @@ import {
   isValidTermYears,
   isValidLegalName,
   LEGAL_NAME_ERROR,
+  CURRENT_SDL_VERSION,
+  buildSdlSnapshot,
 } from "@/lib/standard-distribution-license";
 
 // SDL v1 license execution endpoint.
@@ -266,6 +268,12 @@ export async function POST(req: NextRequest) {
     // wording for each license (old rows render the previous, weaker copy;
     // 'v2' rows render the stronger government-ID-true wording).
     identity_certification_version: "v2",
+    // Phase 10J-F: stamp the SDL version in force at signing and store an
+    // immutable snapshot of the exact terms shown. The receipt renders from
+    // these, never the live constants, so a future SDL edit cannot rewrite
+    // this historical receipt.
+    sdl_version:        CURRENT_SDL_VERSION,
+    sdl_terms_snapshot: buildSdlSnapshot(CURRENT_SDL_VERSION),
     status: "executed" as const,
   };
 

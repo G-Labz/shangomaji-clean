@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import {
-  SDL_ACKS,
-  SDL_SECTIONS,
-  SDL_TITLE,
-  SDL_VERSION,
+  getSdlByVersion,
+  type SDLVersionEntry,
 } from "@/lib/standard-distribution-license";
 import { checkAdminPassword } from "@/lib/admin-auth";
 
@@ -28,6 +26,28 @@ function escapeHtml(s: string | null | undefined): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// Validate a stored sdl_terms_snapshot (jsonb) into a usable terms object.
+// Returns null on missing/malformed data so the caller can fall back to the
+// frozen version registry rather than throwing on a bad row.
+function parseSnapshot(raw: unknown): SDLVersionEntry | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const { version, title, sections, acks } = o;
+  if (
+    typeof version === "string" &&
+    typeof title === "string" &&
+    Array.isArray(sections) &&
+    Array.isArray(acks) &&
+    sections.every(
+      (s) => s && typeof (s as any).heading === "string" && typeof (s as any).body === "string"
+    ) &&
+    acks.every((a) => a && typeof (a as any).label === "string")
+  ) {
+    return o as unknown as SDLVersionEntry;
+  }
+  return null;
 }
 
 export async function GET(
@@ -84,7 +104,17 @@ export async function GET(
     }
   };
 
-  const sectionsHtml = SDL_SECTIONS.map(
+  // Resolve the terms to display. Prefer the immutable snapshot captured at
+  // signing (Phase 10J-F); fall back to the frozen version registry for legacy
+  // rows executed before snapshots existed. Live SDL constants are never used.
+  const snapshot    = parseSnapshot(license.sdl_terms_snapshot);
+  const hasSnapshot = snapshot !== null;
+  const terms       = snapshot ?? getSdlByVersion(license.sdl_version);
+  const termsSource = hasSnapshot
+    ? "Terms shown from signed snapshot."
+    : "Terms shown from SDL-v1 record. Snapshot was not stored at original signing.";
+
+  const sectionsHtml = terms.sections.map(
     (s) => `
       <section>
         <h3>${escapeHtml(s.heading)}</h3>
@@ -92,7 +122,7 @@ export async function GET(
       </section>`
   ).join("");
 
-  const acksHtml = SDL_ACKS.map(
+  const acksHtml = terms.acks.map(
     (a) => `<li>${escapeHtml(a.label)}</li>`
   ).join("");
 
@@ -100,7 +130,7 @@ export async function GET(
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>${escapeHtml(SDL_TITLE)} — Receipt</title>
+<title>${escapeHtml(terms.title)} — Receipt</title>
 <style>
   :root { color-scheme: light; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 24px; color: #111; line-height: 1.55; }
@@ -120,8 +150,8 @@ export async function GET(
 </head>
 <body>
   <header>
-    <p class="eyebrow">${escapeHtml(SDL_VERSION)}</p>
-    <h1>${escapeHtml(SDL_TITLE)} — Executed Receipt</h1>
+    <p class="eyebrow">${escapeHtml(terms.version)}</p>
+    <h1>${escapeHtml(terms.title)} — Executed Receipt</h1>
     <p>Project: <strong>${escapeHtml(projectTitle)}</strong></p>
   </header>
 
@@ -171,7 +201,8 @@ export async function GET(
     })()}</li>
   </ul>
 
-  <h2 style="font-size:16px;margin:28px 0 12px;">${escapeHtml(SDL_TITLE)} — Full Terms</h2>
+  <h2 style="font-size:16px;margin:28px 0 12px;">${escapeHtml(terms.title)} — Full Terms</h2>
+  <p style="font-size:12px;color:#666;margin:0 0 12px;">${escapeHtml(termsSource)}</p>
   ${sectionsHtml}
 
   <footer>

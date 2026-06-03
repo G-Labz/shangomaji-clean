@@ -1276,6 +1276,24 @@ export default function AdminPage() {
                     </code>
                   </p>
                 )}
+                {project.license && (
+                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                    SDL version at signing:{" "}
+                    <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
+                      {project.license.sdl_version ?? "SDL-v1 (legacy)"}
+                    </code>
+                    {" · "}Snapshot stored:{" "}
+                    <span
+                      className={
+                        project.license.sdl_snapshot_stored
+                          ? "text-emerald-300/90"
+                          : "text-neutral-400"
+                      }
+                    >
+                      {project.license.sdl_snapshot_stored ? "Yes" : "No"}
+                    </span>
+                  </p>
+                )}
 
                 {project.license ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
