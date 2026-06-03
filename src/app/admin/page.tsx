@@ -1132,6 +1132,171 @@ export default function AdminPage() {
     const next        = adminNextAction(project);
     const nextEmerald = classifyBucket(project) === "public_ready";
 
+    // Phase 10J-F.2 — license intelligence card. State-driven and not tied to
+    // project status, so an executed license (and its receipt) is visible no
+    // matter where the work is in its lifecycle. Every state explains what it
+    // means and what the admin can or cannot do next. View-only.
+    const renderLicenseCard = (p: any) => {
+      const lstate = licenseState(p);
+      const lic    = p.license;
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-xs uppercase tracking-widest text-neutral-500">
+              Standard Distribution License v1
+            </p>
+            {lstate === "executed" && (
+              <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                {p.status === "approved" ? "Signed — ready to activate" : "Signed by creator"}
+              </span>
+            )}
+            {lstate === "awaiting" && (
+              <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                Awaiting creator signature
+              </span>
+            )}
+            {lstate === "legacy_missing" && (
+              <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
+                Legacy work — no license on file
+              </span>
+            )}
+            {lstate === "not_required" && (
+              <span className="text-[11px] px-2 py-0.5 rounded border bg-white/5 text-neutral-300 border-white/15">
+                No license yet
+              </span>
+            )}
+          </div>
+
+          {lstate === "executed" && (
+            <>
+              <p className="text-[11px] text-emerald-300/90 leading-relaxed">
+                {p.status === "approved"
+                  ? "The creator has signed the Standard Distribution License. You can activate distribution now — media binding becomes available after activation."
+                  : "The creator has signed the Standard Distribution License. The exact terms they agreed to are preserved in the receipt below."}
+              </p>
+
+              <IdentityRow status={p.identity_status ?? null} />
+
+              {lic?.identity_certification_version && (
+                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  Identity wording the creator signed:{" "}
+                  <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
+                    {lic.identity_certification_version}
+                  </code>
+                </p>
+              )}
+
+              <p className="text-[11px] text-neutral-500 leading-relaxed">
+                License version signed:{" "}
+                <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
+                  {lic.sdl_version ?? "SDL-v1 (legacy)"}
+                </code>
+                {" · "}Signed receipt stored:{" "}
+                <span className={lic.sdl_snapshot_stored ? "text-emerald-300/90" : "text-neutral-400"}>
+                  {lic.sdl_snapshot_stored ? "Yes" : "No — receipt rebuilt from the SDL-v1 record"}
+                </span>
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <Field label="Signer" value={lic.signer_legal_name} />
+                <Field label="Signer Email" value={lic.signer_email} />
+                <Field label="Term" value={`${lic.term_years} year(s)`} />
+                <Field
+                  label="Signed"
+                  value={lic.signed_at ? new Date(lic.signed_at).toUTCString() : ""}
+                />
+                <Field
+                  label="Term Start"
+                  value={lic.term_start ? new Date(lic.term_start).toUTCString() : "Pending activation"}
+                />
+                <Field
+                  label="Term End"
+                  value={lic.term_end ? new Date(lic.term_end).toUTCString() : "Pending activation"}
+                />
+                <div className="md:col-span-2">
+                  {lic.pdf_url ? (
+                    <a
+                      href={lic.pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
+                    >
+                      View Receipt
+                    </a>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => viewReceipt(lic.id)}
+                        disabled={receiptBusy === lic.id}
+                        className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
+                      >
+                        {receiptBusy === lic.id ? "Loading receipt…" : "View Receipt"}
+                      </button>
+                      <span className="text-neutral-500 text-[11px] ml-2">
+                        (admin · opens the signed receipt)
+                      </span>
+                      {receiptError[lic.id] && (
+                        <p className="text-rose-300/90 text-[11px] mt-1">
+                          {receiptError[lic.id]}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {lstate === "awaiting" && (
+            <div className="space-y-2">
+              <IdentityRow status={p.identity_status ?? null} />
+              <p className="text-[11px] text-neutral-400 leading-relaxed">
+                This work is approved, but the creator has not signed the Standard Distribution
+                License yet. Distribution cannot be activated and no receipt exists until they
+                sign. Share the signing link below if they need it again.
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">
+                  /license/{p.id}
+                </code>
+                <button
+                  onClick={() => {
+                    const url =
+                      typeof window !== "undefined"
+                        ? `${window.location.origin}/license/${p.id}`
+                        : `/license/${p.id}`;
+                    navigator.clipboard?.writeText(url);
+                  }}
+                  className="px-2 py-1 rounded text-[11px] font-medium border border-white/15 text-white hover:bg-white/10 transition"
+                >
+                  Copy creator URL
+                </button>
+              </div>
+            </div>
+          )}
+
+          {lstate === "legacy_missing" && (
+            <p className="text-[11px] text-neutral-400 leading-relaxed">
+              Legacy work — no executed license receipt exists. This title was activated before the
+              license layer existed, so there is no signed receipt to view. New activations now
+              require a signed license; no receipt is created retroactively.
+            </p>
+          )}
+
+          {lstate === "not_required" && (
+            <p className="text-[11px] text-neutral-400 leading-relaxed">
+              {p.status === "pending" || p.status === "in_review"
+                ? "No license is needed yet. The creator signs the Standard Distribution License only after this work is approved, so there is no receipt to view at this stage."
+                : p.status === "rejected"
+                ? "This work was not approved, so no license was signed and no receipt exists."
+                : "No executed license receipt exists for this work."}
+            </p>
+          )}
+        </div>
+      );
+    };
+
     return (
       <div className="space-y-4">
         {/* HEADER — title / creator / status (priority 1).
@@ -1295,165 +1460,27 @@ export default function AdminPage() {
               hideForLegacyStates
             />
 
-            {(project.status === "approved" || project.status === "live") && (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <p className="text-xs uppercase tracking-widest text-neutral-500">
-                    Standard Distribution License v1
-                  </p>
-                  {project.license ? (
-                    <span className="text-[11px] px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                      {project.status === "approved"
-                        ? "Executed — ready for activation"
-                        : "Executed"}
-                    </span>
-                  ) : project.status === "live" ? (
-                    <span className="text-[11px] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
-                      License missing (legacy)
-                    </span>
-                  ) : (
-                    <span className="text-[11px] px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                      Not signed — activation blocked
-                    </span>
-                  )}
-                </div>
-
-                {project.license && project.status === "approved" && (
-                  <>
-                    <p className="text-[11px] text-emerald-300/90 leading-relaxed">
-                      License is on file. Distribution can be activated now.
-                      Media binding (Bunny video ID) becomes available after activation.
-                    </p>
-                    <p className="text-[11px] text-yellow-300/80 leading-relaxed">
-                      Identity is self-certified and not independently verified.
-                    </p>
-                  </>
-                )}
-
-                <IdentityRow status={project.identity_status ?? null} />
-                {project.license?.identity_certification_version && (
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    Certification copy at signing:{" "}
-                    <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
-                      {project.license.identity_certification_version}
-                    </code>
-                  </p>
-                )}
-                {project.license && (
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    SDL version at signing:{" "}
-                    <code className="text-neutral-300 bg-white/5 border border-white/10 rounded px-1 py-0.5 text-[10px]">
-                      {project.license.sdl_version ?? "SDL-v1 (legacy)"}
-                    </code>
-                    {" · "}Snapshot stored:{" "}
-                    <span
-                      className={
-                        project.license.sdl_snapshot_stored
-                          ? "text-emerald-300/90"
-                          : "text-neutral-400"
-                      }
-                    >
-                      {project.license.sdl_snapshot_stored ? "Yes" : "No"}
-                    </span>
-                  </p>
-                )}
-
-                {project.license ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <Field label="Signer" value={project.license.signer_legal_name} />
-                    <Field label="Signer Email" value={project.license.signer_email} />
-                    <Field label="Term" value={`${project.license.term_years} year(s)`} />
-                    <Field
-                      label="Signed"
-                      value={
-                        project.license.signed_at
-                          ? new Date(project.license.signed_at).toUTCString()
-                          : ""
-                      }
-                    />
-                    <Field
-                      label="Term Start"
-                      value={
-                        project.license.term_start
-                          ? new Date(project.license.term_start).toUTCString()
-                          : "Pending activation"
-                      }
-                    />
-                    <Field
-                      label="Term End"
-                      value={
-                        project.license.term_end
-                          ? new Date(project.license.term_end).toUTCString()
-                          : "Pending activation"
-                      }
-                    />
-                    <div className="md:col-span-2">
-                      {project.license.pdf_url ? (
-                        <a
-                          href={project.license.pdf_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
-                        >
-                          View Receipt
-                        </a>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => viewReceipt(project.license.id)}
-                            disabled={receiptBusy === project.license.id}
-                            className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
-                          >
-                            {receiptBusy === project.license.id ? "Loading receipt…" : "View Receipt"}
-                          </button>
-                          <span className="text-neutral-500 text-[11px] ml-2">
-                            (admin · HTML receipt)
-                          </span>
-                          {receiptError[project.license.id] && (
-                            <p className="text-rose-300/90 text-[11px] mt-1">
-                              {receiptError[project.license.id]}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ) : project.status === "live" ? (
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    This title was activated before the license layer existed. New activations
-                    now require an executed license. No automatic backfill is performed.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-[11px] text-neutral-500 leading-relaxed">
-                      The creator must execute the license before distribution can be activated.
-                      A license-required email is sent at approval and the workspace surfaces
-                      the same link. If the email failed, hand the URL below to the creator.
-                    </p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <code className="text-[11px] text-neutral-300 bg-white/5 border border-white/10 rounded px-2 py-1 break-all">
-                        /license/{project.id}
-                      </code>
-                      <button
-                        onClick={() => {
-                          const url =
-                            typeof window !== "undefined"
-                              ? `${window.location.origin}/license/${project.id}`
-                              : `/license/${project.id}`;
-                          navigator.clipboard?.writeText(url);
-                        }}
-                        className="px-2 py-1 rounded text-[11px] font-medium border border-white/15 text-white hover:bg-white/10 transition"
-                      >
-                        Copy creator URL
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="mt-4">
+              {renderLicenseCard(project)}
+            </div>
           </ExpandableSection>
         )}
+
+        {/* LICENSE (terminal states) — the "Review Record & License" section above
+            does not render for archived / removal_requested / removed / draft works,
+            so surface the executed license + receipt here when one exists. Keeps the
+            review/approve controls out of terminal states while still showing the
+            signed receipt. View-only. */}
+        {project.license &&
+          project.status !== "pending" &&
+          project.status !== "in_review" &&
+          project.status !== "approved" &&
+          project.status !== "live" &&
+          project.status !== "rejected" && (
+            <div className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
+              {renderLicenseCard(project)}
+            </div>
+          )}
 
         {/* MEDIA (priority 5) — live only */}
         {project.status === "live" && (
@@ -3112,6 +3139,28 @@ export default function AdminPage() {
                           >
                             {statusDisplay(project.status)}
                           </span>
+                          {(() => {
+                            const ls = licenseState(project);
+                            if (ls === "executed")
+                              return (
+                                <span className="text-[10px] px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
+                                  License ✓
+                                </span>
+                              );
+                            if (ls === "awaiting")
+                              return (
+                                <span className="text-[10px] px-2 py-0.5 rounded border bg-amber-500/15 text-amber-300 border-amber-500/30">
+                                  License pending
+                                </span>
+                              );
+                            if (ls === "legacy_missing")
+                              return (
+                                <span className="text-[10px] px-2 py-0.5 rounded border bg-red-500/15 text-red-300 border-red-500/30">
+                                  No license
+                                </span>
+                              );
+                            return null;
+                          })()}
                           <span className="text-neutral-600 text-[10px] tabular-nums">
                             {new Date(project.updated_at).toLocaleDateString()}
                           </span>
@@ -3252,20 +3301,36 @@ function ExpandableSection({
 
 // Pure derivation. One-line description of the Review Record & License
 // section when collapsed.
+// Phase 10J-F.2 — single source of truth for a work's license state, shared by
+// the license card, the collapsed-row chip, and the section summary so they
+// never disagree.
+//   executed       — a signed Standard Distribution License is on file (any status).
+//   awaiting       — approved, but the creator has not signed yet.
+//   legacy_missing — live/removal-requested work activated before the license layer.
+//   not_required   — license not applicable at this stage (pending/review/rejected/etc.).
+type LicenseState = "executed" | "awaiting" | "legacy_missing" | "not_required";
+function licenseState(p: any): LicenseState {
+  if (p?.license) return "executed";
+  if (p?.status === "approved") return "awaiting";
+  if (p?.status === "live" || p?.status === "removal_requested") return "legacy_missing";
+  return "not_required";
+}
+
 function licenseSummary(p: any): string {
-  if (p.status === "approved" || p.status === "live") {
-    if (p.license) {
-      const term = p.license.term_years;
-      return `SDL v1 · Executed${term ? ` · ${term} yr term` : ""}`;
+  switch (licenseState(p)) {
+    case "executed": {
+      const term = p.license?.term_years;
+      return `SDL v1 · Signed${term ? ` · ${term}-yr term` : ""}`;
     }
-    if (p.status === "live") return "License missing (legacy)";
-    return "License required";
+    case "awaiting":
+      return "Awaiting creator signature — activation blocked";
+    case "legacy_missing":
+      return "Legacy work — no license receipt on file";
+    default:
+      if (p.status === "pending" || p.status === "in_review") return "Awaiting approval";
+      if (p.status === "rejected") return "Not approved — no license";
+      return "No license on file";
   }
-  if (p.status === "pending" || p.status === "in_review") {
-    return "Awaiting approval";
-  }
-  if (p.status === "rejected") return "Rejected — no license";
-  return "—";
 }
 
 // Phase 7.1 — Public Visibility Diagnostic (read-only).
