@@ -32,23 +32,23 @@ type PublicCreatorCard = {
 const PILLARS = [
   {
     icon: Globe,
-    title: "A Global Stage",
-    body: "Your work doesn't get buried. It gets placed in front of an audience ready to discover something new.",
+    title: "A Real Audience",
+    body: "ShangoMaji is not an open feed. Every title is reviewed, placed with intention, and given room to be discovered.",
   },
   {
     icon: Layers,
     title: "Perspective Matters",
-    body: "Not everything needs to look the same, feel the same, or come from the same place. That's the point.",
+    body: "Anime doesn't have to come from one place or look one way. Different origins, different eyes — that's the catalog we're building.",
   },
   {
     icon: Users,
     title: "Curated, Not Open",
-    body: "Every title is reviewed. Every release is intentional. Quality over volume, always.",
+    body: "Every title is reviewed. Every release is a decision. We'd rather run a smaller catalog we can stand behind.",
   },
   {
     icon: Zap,
-    title: "Creator First",
-    body: "You own your work. We provide the stage.",
+    title: "Ownership First",
+    body: "You own your work — submitting and signing with ShangoMaji doesn't change that.",
   },
 ];
 
@@ -161,7 +161,7 @@ export default function CreatorsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label for creator-owned anime-inspired video and animation-facing work. Whether you're building from culture, imagination, or something entirely new, this is where the next wave takes form.
+              ShangoMaji<span className="align-top text-[0.55em] ml-0.5" aria-hidden="true">™</span> is a curated anime distribution label for creator-owned anime-inspired video and animation-facing work. Whether you're building from culture, memory, or pure imagination, this is where that work gets a real home — reviewed, licensed, and released on purpose.
             </motion.p>
             <motion.p
               className="text-sm italic mb-10"
@@ -441,8 +441,8 @@ export default function CreatorsPage() {
             <div className="rounded-2xl border border-white/8 bg-surface-raised px-6 py-16 text-center">
               <p className="text-white font-semibold text-lg">No creators yet</p>
               <p className="text-ink-muted text-sm mt-2 max-w-md mx-auto">
-                ShangoMaji is selective. The first wave of public profiles will
-                appear here as they are reviewed and onboarded.
+                ShangoMaji is selective. The first creator profiles will
+                appear here as they're reviewed and onboarded.
               </p>
             </div>
           )}

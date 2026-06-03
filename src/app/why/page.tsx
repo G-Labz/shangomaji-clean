@@ -67,7 +67,7 @@ const CALLOUTS: Callout[] = [
     eyebrow: "Revenue",
     title: "No Revenue Launch Phase.",
     body:
-      "No creator payment and no revenue share is promised or assumed at launch. Submission, approval, catalog placement, visibility, follows, or audience signal do not create payment. Any future monetization would require a written agreement or executed addendum before it applies.",
+      "No creator payment or revenue share is promised or assumed at launch. Approval, placement, and audience signal don't change that. If a monetized phase is ever introduced, it arrives in writing — never by default.",
   },
 ];
 
@@ -299,13 +299,11 @@ export default function TrustPage() {
                 className="mt-8 text-[16px] md:text-[17px] leading-relaxed max-w-xl"
                 style={{ color: "rgba(255,255,255,0.78)" }}
               >
-                ShangoMaji is a curated anime distribution label. This page
-                explains what the platform protects, what creators keep, what
-                ShangoMaji controls, and how the relationship between creator
-                and label is structured. Read it before you apply. If the
-                trade-offs here do not fit the work you want to release,
-                ShangoMaji may not be the right home for it, and that is
-                useful to know in advance.
+                ShangoMaji is a curated anime distribution label. Creators
+                keep what they own. We are clear about what we control, and
+                the terms are in writing before anyone signs. Read this
+                before you apply — if the trade-offs do not fit the work you
+                want to release, that is worth knowing now.
               </p>
             </motion.div>
 
@@ -558,9 +556,9 @@ export default function TrustPage() {
                 <p>
                   If a monetized phase is ever introduced, it requires a
                   written agreement or executed addendum that defines the terms
-                  before they apply &mdash; nothing is automatic. Sponsorship or
-                  partner development is institutional revenue work and does
-                  not automatically create creator payment.
+                  before they apply &mdash; nothing is automatic. Sponsorship
+                  and partner deals are business the label pursues on its own
+                  — they do not automatically create creator payment.
                 </p>
               </div>
             </div>
@@ -597,9 +595,9 @@ export default function TrustPage() {
                 className="mt-6 max-w-xl mx-auto text-[15px] md:text-[16px] leading-relaxed"
                 style={{ color: "rgba(255,255,255,0.78)" }}
               >
-                Every answer is read. Submission is review, not publication.
+                Every answer is read. This is a review, not a publish button.
                 If the trade-offs above match the work you want to release,
-                the next step is the creator application.
+                the next step is the application.
               </p>
               <div className="mt-10 flex flex-wrap gap-3 justify-center">
                 <Link
@@ -624,7 +622,7 @@ export default function TrustPage() {
                 className="mt-8 text-xs"
                 style={{ color: "rgba(255,255,255,0.4)" }}
               >
-                ShangoMaji is a curated label. Submission is review, not publication.
+                ShangoMaji is a curated label. Every release is a decision, not a default.
               </p>
             </div>
           </motion.div>
