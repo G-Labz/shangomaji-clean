@@ -8,6 +8,7 @@ import SubmissionReviewPanel, {
   gateState,
   type AdminReviewState,
 } from "./SubmissionReviewPanel";
+import { derivePublicReadiness } from "@/lib/public-visibility";
 
 interface Application {
   id: string;
@@ -499,6 +500,21 @@ export default function AdminPage() {
       // visible after a failed or already-completed transition).
       loadProjects();
     }
+  }
+
+  // Phase 10J-H-A — activation guardrail. Activating (approved → live) starts
+  // the license term and creates the live title record, but the work is NOT
+  // public until a Bunny video is bound and media is marked ready. Warn the
+  // operator before proceeding so "live" is never mistaken for "public." This
+  // does not block activation — it confirms intent.
+  function confirmActivate(project: any) {
+    const message =
+      "Activate distribution?\n\n" +
+      "This starts the license term and creates the live title record. " +
+      "The work will NOT be publicly visible yet — you still need to bind a Bunny video and mark media ready. " +
+      'Until then the creator sees "Live · finishing setup" and it stays out of the public catalog.';
+    if (typeof window !== "undefined" && !window.confirm(message)) return;
+    updateProjectStatus(project.id, "live");
   }
 
   // Rejection — requires a reason
@@ -1872,7 +1888,7 @@ export default function AdminPage() {
           {project.status === "approved" && (
             project.license ? (
               <button
-                onClick={() => updateProjectStatus(project.id, "live")}
+                onClick={() => confirmActivate(project)}
                 className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition"
               >
                 Activate Distribution
@@ -3392,17 +3408,28 @@ function getPublicVisibilityDiagnostic(p: any): PublicVisibilityDiagnostic {
     return { label: "Held — distribution not activated",        tone: "held" };
   }
   if (status === "live") {
-    // Live works flow through the actual public-titles gate.
-    if (p?.title_status && p.title_status !== "active") {
-      return { label: "Held — title row inactive",              tone: "held" };
+    // Phase 10J-H-A — delegate the live gate to the shared helper so the
+    // admin and creator surfaces can never disagree. Labels/tones unchanged.
+    // (The admin client cannot read the server's library env, so it passes
+    // libraryConfigured: true — its prior documented behavior.)
+    const readiness = derivePublicReadiness({
+      status,
+      titleStatus:  p?.title_status ?? null,
+      mediaReady:   p?.media_ready ?? null,
+      bunnyVideoId: p?.bunny_video_id ?? null,
+      libraryConfigured: true,
+    });
+    if (readiness.state === "public") {
+      return { label: "Ready — visible in public catalog",      tone: "ready" };
     }
-    if (!p?.bunny_video_id) {
-      return { label: "Held — Bunny video missing",             tone: "held" };
+    if (readiness.state === "finishing_setup") {
+      const label =
+        readiness.reason === "title_inactive" ? "Held — title row inactive"
+        : readiness.reason === "bunny_missing" ? "Held — Bunny video missing"
+        : "Held — media not ready";
+      return { label, tone: "held" };
     }
-    if (p?.media_ready !== true) {
-      return { label: "Held — media not ready",                 tone: "held" };
-    }
-    return { label: "Ready — visible in public catalog",        tone: "ready" };
+    return { label: "Held — not live",                          tone: "held" };
   }
   // Unknown status — never claim visibility.
   return { label: "Held — unknown state",                       tone: "held" };

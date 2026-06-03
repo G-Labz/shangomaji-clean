@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { WorkPoster, WorkStatusDot, workStateLine } from "./components";
+import type { PublicReadiness } from "@/lib/public-visibility";
 
 type Project = {
   id: string;
@@ -13,6 +14,7 @@ type Project = {
   banner_url?: string | null;
   updated_at: string;
   license_status?: "executed" | "none";
+  public_visibility?: PublicReadiness;
 };
 
 type CatalogPulse = { live: number; inReview: number; drafts: number };
@@ -277,6 +279,7 @@ function RecentWorkTile({ project }: { project: Project }) {
         bannerUrl={project.banner_url}
         status={project.status}
         licenseStatus={project.license_status}
+        publicVisibility={project.public_visibility}
         className="group-hover:brightness-110"
       />
       <div className="space-y-1">
@@ -284,8 +287,12 @@ function RecentWorkTile({ project }: { project: Project }) {
           {project.title}
         </p>
         <p className="text-[11px] text-ink-faint flex items-center gap-1.5">
-          <WorkStatusDot status={project.status} licenseStatus={project.license_status} />
-          <span className="truncate">{workStateLine(project.status, project.license_status)}</span>
+          <WorkStatusDot
+            status={project.status}
+            licenseStatus={project.license_status}
+            publicVisibility={project.public_visibility}
+          />
+          <span className="truncate">{workStateLine(project.status, project.license_status, project.public_visibility)}</span>
         </p>
       </div>
     </Link>

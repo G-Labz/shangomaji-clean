@@ -5,9 +5,11 @@ import Link from "next/link";
 import {
   WorkPoster,
   WorkStatusDot,
+  ReceiptLink,
   useConfirm,
   workStateLine,
 } from "../components";
+import type { PublicReadiness } from "@/lib/public-visibility";
 
 type Project = {
   id: string;
@@ -25,6 +27,7 @@ type Project = {
   removal_requested_at?: string | null;
   license_status?: "executed" | "none";
   license_id?: string | null;
+  public_visibility?: PublicReadiness;
 };
 
 // Phase 4.9 filters — pending covers pending+in_review, live is the public state
@@ -543,6 +546,7 @@ function WorkCatalogCard({
           bannerUrl={project.banner_url}
           status={project.status}
           licenseStatus={project.license_status}
+          publicVisibility={project.public_visibility}
           className="group-hover:brightness-110"
         />
       </Link>
@@ -555,9 +559,20 @@ function WorkCatalogCard({
           <p className="text-[11px] text-ink-muted uppercase tracking-wide">{typeLine}</p>
         )}
         <p className="text-xs text-ink-faint flex items-center gap-2">
-          <WorkStatusDot status={project.status} licenseStatus={project.license_status} />
-          <span>{workStateLine(project.status, project.license_status)}</span>
+          <WorkStatusDot
+            status={project.status}
+            licenseStatus={project.license_status}
+            publicVisibility={project.public_visibility}
+          />
+          <span>{workStateLine(project.status, project.license_status, project.public_visibility)}</span>
         </p>
+        {/* Phase 10J-H-A — explain the "not yet public" live state so silence
+            doesn't read as failure. Shown only where it applies. */}
+        {project.status === "live" && project.public_visibility?.state === "finishing_setup" && (
+          <p className="text-[11px] text-amber-300/70 leading-snug">
+            ShangoMaji is finishing media processing. Your public page isn’t live yet — nothing is needed from you.
+          </p>
+        )}
       </div>
 
       {/* Action region — one primary, full-width button; secondaries
@@ -628,13 +643,11 @@ function WorkCatalogCard({
                 {submitting ? "Submitting…" : "Submit for review →"}
               </button>
             )}
-            {isApproved && licenseExecuted && (
-              <Link
-                href={`/license/${project.id}`}
-                className="text-ink-faint hover:text-white transition"
-              >
-                View license →
-              </Link>
+            {/* Phase 10J-H-A — persistent receipt access. Shown for ANY signed
+                work (approved AND live), not just approved, so the creator never
+                loses the record they signed once distribution activates. */}
+            {licenseExecuted && project.license_id && (
+              <ReceiptLink licenseId={project.license_id} />
             )}
           </div>
 

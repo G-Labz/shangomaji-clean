@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import type { PublicReadiness } from "@/lib/public-visibility";
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -89,9 +90,12 @@ export type WorkTone = "emerald" | "amber" | "red" | "neutral" | "blue";
 
 export function workTone(
   status: string,
-  licenseStatus?: "executed" | "none"
+  licenseStatus?: "executed" | "none",
+  publicVisibility?: PublicReadiness
 ): WorkTone {
-  if (status === "live")              return "emerald";
+  // Phase 10J-H-A — a live work that is still finishing setup is not yet
+  // public; surface it as attention (amber), not "done" (emerald).
+  if (status === "live")              return publicVisibility?.state === "finishing_setup" ? "amber" : "emerald";
   if (status === "approved")          return licenseStatus === "executed" ? "emerald" : "amber";
   if (status === "removal_requested") return "amber";
   if (status === "rejected")          return "red";
@@ -123,10 +127,16 @@ const DOT_BG: Record<WorkTone, string> = {
 // always render it so creators get a consistent line).
 export function workStateLine(
   status: string,
-  licenseStatus?: "executed" | "none"
+  licenseStatus?: "executed" | "none",
+  publicVisibility?: PublicReadiness
 ): string {
   switch (status) {
-    case "live":              return "Live · Distribution active";
+    case "live":
+      // Phase 10J-H-A — split "live" into its public-visibility truth so the
+      // creator never reads "active" for a work the public can't see yet.
+      if (publicVisibility?.state === "public")          return "Live · Publicly visible";
+      if (publicVisibility?.state === "finishing_setup") return "Live · Finishing setup — not yet public";
+      return "Live · Distribution active";
     case "pending":
     case "in_review":         return "In review · Awaiting decision";
     case "approved":
@@ -153,6 +163,7 @@ export function WorkPoster({
   bannerUrl,
   status,
   licenseStatus,
+  publicVisibility,
   className = "",
 }: {
   title: string;
@@ -161,9 +172,10 @@ export function WorkPoster({
   bannerUrl?: string | null;
   status: string;
   licenseStatus?: "executed" | "none";
+  publicVisibility?: PublicReadiness;
   className?: string;
 }) {
-  const tone   = workTone(status, licenseStatus);
+  const tone   = workTone(status, licenseStatus, publicVisibility);
   const stripe = STRIPE_BG[tone];
   const src    = (coverUrl && coverUrl.trim()) || (bannerUrl && bannerUrl.trim()) || "";
 
@@ -207,12 +219,37 @@ export function WorkPoster({
 export function WorkStatusDot({
   status,
   licenseStatus,
+  publicVisibility,
 }: {
   status: string;
   licenseStatus?: "executed" | "none";
+  publicVisibility?: PublicReadiness;
 }) {
-  const tone = workTone(status, licenseStatus);
+  const tone = workTone(status, licenseStatus, publicVisibility);
   return <span className={`inline-block h-1.5 w-1.5 rounded-full ${DOT_BG[tone]}`} />;
+}
+
+// Phase 10J-H-A — persistent receipt access for the creator (the signer of the
+// license). The receipt route authorizes the signer's own session, so a plain
+// link works for any signed work, including live ones — no auth change, no
+// bridge. Stays available after activation, unlike the old approved-only link.
+export function ReceiptLink({
+  licenseId,
+  className = "text-ink-faint hover:text-white transition",
+}: {
+  licenseId: string;
+  className?: string;
+}) {
+  return (
+    <a
+      href={`/api/licenses/${licenseId}/receipt`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+    >
+      View receipt →
+    </a>
+  );
 }
 
 // Phase 7.3 Layer 2 — small two-state pill for readiness / context strips.

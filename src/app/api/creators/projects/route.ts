@@ -11,6 +11,7 @@ import {
   appendHistory,
   type LifecycleRow,
 } from "@/lib/lifecycle";
+import { derivePublicReadiness } from "@/lib/public-visibility";
 
 function svc() {
   return createServiceClient(
@@ -49,25 +50,60 @@ export async function GET() {
   const projects = data ?? [];
   const ids = projects.map((p: any) => p.id);
   const licensesByProject = new Map<string, { id: string; status: string }>();
+  // Phase 10J-H-A — read title media/Bunny readiness (read-only) so the
+  // workspace can tell a live work apart from an actually-public one, using
+  // the same gate as the admin diagnostic and /api/public/titles.
+  type TitleReadiness = { status: string | null; media_ready: boolean | null; bunny_video_id: string | null };
+  const titlesByProject = new Map<string, TitleReadiness>();
 
   if (ids.length) {
     const admin = svc();
-    const { data: licenseRows } = await admin
-      .from("creator_licenses")
-      .select("id, project_id, status")
-      .in("project_id", ids)
-      .eq("status", "executed");
+    const [{ data: licenseRows }, { data: titleRows }] = await Promise.all([
+      admin
+        .from("creator_licenses")
+        .select("id, project_id, status")
+        .in("project_id", ids)
+        .eq("status", "executed"),
+      admin
+        .from("titles")
+        .select("project_id, status, media_ready, bunny_video_id")
+        .in("project_id", ids)
+        .neq("status", "removed"),
+    ]);
     for (const l of licenseRows ?? []) {
-      licensesByProject.set(l.project_id, { id: l.id, status: l.status });
+      licensesByProject.set((l as any).project_id, { id: (l as any).id, status: (l as any).status });
+    }
+    for (const t of titleRows ?? []) {
+      const pid = (t as any).project_id;
+      const existing = titlesByProject.get(pid);
+      // Prefer an active title row when multiple exist for one project.
+      if (!existing || (t as any).status === "active") {
+        titlesByProject.set(pid, {
+          status:         (t as any).status ?? null,
+          media_ready:    (t as any).media_ready ?? null,
+          bunny_video_id: (t as any).bunny_video_id ?? null,
+        });
+      }
     }
   }
 
+  const libraryConfigured = !!process.env.BUNNY_STREAM_LIBRARY_ID;
+
   const enriched = projects.map((p: any) => {
     const l = licensesByProject.get(p.id);
+    const t = titlesByProject.get(p.id);
     return {
       ...p,
       license_status: l ? "executed" : "none",
       license_id:     l?.id ?? null,
+      // Phase 10J-H-A — public-visibility truth (same gate as admin).
+      public_visibility: derivePublicReadiness({
+        status:       p.status,
+        titleStatus:  t?.status ?? null,
+        mediaReady:   t?.media_ready ?? null,
+        bunnyVideoId: t?.bunny_video_id ?? null,
+        libraryConfigured,
+      }),
     };
   });
 
