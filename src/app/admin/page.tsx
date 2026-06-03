@@ -251,6 +251,10 @@ export default function AdminPage() {
   const [archiveBusy, setArchiveBusy]       = useState(false);
   const [archiveError, setArchiveError]     = useState("");
 
+  // Phase 10J-F.1 — admin receipt access bridge (view-only).
+  const [receiptBusy,  setReceiptBusy]  = useState<string | null>(null);
+  const [receiptError, setReceiptError] = useState<Record<string, string>>({});
+
   const headers = { "x-admin-password": password };
 
   async function login() {
@@ -270,6 +274,65 @@ export default function AdminPage() {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Phase 10J-F.1 — fetch an executed license's HTML receipt with the admin
+  // password header and open it in a new tab via a Blob URL. View-only; the
+  // receipt route and its authorization are unchanged. The password travels in
+  // the header, never the URL.
+  async function viewReceipt(licenseId: string) {
+    setReceiptBusy(licenseId);
+    setReceiptError((prev) => ({ ...prev, [licenseId]: "" }));
+
+    // Open the tab synchronously within the click gesture so it isn't treated
+    // as a blocked popup once the async fetch resolves. Detach the opener for
+    // safety; we navigate it to the Blob URL after the receipt loads.
+    const win = typeof window !== "undefined" ? window.open("", "_blank") : null;
+    if (win) win.opener = null;
+
+    try {
+      const res = await fetch(`/api/licenses/${licenseId}/receipt`, {
+        headers: { "x-admin-password": password },
+      });
+
+      if (!res.ok) {
+        let msg = `Could not load receipt (${res.status}).`;
+        try {
+          const data = await res.json();
+          if (data?.error) msg = `${data.error} (${res.status})`;
+        } catch {
+          /* non-JSON error body — keep the generic message */
+        }
+        throw new Error(msg);
+      }
+
+      const html = await res.text();
+      const url  = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+
+      if (win) {
+        win.location.href = url;
+      } else {
+        // Popup was blocked — fall back to a transient anchor click.
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      // Revoke once the new tab has had time to parse the document.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e: any) {
+      win?.close();
+      setReceiptError((prev) => ({
+        ...prev,
+        [licenseId]: e?.message || "Could not load receipt.",
+      }));
+    } finally {
+      setReceiptBusy((b) => (b === licenseId ? null : b));
     }
   }
 
@@ -1325,21 +1388,34 @@ export default function AdminPage() {
                       }
                     />
                     <div className="md:col-span-2">
-                      <a
-                        href={
-                          project.license.pdf_url ??
-                          `/api/licenses/${project.license.id}/receipt`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
-                      >
-                        {project.license.pdf_url ? "View Receipt" : "View HTML Receipt"}
-                      </a>
-                      {!project.license.pdf_url && (
-                        <span className="text-neutral-500 text-[11px] ml-2">
-                          (HTML receipt)
-                        </span>
+                      {project.license.pdf_url ? (
+                        <a
+                          href={project.license.pdf_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2"
+                        >
+                          View Receipt
+                        </a>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => viewReceipt(project.license.id)}
+                            disabled={receiptBusy === project.license.id}
+                            className="text-orange-400 hover:text-orange-300 text-xs underline underline-offset-2 disabled:opacity-50 disabled:no-underline"
+                          >
+                            {receiptBusy === project.license.id ? "Loading receipt…" : "View Receipt"}
+                          </button>
+                          <span className="text-neutral-500 text-[11px] ml-2">
+                            (admin · HTML receipt)
+                          </span>
+                          {receiptError[project.license.id] && (
+                            <p className="text-rose-300/90 text-[11px] mt-1">
+                              {receiptError[project.license.id]}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
