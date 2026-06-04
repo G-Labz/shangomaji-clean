@@ -303,3 +303,61 @@ body > * { position: relative; z-index: 1; }
     min-height: 0;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   Phase 10J-I-R3-A.2 — Stage composition + canvas flow (additive).
+   Glow cuts / recessed bands / runway floor / edge feeds that dissolve the
+   inner-card feeling and make the Stage command the viewport. /admin/forge only.
+   ════════════════════════════════════════════════════════════════════ */
+@layer utilities {
+  /* Glow divider between Stage zones — replaces inner card borders. */
+  .glow-cut {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,197,24,0.34), rgba(240,112,48,0.26), rgba(245,197,24,0.34), transparent);
+    box-shadow: 0 0 16px -2px rgba(240,112,48,0.40);
+  }
+  /* Dimmed artwork scrim — keeps text readable as the cover bleeds down the Stage. */
+  .stage-scrim {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg,
+      rgba(13,9,8,0.50) 0%, rgba(13,9,8,0.72) 34%, rgba(13,9,8,0.85) 66%, rgba(13,9,8,0.96) 100%);
+  }
+  /* Stage edge feeds — Rail (left, ember) and Flow (right, verdict-tone set inline). */
+  .stage-edge-left, .stage-edge-right {
+    position: absolute; top: 0; bottom: 0; width: 72px; z-index: 1; pointer-events: none;
+  }
+  .stage-edge-left  { left: 0;  background: linear-gradient(90deg, rgba(240,112,48,0.13), transparent); }
+  .stage-edge-right { right: 0; }
+  /* Pressure Rail → Stage feed: ember bleed on the rail's right edge. */
+  .rail-feed {
+    position: absolute; top: 8%; bottom: 8%; right: -1px; width: 3px; border-radius: 9999px; pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(240,112,48,0.55), rgba(229,62,42,0.24), transparent);
+    box-shadow: 0 0 18px 1px rgba(240,112,48,0.22);
+  }
+  /* Proof plate — recessed band + gold stamp rim (instrument boundary, not a card). */
+  .proof-plate {
+    position: relative;
+    background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(0,0,0,0.16));
+    box-shadow: inset 0 1px 0 0 rgba(245,197,24,0.26), inset 0 16px 30px -24px rgba(0,0,0,0.80);
+  }
+  /* Launch Runway — recessed ignition floor. */
+  .runway-floor {
+    position: relative; overflow: hidden;
+    background: linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.46));
+    box-shadow: inset 0 1px 0 0 rgba(245,197,24,0.20), inset 0 30px 46px -34px rgba(0,0,0,0.92);
+  }
+  .runway-horizon {
+    position: absolute; top: 0; bottom: 0; right: 0; width: 26%; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(245,197,24,0.05));
+  }
+  .runway-horizon--public  { background: linear-gradient(90deg, transparent, rgba(52,211,153,0.18));  box-shadow: inset -44px 0 56px -42px rgba(52,211,153,0.70); }
+  .runway-horizon--flagged { background: linear-gradient(90deg, transparent, rgba(229,62,42,0.20));   box-shadow: inset -44px 0 56px -42px rgba(229,62,42,0.60); }
+  .runway-horizon--dark    { background: linear-gradient(90deg, transparent, rgba(0,0,0,0.55)); }
+  .runway-horizon--paused  { background: linear-gradient(90deg, transparent, rgba(139,143,152,0.12)); }
+  /* Flow conveyor track — cartridges seat on this spine instead of floating as cards. */
+  .conveyor-track {
+    position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(255,255,255,0.10) 10%, rgba(255,255,255,0.10) 90%, transparent);
+  }
+  .flow-shell { position: relative; transition: background .2s ease, box-shadow .25s ease; }
+}

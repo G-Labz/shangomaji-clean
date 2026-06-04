@@ -44,6 +44,7 @@ export function SealedRecord({
   onView,
   busy = false,
   error,
+  embedded = false,
   className = "",
 }: {
   licenseState: LicenseState;
@@ -57,6 +58,9 @@ export function SealedRecord({
   onView?: () => void;
   busy?: boolean;
   error?: string;
+  /** When true, drop the component's own card chrome — the parent (a proof
+   *  plate inside the Stage) provides the recessed band + gold rim. */
+  embedded?: boolean;
   className?: string;
 }) {
   const [copied, setCopied] = React.useState(false);
@@ -70,7 +74,7 @@ export function SealedRecord({
       ? "Immutable snapshot stored"
       : "Rebuilt from SDL-v1 registry";
     return (
-      <div className={`seal rounded-xl p-4 ${className}`}>
+      <div className={`${embedded ? "" : "seal rounded-xl p-4"} ${className}`}>
         <div className="flex items-start gap-3">
           <SealMark />
           <div className="min-w-0 flex-1">
@@ -119,7 +123,7 @@ export function SealedRecord({
   // ── Awaiting signature ─────────────────────────────────────────────────
   if (licenseState === "awaiting") {
     return (
-      <div className={`rounded-xl border border-state-held/25 bg-state-held/[0.06] p-4 ${className}`}>
+      <div className={`${embedded ? "" : "rounded-xl border border-state-held/25 bg-state-held/[0.06] p-4"} ${className}`}>
         <p className="text-sm font-medium text-state-held">Signature pending</p>
         <p className="mt-1 text-xs text-ink-faint">
           Awaiting the creator&apos;s signature on the Standard Distribution License. Activation is blocked
@@ -151,7 +155,7 @@ export function SealedRecord({
 
   // ── Legacy — activated before the license layer ────────────────────────
   return (
-    <div className={`rounded-xl border border-white/8 bg-white/[0.02] p-4 ${className}`}>
+    <div className={`${embedded ? "" : "rounded-xl border border-white/8 bg-white/[0.02] p-4"} ${className}`}>
       <p className="text-sm font-medium text-ink-muted">No license on file</p>
       <p className="mt-1 text-xs text-ink-faint">
         Legacy work — activated before the license layer. No receipt exists for this row.

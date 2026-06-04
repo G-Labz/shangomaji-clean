@@ -35,9 +35,9 @@ import {
   type VerdictTone,
 } from "@/lib/work-state";
 import {
-  Cartridge,
   Eyebrow,
   HeatBar,
+  LaunchRunway,
   OwnershipVerdict,
   PipelineRail,
   SealedRecord,
@@ -300,9 +300,10 @@ export default function AdminForgePreview() {
           {/* ── Pressure Rail ── */}
           <aside className="forge-ledger relative min-h-0 rounded-2xl p-4 xl:h-full xl:overflow-y-auto">
             <span className="absolute bottom-6 left-0 top-6 w-px heat-spine" aria-hidden />
+            <span className="rail-feed" aria-hidden />
             <Eyebrow>Operation pulse</Eyebrow>
             <div className="mt-1.5 flex items-baseline gap-2">
-              <span className="text-4xl leading-none text-state-move" style={{ fontFamily: "var(--font-display)" }}>{needsYou}</span>
+              <span className="text-4xl leading-none text-state-move storm-glow-text" style={{ fontFamily: "var(--font-display)" }}>{needsYou}</span>
               <span className="text-xs uppercase tracking-wider text-ink-faint">need you</span>
             </div>
             <p className="mt-1.5 text-xs text-ink-faint">
@@ -310,31 +311,41 @@ export default function AdminForgePreview() {
               <span className={finishing ? "text-state-held" : ""}>{finishing}</span> finishing
             </p>
 
-            <div className="forge-rim my-4" />
-            <button onClick={() => setFlowSource("needs_you")}
-              className={`mb-2 flex w-full items-center justify-between rounded-lg border-l-2 px-2 py-1.5 text-left transition ${flowSource === "needs_you" ? "border-state-move bg-state-move/10" : "border-transparent hover:bg-white/5"}`}>
-              <span className={`text-xs font-medium uppercase tracking-wider ${flowSource === "needs_you" ? "text-state-move" : "text-ink-muted"}`}>Needs you</span>
-              <span className="text-sm tabular-nums text-white">{needsYou}</span>
+            <div className="glow-cut my-4" />
+
+            {/* Needs-you gauge */}
+            <button onClick={() => setFlowSource("needs_you")} className="mb-3.5 block w-full text-left">
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-medium uppercase tracking-wider ${flowSource === "needs_you" ? "text-state-move" : "text-ink-muted"}`}>Needs you</span>
+                <span className="text-sm tabular-nums text-white">{needsYou}</span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="h-3 w-0.5 rounded-full" style={{ background: flowSource === "needs_you" ? "#f07030" : "rgba(255,255,255,0.12)", boxShadow: flowSource === "needs_you" ? "0 0 8px 0 rgba(240,112,48,0.7)" : undefined }} aria-hidden />
+                <HeatBar value={needsYou} max={Math.max(1, projects.length)} size="md" className="flex-1" />
+              </div>
             </button>
 
-            <div className="space-y-3">
+            {/* Category gauges */}
+            <div className="space-y-3.5">
               {RAIL.map((r) => {
                 const c = projects.filter(r.match).length;
                 const active = flowSource === r.key;
                 return (
-                  <button key={r.key} onClick={() => setFlowSource(r.key)}
-                    className={`block w-full rounded-lg border-l-2 px-2 py-1.5 text-left transition ${active ? "border-state-move bg-state-move/[0.07]" : "border-transparent hover:bg-white/[0.03]"}`}>
+                  <button key={r.key} onClick={() => setFlowSource(r.key)} className="block w-full text-left">
                     <div className="flex items-center justify-between">
                       <span className={`text-xs uppercase tracking-wider ${active ? "text-white" : "text-ink-muted"}`}>{r.label}</span>
                       <span className={`text-sm tabular-nums ${c ? "text-white" : "text-ink-faint"}`}>{c}</span>
                     </div>
-                    <HeatBar value={c} max={Math.max(1, projects.length)} size="md" className="mt-1.5" />
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="h-3 w-0.5 rounded-full" style={{ background: active ? "#f07030" : "rgba(255,255,255,0.12)", boxShadow: active ? "0 0 8px 0 rgba(240,112,48,0.7)" : undefined }} aria-hidden />
+                      <HeatBar value={c} max={Math.max(1, projects.length)} size="md" className="flex-1" />
+                    </div>
                   </button>
                 );
               })}
             </div>
 
-            <div className="forge-rim my-4" />
+            <div className="glow-cut my-4" />
             <button onClick={() => setFlowSource("all")}
               className={`text-[11px] uppercase tracking-wider transition ${flowSource === "all" ? "text-state-move" : "text-ink-faint hover:text-white"}`}>
               View all {projects.length} works
@@ -368,11 +379,12 @@ export default function AdminForgePreview() {
                 {flowSource === "needs_you" ? "Needs you" : flowSource === "all" ? "All" : RAIL.find((r) => r.key === flowSource)?.label} · {flow.length}
               </span>
             </div>
-            <div className="forge-scroll min-h-0 flex-1 space-y-2.5 pr-1">
+            <div className="forge-scroll relative min-h-0 flex-1 pr-1">
+              <span className="conveyor-track" aria-hidden />
               {flow.map((p, i) => (
                 <FlowCartridge key={p.id} work={p} rank={i} active={p.id === selected?.id} onClick={() => setSelectedId(p.id)} />
               ))}
-              {flow.length === 0 && <Cartridge className="p-4 text-center text-xs text-ink-faint">No works in this view.</Cartridge>}
+              {flow.length === 0 && <div className="ml-4 mt-3 text-center text-xs text-ink-faint">No works in this view.</div>}
             </div>
           </aside>
         </div>
@@ -419,24 +431,31 @@ export default function AdminForgePreview() {
 function FlowCartridge({ work, active, rank, onClick }: { work: WorkRow; active: boolean; rank: number; onClick: () => void }) {
   const v = ownershipVerdict(work, "admin");
   const isNext = rank === 0 && operatorPriorityRank(work) !== null;
+  const tone = TONE_HEX[v.tone];
   return (
     <button onClick={onClick} className="block w-full text-left">
-      <Cartridge className={`relative animate-flow-in overflow-hidden p-3.5 pl-4 transition ${active ? "ring-1 ring-state-move/70" : "hover:ring-1 hover:ring-white/15"}`}>
-        <span className="absolute inset-y-0 left-0 w-1" style={{ background: TONE_HEX[v.tone], opacity: active ? 0.95 : 0.6 }} aria-hidden />
+      <div
+        className={`flow-shell animate-flow-in ml-4 border-b border-white/[0.04] py-3 pl-4 pr-2 ${active ? "bg-white/[0.045]" : "hover:bg-white/[0.02]"}`}
+        style={active ? { boxShadow: `-14px 0 30px -12px ${tone}` } : undefined}
+      >
+        {/* node seated on the conveyor track + heat edge */}
+        <span className="absolute -left-[11px] top-1/2 h-2 w-2 -translate-y-1/2 rounded-full" style={{ background: tone, opacity: active ? 1 : 0.5, boxShadow: active ? `0 0 10px 0 ${tone}` : undefined }} aria-hidden />
+        <span className="absolute inset-y-0 left-0 w-0.5" style={{ background: tone, opacity: active ? 0.95 : 0.4 }} aria-hidden />
         <div className="flex items-center gap-3">
           <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm tabular-nums ${isNext ? "bg-state-move/15 text-state-move" : "bg-white/[0.04] text-ink-faint"}`}>{rank + 1}</span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="min-w-0 flex-1 truncate text-sm text-white">{work.title ?? "Untitled"}</p>
-              {isNext && <span className="shrink-0 rounded-full border border-state-move/45 bg-state-move/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-state-move">Next</span>}
+              {isNext && !active && <span className="shrink-0 rounded-full border border-state-move/45 bg-state-move/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-state-move">Next</span>}
+              {active && <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-state-move">▸ loaded</span>}
             </div>
             <p className="mt-0.5 truncate text-[11px] text-ink-faint">{work.creator_email ?? "—"}</p>
           </div>
         </div>
-        <div className="mt-2.5 pl-10">
+        <div className="mt-2 pl-10">
           <OwnershipVerdict verdict={v.verdict} tone={v.tone} line={v.line} audience="admin" size="chip" />
         </div>
-      </Cartridge>
+      </div>
     </button>
   );
 }
@@ -452,86 +471,80 @@ function CommandStage({
   const lstate = licenseState(work);
   const action = nextAction(work, "admin");
   const cover = (work.cover_image_url || work.banner_url || "").trim();
-  const liveish = work.status === "live" || work.status === "removal_requested";
-  const gates = [
-    { label: "Activated", ok: liveish },
-    { label: "Title active", ok: liveish && (!work.title_status || work.title_status === "active") },
-    { label: "Bunny bound", ok: !!work.bunny_video_id },
-    { label: "Media ready", ok: work.media_ready === true },
-  ];
+  const tone = TONE_HEX[v.tone];
 
   return (
     <Stage className="relative flex h-full min-h-[480px] flex-col overflow-hidden">
+      {/* Artwork backdrop bleed — dimmed + subordinate; fallback = forge bloom only */}
+      {cover && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={cover} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.16]" aria-hidden />
+      )}
+      {cover && <span className="stage-scrim" aria-hidden />}
       <span className="stage-bloom" aria-hidden />
-      <div className="forge-scroll relative min-h-0 flex-1">
-        {/* Identity band */}
-        <div className="relative">
-          {cover && (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />
-              <div className="absolute inset-0 bg-gradient-to-t from-forge-stage via-forge-stage/85 to-transparent" />
-            </>
-          )}
-          <div className="relative p-6 sm:p-8">
-            <Eyebrow>Selected work</Eyebrow>
-            <h2 className="mt-2 text-[clamp(2rem,3.4vw,3.75rem)] font-medium leading-[1.03] text-white storm-glow-text" style={{ fontFamily: "var(--font-display)" }}>
-              {work.title ?? "Untitled"}
-            </h2>
-            <p className="mt-2 text-sm text-ink-faint">{work.creator_email ?? "—"}{work.project_type ? ` · ${work.project_type}` : ""}</p>
-            <PipelineRail stage={stage} size="lg" showAllLabels className="mt-7 max-w-2xl" />
-          </div>
+      {/* Edge feeds: Rail (left, ember) + Flow (right, verdict tone) — Stage fed from both sides */}
+      <span className="stage-edge-left" aria-hidden />
+      <span className="stage-edge-right" aria-hidden style={{ background: `linear-gradient(270deg, ${tone}29, transparent)` }} />
+
+      <div className="forge-scroll relative z-10 flex h-full flex-col">
+        {/* ① Identity marquee (top-anchored) */}
+        <div className="shrink-0 p-6 pb-4 sm:p-8 sm:pb-5">
+          <Eyebrow>Selected work</Eyebrow>
+          <h2 className="mt-2 text-[clamp(2rem,3.4vw,3.75rem)] font-medium leading-[1.03] text-white storm-glow-text" style={{ fontFamily: "var(--font-display)" }}>
+            {work.title ?? "Untitled"}
+          </h2>
+          <p className="mt-2 text-sm text-ink-faint">{work.creator_email ?? "—"}{work.project_type ? ` · ${work.project_type}` : ""}</p>
         </div>
 
-        <div className="forge-rim mx-6 sm:mx-8" />
-
-        {/* Verdict + primary action */}
-        <div className="flex flex-wrap items-end justify-between gap-5 p-6 sm:p-8">
-          <OwnershipVerdict verdict={v.verdict} tone={v.tone} line={v.line} why={v.why} audience="admin" />
-          {action && (
-            <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
-              {action.emphasis === "quiet" ? (
-                <span className="rounded-xl border border-white/10 px-5 py-3 text-sm font-medium text-ink-muted">{action.label}</span>
-              ) : (
-                <Link href={action.href}
-                  className={action.emphasis === "primary"
-                    ? "rounded-xl bg-brand-gradient px-7 py-3.5 text-base font-semibold text-black shadow-ember-glow transition active:scale-95"
-                    : "rounded-xl border border-white/20 px-7 py-3.5 text-base font-medium text-white transition hover:bg-white/5"}>
-                  {action.label}
-                </Link>
-              )}
-              {action.emphasis !== "quiet" && <span className="text-[10px] uppercase tracking-wider text-ink-faint sm:text-right">Opens live Mission Control</span>}
-            </div>
-          )}
+        {/* ② Pipeline — thin lifecycle line (position only; distinct from the runway) */}
+        <div className="shrink-0 px-6 sm:px-8">
+          <PipelineRail stage={stage} size="md" showAllLabels className="max-w-2xl" />
         </div>
 
-        {/* Instrument deck */}
-        <div className="grid grid-cols-1 gap-4 px-6 pb-6 sm:px-8 sm:pb-8 lg:grid-cols-2">
-          <SealedRecord
-            licenseState={lstate} license={work.license} audience="admin"
-            onView={onViewReceipt} busy={receiptBusy} error={receiptError}
-            signingUrl={lstate === "awaiting" ? `/license/${work.id}` : undefined}
-          />
-          <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-            <div className="flex items-center justify-between">
-              <Eyebrow>Launch control</Eyebrow>
-              <span className={`text-[11px] uppercase tracking-wider ${publicDiagnostic(work).tone === "ready" ? "text-state-public" : "text-state-held"}`}>
-                {publicDiagnostic(work).label}
-              </span>
-            </div>
-            {liveish ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {gates.map((g) => (
-                  <span key={g.label}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] ${g.ok ? "border-state-public/30 bg-state-public/[0.06] text-state-public" : "border-state-move/40 bg-state-move/[0.06] text-state-move"}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${g.ok ? "bg-state-public" : "bg-state-move"}`} />{g.label}
-                  </span>
-                ))}
+        <div className="glow-cut mx-6 my-5 sm:mx-8" />
+
+        {/* ③ Verdict + primary action — floated at the optical center of gravity */}
+        <div className="relative flex flex-1 flex-col justify-center gap-4 px-6 py-2 sm:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <OwnershipVerdict verdict={v.verdict} tone={v.tone} line={v.line} why={v.why} audience="admin" />
+            {action && (
+              <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
+                {action.emphasis === "quiet" ? (
+                  <span className="rounded-xl border border-white/10 px-5 py-3 text-sm font-medium text-ink-muted">{action.label}</span>
+                ) : (
+                  <Link href={action.href}
+                    className={action.emphasis === "primary"
+                      ? "rounded-xl bg-brand-gradient px-7 py-3.5 text-base font-semibold text-black shadow-ember-glow transition active:scale-95"
+                      : "rounded-xl border border-white/20 px-7 py-3.5 text-base font-medium text-white transition hover:bg-white/5"}>
+                    {action.label}
+                  </Link>
+                )}
+                {action.emphasis !== "quiet" && <span className="text-[10px] uppercase tracking-wider text-ink-faint sm:text-right">Opens live Mission Control</span>}
               </div>
-            ) : (
-              <p className="mt-2 text-xs text-ink-faint">Not in distribution yet — gates open after activation.</p>
             )}
           </div>
+        </div>
+
+        <div className="glow-cut mx-6 my-5 sm:mx-8" />
+
+        {/* ④ Proof plate — embedded (no inner card; gold stamp rim = instrument boundary) */}
+        <div className="proof-plate shrink-0 px-6 py-4 sm:px-8">
+          <Eyebrow className="mb-2">Proof</Eyebrow>
+          {lstate === "not_required" ? (
+            <p className="text-xs text-ink-faint">No license at this stage — proof appears after approval and signing.</p>
+          ) : (
+            <SealedRecord
+              embedded
+              licenseState={lstate} license={work.license} audience="admin"
+              onView={onViewReceipt} busy={receiptBusy} error={receiptError}
+              signingUrl={lstate === "awaiting" ? `/license/${work.id}` : undefined}
+            />
+          )}
+        </div>
+
+        {/* ⑤ Launch Runway — recessed ignition floor (bottom-anchored mission floor) */}
+        <div className="shrink-0">
+          <LaunchRunway work={work} />
         </div>
       </div>
     </Stage>
