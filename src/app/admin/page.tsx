@@ -88,6 +88,9 @@ export default function AdminPage() {
   // there are still records to inspect.
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [selectedWorkId,        setSelectedWorkId]        = useState<string | null>(null);
+  // Phase 10J-I-B-R2-B — Mission Brief active tab (depth only; the command
+  // head + action dock stay fixed regardless of tab).
+  const [briefTab, setBriefTab] = useState<"decision" | "trust" | "readiness" | "history">("decision");
 
   // Lifecycle control busy flags (per-project, per-action)
   const [restoreBusy, setRestoreBusy] = useState<string | null>(null);
@@ -1311,122 +1314,135 @@ export default function AdminPage() {
     };
 
     return (
-      <div className="space-y-4">
-        {/* HEADER — title / creator / status (priority 1).
-            Phase 8 polish: stronger identity block with eyebrow, larger
-            title, and a clean meta line; the status badge + last-updated
-            stamp share a row so the panel reads as an authoritative
-            command surface rather than a stack of fields. */}
-        <div className="pb-3 border-b border-white/8">
-          <p className="text-[10px] uppercase tracking-[0.24em] text-orange-400/80 font-semibold mb-2">
-            Selected Work
-          </p>
-          <h2
-            className="text-2xl font-semibold text-white leading-tight"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            {project.title || "Untitled"}
-          </h2>
-          <p className="text-xs text-neutral-400 break-words mt-1.5">
-            {project.creator_email}
-            {project.project_type ? ` · ${project.project_type}` : ""}
-          </p>
-          <div className="flex items-center gap-2 flex-wrap mt-3">
-            <span
-              className={`text-[11px] px-2 py-0.5 rounded border ${
-                projectStatusColor[project.status] || "text-neutral-400"
-              }`}
-            >
-              {statusDisplay(project.status)}
-            </span>
-            <span className="text-neutral-600 text-[11px] tabular-nums">
-              Updated {new Date(project.updated_at).toLocaleDateString()}
-            </span>
-          </div>
-        </div>
-
-        {/* Phase 10J-I-B — WORK COMMAND PANEL. The decision header: status
-            truth, who owns the next move, why it's blocked/ready, the ONE
-            primary action, and receipt/license trust — all above the fold so
-            the operator never hunts. Replaces the old signal band; derives
-            from workCommand() (same gates as the rest of the dashboard). */}
+      <div className="flex flex-col min-h-0 h-full">
+        {/* ── FIXED COMMAND HEAD — Mission Brief + Action Dock (Phase 10J-I-B-R2-B).
+            The 7 on-select truths + the one primary action + receipt, pinned so
+            the operator never scrolls or opens a tab to command the work. The
+            tabs below are supporting depth only. */}
         {(() => {
           const cmd = workCommand(project);
-          const toneBox =
-            cmd.tone === "emerald" ? "border-emerald-500/30 bg-emerald-500/[0.06]"
-            : cmd.tone === "amber" ? "border-amber-500/30 bg-amber-500/[0.06]"
-            : cmd.tone === "blue"  ? "border-blue-500/30 bg-blue-500/[0.06]"
-            : cmd.tone === "red"   ? "border-red-500/30 bg-red-500/[0.06]"
-            : "border-white/10 bg-white/[0.03]";
-          const toneText =
-            cmd.tone === "emerald" ? "text-emerald-200"
-            : cmd.tone === "amber" ? "text-amber-200"
-            : cmd.tone === "blue"  ? "text-blue-200"
-            : cmd.tone === "red"   ? "text-red-200"
-            : "text-neutral-200";
-          const directive =
-            cmd.action === "review"  ? "Complete the review record below to approve"
-            : cmd.action === "media"   ? "Bind Bunny video + mark media ready below"
-            : cmd.action === "removal" ? "Approve or deny the removal request below"
-            : cmd.action === "restore" ? "Restore from internal hold below"
-            : null;
+          const vis = getPublicVisibilityDiagnostic(project);
+          const lst = licenseState(project);
           const hasReceipt = !!project.license?.id;
+
+          const stateChip =
+            cmd.tone === "emerald" ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
+            : cmd.tone === "amber" ? "border-amber-500/40 text-amber-300 bg-amber-500/10"
+            : cmd.tone === "blue"  ? "border-blue-500/40 text-blue-300 bg-blue-500/10"
+            : cmd.tone === "red"   ? "border-red-500/40 text-red-300 bg-red-500/10"
+            : "border-white/15 text-neutral-300 bg-white/5";
+          const visChip =
+            vis.tone === "ready" ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
+            : vis.tone === "rejected" ? "border-red-500/40 text-red-300 bg-red-500/10"
+            : vis.tone === "held" ? "border-amber-500/40 text-amber-300 bg-amber-500/10"
+            : "border-white/15 text-neutral-300 bg-white/5";
+          const lic =
+            lst === "executed" ? { cls: "border-emerald-500/40 text-emerald-300 bg-emerald-500/10", label: "Signed license ✓" }
+            : lst === "awaiting" ? { cls: "border-amber-500/40 text-amber-300 bg-amber-500/10", label: "Awaiting signature" }
+            : lst === "legacy_missing" ? { cls: "border-red-500/40 text-red-300 bg-red-500/10", label: "No license (legacy)" }
+            : { cls: "border-white/15 text-neutral-400 bg-white/5", label: "No license yet" };
+
+          const fire = { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" } as const;
+          const TABS = [["decision", "Decision"], ["trust", "Trust"], ["readiness", "Readiness"], ["history", "History"]] as const;
+
           return (
-            <div className={`rounded-lg border px-4 py-3.5 ${toneBox}`}>
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
-                  Command
-                </p>
-                {cmd.owner === "shangomaji" && (
-                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-300 bg-amber-500/10">Your move</span>
-                )}
-                {cmd.owner === "creator" && (
-                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/15 text-neutral-300 bg-white/5">Waiting on creator</span>
-                )}
-                {cmd.owner === "public" && (
-                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-300 bg-emerald-500/10">Live to public</span>
-                )}
-                {cmd.owner === "system" && (
-                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/15 text-neutral-400 bg-white/5">System hold</span>
-                )}
+            <div className="shrink-0 rounded-xl border border-white/12 bg-white/[0.035] p-4">
+              {/* Brief header — what / who / state truth */}
+              <p className="text-[10px] uppercase tracking-[0.24em] text-orange-400/80 font-semibold">Selected Work</p>
+              <h2 className="text-xl font-semibold text-white leading-tight mt-1" style={{ fontFamily: "var(--font-display)" }}>
+                {project.title || "Untitled"}
+              </h2>
+              <p className="text-[11px] text-neutral-500 break-words mt-0.5">
+                {project.creator_email}{project.project_type ? ` · ${project.project_type}` : ""}
+              </p>
+
+              <div className="flex items-center gap-2 flex-wrap mt-2.5">
+                <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${stateChip}`}>{cmd.headline}</span>
+                {cmd.owner === "shangomaji" && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-300 bg-amber-500/10">Your move</span>}
+                {cmd.owner === "creator"    && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/15 text-neutral-300 bg-white/5">Waiting on creator</span>}
+                {cmd.owner === "public"     && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-300 bg-emerald-500/10">Live to public</span>}
+                {cmd.owner === "system"     && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/15 text-neutral-400 bg-white/5">System hold</span>}
               </div>
 
-              <p className={`text-base font-semibold leading-snug mt-1 ${toneText}`}>
-                {cmd.headline}
-              </p>
-              {cmd.why && (
-                <p className="text-xs text-neutral-400 leading-relaxed mt-1">{cmd.why}</p>
-              )}
+              {cmd.why && <p className="text-xs text-neutral-400 leading-relaxed mt-2">{cmd.why}</p>}
 
-              <div className="flex items-center gap-2 flex-wrap mt-3">
+              {/* Trust + public-readiness — glanceable without a tab (reqs 6 & 7) */}
+              <div className="flex items-center gap-2 flex-wrap mt-2">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${lic.cls}`}>{lic.label}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${visChip}`}>Public: {vis.label}</span>
+              </div>
+
+              {/* ── ACTION DOCK — pinned; the one primary action + receipt, never in a tab ── */}
+              <div className="flex items-center gap-2 flex-wrap mt-3.5 pt-3 border-t border-white/10">
                 {cmd.action === "activate" && (
-                  <button
-                    onClick={() => confirmActivate(project)}
-                    className="px-3 py-1.5 rounded text-xs font-semibold text-black"
-                    style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
-                  >
+                  <button onClick={() => confirmActivate(project)} className="px-3.5 py-2 rounded-lg text-xs font-semibold text-black" style={fire}>
                     Activate distribution
                   </button>
                 )}
-                {directive && (
-                  <span className={`px-3 py-1.5 rounded text-xs font-medium border ${toneBox} ${toneText}`}>
-                    {directive}
-                  </span>
+                {cmd.action === "review" && (
+                  gate.approvalAllowed ? (
+                    <button onClick={() => updateProjectStatus(project.id, "approved")} className="px-3.5 py-2 rounded-lg text-xs font-semibold text-black" style={fire}>
+                      Approve work
+                    </button>
+                  ) : (
+                    <button onClick={() => setBriefTab("decision")} className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-amber-500/40 text-amber-300 bg-amber-500/10">
+                      Approve · {missingApprovalReqs.length > 0 ? `${missingApprovalReqs.length} items left` : "review needed"}
+                    </button>
+                  )
                 )}
-                {hasReceipt && (
-                  <button
-                    onClick={() => viewReceipt(project.license.id)}
-                    disabled={receiptBusy === project.license.id}
-                    className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-50"
-                  >
-                    {receiptBusy === project.license.id ? "Loading receipt…" : "✓ Signed license · View receipt"}
+                {cmd.action === "media" && (
+                  <button onClick={() => setBriefTab("readiness")} className="px-3.5 py-2 rounded-lg text-xs font-semibold text-black" style={fire}>
+                    Finish media setup
                   </button>
                 )}
+                {cmd.action === "removal" && (
+                  <button onClick={() => setBriefTab("decision")} className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-amber-500/40 text-amber-300 bg-amber-500/10">
+                    Review removal
+                  </button>
+                )}
+                {cmd.action === "restore" && (
+                  <button onClick={() => restoreFromArchive(project.id)} disabled={restoreBusy === project.id} className="px-3.5 py-2 rounded-lg text-xs font-semibold border border-white/20 text-white hover:bg-white/10 transition disabled:opacity-50">
+                    {restoreBusy === project.id ? "Restoring…" : "Restore from hold"}
+                  </button>
+                )}
+
+                {hasReceipt && (
+                  <button onClick={() => viewReceipt(project.license.id)} disabled={receiptBusy === project.license.id} className="px-3 py-2 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-50">
+                    {receiptBusy === project.license.id ? "Loading…" : "✓ View receipt"}
+                  </button>
+                )}
+
+                {cmd.action === "review" && (
+                  <button onClick={() => { setRejectingId(project.id); setRejectionInput(""); }} className="px-3 py-2 rounded-lg text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition">
+                    Reject
+                  </button>
+                )}
+              </div>
+
+              {/* ── TAB BAR — supporting depth only ── */}
+              <div className="flex items-center gap-1 mt-3.5 -mb-1">
+                {TABS.map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setBriefTab(key)}
+                    className={`px-3 py-1.5 text-[11px] font-medium rounded-t-md border-b-2 transition ${
+                      briefTab === key ? "text-white border-orange-500/70" : "text-neutral-500 hover:text-white border-transparent"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
           );
         })()}
 
+        {/* ── SCROLLING DEPTH BODY — only the active tab's content renders here.
+            The command head + dock above stay fixed. ── */}
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pt-4 pr-1">
+
+        {/* DECISION tab — authority context + review record + approve/reject controls. */}
+        {briefTab === "decision" && (<>
         {/* AUTHORITY BLOCKS (status-specific copy) */}
         {project.status === "removed" && (
           <div className="rounded-lg border border-red-500/40 bg-red-900/10 p-4">
@@ -1528,30 +1544,20 @@ export default function AdminPage() {
               hideForLegacyStates
             />
 
-            <div className="mt-4">
-              {renderLicenseCard(project)}
-            </div>
           </ExpandableSection>
         )}
+        </>)}
 
-        {/* LICENSE (terminal states) — the "Review Record & License" section above
-            does not render for archived / removal_requested / removed / draft works,
-            so surface the executed license + receipt here when one exists. Keeps the
-            review/approve controls out of terminal states while still showing the
-            signed receipt. View-only. */}
-        {project.license &&
-          project.status !== "pending" &&
-          project.status !== "in_review" &&
-          project.status !== "approved" &&
-          project.status !== "live" &&
-          project.status !== "rejected" && (
-            <div className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
-              {renderLicenseCard(project)}
-            </div>
-          )}
+        {/* TRUST tab — signed license / receipt intelligence for every state
+            (state-driven via renderLicenseCard). Receipt is also in the dock. */}
+        {briefTab === "trust" && (
+          <div className="rounded-lg border border-white/8 bg-white/[0.02] p-4">
+            {renderLicenseCard(project)}
+          </div>
+        )}
 
-        {/* MEDIA (priority 5) — live only */}
-        {project.status === "live" && (
+        {/* READINESS tab — media binding + public-visibility (live only). */}
+        {briefTab === "readiness" && project.status === "live" && (
           <ExpandableSection
             title="Media"
             summary={
@@ -1671,7 +1677,8 @@ export default function AdminPage() {
           </ExpandableSection>
         )}
 
-        {/* SUPPORTING DETAILS (priority 6) */}
+        {/* SUPPORTING DETAILS (priority 6) — Trust tab. */}
+        {briefTab === "trust" && (
         <ExpandableSection
           title="Supporting Details"
           summary={
@@ -1780,9 +1787,10 @@ export default function AdminPage() {
             </div>
           </div>
         </ExpandableSection>
+        )}
 
-        {/* STATE HISTORY (priority 7) */}
-        {Array.isArray(project.state_history) && project.state_history.length > 0 && (
+        {/* STATE HISTORY (priority 7) — History tab. */}
+        {briefTab === "history" && Array.isArray(project.state_history) && project.state_history.length > 0 && (
           <ExpandableSection
             title="State History"
             summary={`${project.state_history.length} event${
@@ -1794,8 +1802,8 @@ export default function AdminPage() {
           </ExpandableSection>
         )}
 
-        {/* Rejection input */}
-        {rejectingId === project.id && (
+        {/* Rejection input — Decision tab. */}
+        {briefTab === "decision" && rejectingId === project.id && (
           <div className="space-y-2">
             <p className="text-xs text-neutral-400">Rejection reason (required):</p>
             <textarea
@@ -1823,10 +1831,9 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ACTIONS ROW (priority 8) — Phase 8 polish: action area is
-            visually separated from record details by a thicker rule and
-            an "Actions" eyebrow so the controls read as a distinct
-            decision surface, not a continuation of fields. */}
+        {/* ACTIONS ROW (priority 8) — Decision tab. Detailed controls; the
+            primary action also lives in the pinned Action Dock above. */}
+        {briefTab === "decision" && (
         <div className="mt-2 pt-4 border-t border-white/10 flex items-center gap-2 flex-wrap">
           <span className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium mr-2">
             Actions
@@ -2110,6 +2117,8 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+        </div>
+        )}
         </div>
       </div>
     );
@@ -3019,7 +3028,7 @@ export default function AdminPage() {
                     return (
                       <button
                         key={p.id}
-                        onClick={() => { setSelectedWorkId(p.id); setExpandedProject(p.id); }}
+                        onClick={() => { setSelectedWorkId(p.id); setExpandedProject(p.id); setBriefTab("decision"); }}
                         className="w-full text-left flex items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04] transition px-3 py-2.5"
                       >
                         <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotCls}`} />
@@ -3236,6 +3245,7 @@ export default function AdminPage() {
                         onClick={() => {
                           setSelectedWorkId(project.id);
                           setExpandedProject(isExpanded ? null : project.id);
+                          setBriefTab("decision");
                         }}
                         className="w-full text-left flex items-start gap-3 px-4 py-3"
                       >
@@ -3324,7 +3334,7 @@ export default function AdminPage() {
 
               {/* RIGHT — command detail (desktop only) */}
               <aside className="hidden xl:block">
-                <div className="xl:sticky xl:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-7 max-h-[calc(100vh-7rem)] overflow-y-auto">
+                <div className="xl:sticky xl:top-24 rounded-xl border border-white/10 bg-white/[0.02] p-4 h-[calc(100vh-7rem)] flex flex-col overflow-hidden">
                   {selectedWork ? (
                     renderProjectDetail(selectedWork)
                   ) : (
