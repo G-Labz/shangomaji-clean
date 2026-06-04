@@ -179,3 +179,89 @@ body > * { position: relative; z-index: 1; }
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   Phase 10J-I-R3-A — Forge command surface system (additive).
+   The three surface classes that replace the generic dashboard "card":
+   Stage (hero), Cartridge (conveyor/track), Ledger (audit/archive). Plus
+   the Sealed Record and the Pipeline Rail node language. These sit on top
+   of the existing ember body atmosphere; nothing above is modified.
+   ════════════════════════════════════════════════════════════════════ */
+@layer utilities {
+  .forge-stage {
+    background-color: #160f0c;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow:
+      inset 0 1px 0 0 rgba(245, 197, 24, 0.16),
+      0 28px 70px -28px rgba(0, 0, 0, 0.85);
+  }
+  .forge-cartridge {
+    background-color: #14100e;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow:
+      inset 0 1px 0 0 rgba(245, 197, 24, 0.07),
+      0 12px 30px -22px rgba(0, 0, 0, 0.7);
+  }
+  .forge-ledger {
+    background-color: #0d0908;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  /* Warm gold hairline — a directional rim used to separate command zones. */
+  .forge-rim {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(245, 197, 24, 0.45),
+      rgba(240, 112, 48, 0.28),
+      transparent
+    );
+  }
+
+  /* Sealed Record — license/receipt presented as stamped, durable proof. */
+  .seal {
+    border: 1px solid rgba(245, 197, 24, 0.32);
+    box-shadow: inset 0 0 24px -12px rgba(245, 197, 24, 0.55);
+    background:
+      radial-gradient(130% 100% at 0% 0%, rgba(245, 197, 24, 0.07), transparent 62%),
+      #140f0a;
+  }
+
+  /* Pipeline Rail — illuminated lifecycle nodes. Forge-gold = travelled,
+     ember = now, amber-pulse = held, dim = ahead. */
+  .rail-node {
+    border-radius: 9999px;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .rail-node--done {
+    background-color: #f5c518;
+    box-shadow: 0 0 8px -2px rgba(245, 197, 24, 0.6);
+  }
+  .rail-node--now {
+    background-color: #f07030;
+    box-shadow: 0 0 16px -1px rgba(240, 112, 48, 0.85);
+  }
+  .rail-node--held {
+    background-color: #f5c518;
+    animation: node-pulse 2.4s ease-in-out infinite;
+  }
+  .rail-node--future {
+    background-color: rgba(255, 255, 255, 0.14);
+  }
+  .rail-node--terminal {
+    background-color: #e53e2a;
+    box-shadow: 0 0 8px -2px rgba(229, 62, 42, 0.5);
+  }
+  .rail-seg {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .rail-seg--done {
+    background: linear-gradient(90deg, rgba(245, 197, 24, 0.55), rgba(240, 112, 48, 0.45));
+  }
+}
+
+@keyframes node-pulse {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%      { opacity: 0.5;  transform: scale(0.8); }
+}
