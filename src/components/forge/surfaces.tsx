@@ -53,11 +53,12 @@ export function Eyebrow({ children, className = "" }: { children: React.ReactNod
  * lifecycle stage. `value` is the count; `max` scales the fill. Zero pressure
  * reads as a dim hairline rather than an empty void.
  */
-export function HeatBar({ value, max, className = "" }: { value: number; max: number; className?: string }) {
+export function HeatBar({ value, max, size = "sm", className = "" }: { value: number; max: number; size?: "sm" | "md"; className?: string }) {
   const ratio = max > 0 ? Math.min(1, value / max) : 0;
   const pct = value > 0 ? Math.max(0.12, ratio) * 100 : 0;
+  const h = size === "md" ? "h-1.5" : "h-1";
   return (
-    <div className={`h-1 w-full overflow-hidden rounded-full bg-white/[0.06] ${className}`}>
+    <div className={`${h} w-full overflow-hidden rounded-full bg-white/[0.06] ${className}`}>
       <div
         className="h-full rounded-full"
         style={{

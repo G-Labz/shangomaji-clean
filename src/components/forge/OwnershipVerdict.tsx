@@ -67,19 +67,20 @@ export function OwnershipVerdict({
     );
   }
 
+  const warmGlow = tone === "move" || tone === "held" || tone === "terminal" ? "storm-glow-text" : "";
   return (
     <div className={className}>
-      <div className="flex items-center gap-2.5">
-        <span className={`h-2.5 w-2.5 rounded-full ${TONE_DOT[tone]} ${moveGlow}`} />
+      <div className="flex items-center gap-3">
+        <span className={`h-3.5 w-3.5 rounded-full ${TONE_DOT[tone]} ${moveGlow}`} />
         <span
-          className={`text-2xl uppercase tracking-[0.12em] ${TONE_TEXT[tone]}`}
+          className={`text-[clamp(1.6rem,2.4vw,2.6rem)] uppercase leading-none tracking-[0.12em] ${TONE_TEXT[tone]} ${warmGlow}`}
           style={{ fontFamily: "var(--font-display)" }}
         >
           {caps}
         </span>
       </div>
-      <p className="mt-1.5 text-sm text-ink-muted">{line}</p>
-      {why && <p className="mt-1 text-xs leading-relaxed text-ink-faint">{why}</p>}
+      <p className="mt-2 text-base text-ink-muted">{line}</p>
+      {why && <p className="mt-1 text-sm leading-relaxed text-ink-faint">{why}</p>}
     </div>
   );
 }

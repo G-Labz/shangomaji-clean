@@ -39,11 +39,11 @@ export function PipelineRail({
 }: {
   stage: PipelineStage;
   orientation?: "horizontal" | "vertical";
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
   showAllLabels?: boolean;
   className?: string;
 }) {
-  const dot = size === "md" ? "h-3 w-3" : "h-2 w-2";
+  const dot = size === "lg" ? "h-4 w-4" : size === "md" ? "h-3 w-3" : "h-2 w-2";
   const segDone = (i: number) => i < stage.activeIndex && !stage.terminal;
 
   if (orientation === "vertical") {
