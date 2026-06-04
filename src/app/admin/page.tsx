@@ -1145,9 +1145,6 @@ export default function AdminPage() {
       }
     }
 
-    const next        = adminNextAction(project);
-    const nextEmerald = classifyBucket(project) === "public_ready";
-
     // Phase 10J-F.2 — license intelligence card. State-driven and not tied to
     // project status, so an executed license (and its receipt) is visible no
     // matter where the work is in its lifecycle. Every state explains what it
@@ -1348,32 +1345,87 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* OPERATIONAL SIGNAL BAND — public visibility + next required
-            action grouped together at the top for fast scan. */}
-        <div className="space-y-2">
-          <PublicVisibilityRow project={project} />
+        {/* Phase 10J-I-B — WORK COMMAND PANEL. The decision header: status
+            truth, who owns the next move, why it's blocked/ready, the ONE
+            primary action, and receipt/license trust — all above the fold so
+            the operator never hunts. Replaces the old signal band; derives
+            from workCommand() (same gates as the rest of the dashboard). */}
+        {(() => {
+          const cmd = workCommand(project);
+          const toneBox =
+            cmd.tone === "emerald" ? "border-emerald-500/30 bg-emerald-500/[0.06]"
+            : cmd.tone === "amber" ? "border-amber-500/30 bg-amber-500/[0.06]"
+            : cmd.tone === "blue"  ? "border-blue-500/30 bg-blue-500/[0.06]"
+            : cmd.tone === "red"   ? "border-red-500/30 bg-red-500/[0.06]"
+            : "border-white/10 bg-white/[0.03]";
+          const toneText =
+            cmd.tone === "emerald" ? "text-emerald-200"
+            : cmd.tone === "amber" ? "text-amber-200"
+            : cmd.tone === "blue"  ? "text-blue-200"
+            : cmd.tone === "red"   ? "text-red-200"
+            : "text-neutral-200";
+          const directive =
+            cmd.action === "review"  ? "Complete the review record below to approve"
+            : cmd.action === "media"   ? "Bind Bunny video + mark media ready below"
+            : cmd.action === "removal" ? "Approve or deny the removal request below"
+            : cmd.action === "restore" ? "Restore from internal hold below"
+            : null;
+          const hasReceipt = !!project.license?.id;
+          return (
+            <div className={`rounded-lg border px-4 py-3.5 ${toneBox}`}>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
+                  Command
+                </p>
+                {cmd.owner === "shangomaji" && (
+                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-300 bg-amber-500/10">Your move</span>
+                )}
+                {cmd.owner === "creator" && (
+                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/15 text-neutral-300 bg-white/5">Waiting on creator</span>
+                )}
+                {cmd.owner === "public" && (
+                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-500/40 text-emerald-300 bg-emerald-500/10">Live to public</span>
+                )}
+                {cmd.owner === "system" && (
+                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/15 text-neutral-400 bg-white/5">System hold</span>
+                )}
+              </div>
 
-          {next && (
-            <div
-              className={`rounded-md border px-3 py-2 ${
-                nextEmerald
-                  ? "border-emerald-500/30 bg-emerald-500/[0.06]"
-                  : "border-amber-500/30 bg-amber-500/[0.06]"
-              }`}
-            >
-              <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium mb-0.5">
-                Next required action
+              <p className={`text-base font-semibold leading-snug mt-1 ${toneText}`}>
+                {cmd.headline}
               </p>
-              <p
-                className={`text-sm leading-snug ${
-                  nextEmerald ? "text-emerald-200" : "text-amber-200"
-                }`}
-              >
-                {next}
-              </p>
+              {cmd.why && (
+                <p className="text-xs text-neutral-400 leading-relaxed mt-1">{cmd.why}</p>
+              )}
+
+              <div className="flex items-center gap-2 flex-wrap mt-3">
+                {cmd.action === "activate" && (
+                  <button
+                    onClick={() => confirmActivate(project)}
+                    className="px-3 py-1.5 rounded text-xs font-semibold text-black"
+                    style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
+                  >
+                    Activate distribution
+                  </button>
+                )}
+                {directive && (
+                  <span className={`px-3 py-1.5 rounded text-xs font-medium border ${toneBox} ${toneText}`}>
+                    {directive}
+                  </span>
+                )}
+                {hasReceipt && (
+                  <button
+                    onClick={() => viewReceipt(project.license.id)}
+                    disabled={receiptBusy === project.license.id}
+                    className="px-3 py-1.5 rounded text-xs font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition disabled:opacity-50"
+                  >
+                    {receiptBusy === project.license.id ? "Loading receipt…" : "✓ Signed license · View receipt"}
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* AUTHORITY BLOCKS (status-specific copy) */}
         {project.status === "removed" && (
@@ -2931,6 +2983,65 @@ export default function AdminPage() {
               a baseline, and the active tile uses a calm ring rather
               than a louder fill so the deck reads as command indicators
               rather than competing buttons. */}
+          {/* Phase 10J-I-B — TODAY'S PRIORITY lane. The works that need an
+              operator decision right now (ShangoMaji owns the next move),
+              ranked by urgency. Click a row to open it in the command panel.
+              Pure triage over existing data — no new state, no bucket change. */}
+          {!projectLoading && (() => {
+            const priority = projectList
+              .map((p: any) => ({ p, rank: operatorPriorityRank(p) }))
+              .filter((x) => x.rank !== null)
+              .sort(
+                (a, b) =>
+                  (a.rank! - b.rank!) ||
+                  (new Date(a.p.updated_at).getTime() - new Date(b.p.updated_at).getTime())
+              )
+              .slice(0, 5);
+            if (priority.length === 0) return null;
+            return (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-neutral-500 font-medium">
+                    Today’s priority
+                  </span>
+                  <span className="text-[10px] text-neutral-600">
+                    {priority.length} awaiting your move
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {priority.map(({ p }: { p: any }) => {
+                    const cmd = workCommand(p);
+                    const dotCls =
+                      cmd.tone === "emerald" ? "bg-emerald-400"
+                      : cmd.tone === "blue"   ? "bg-blue-300"
+                      : cmd.tone === "red"    ? "bg-red-400"
+                      : "bg-amber-400";
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSelectedWorkId(p.id); setExpandedProject(p.id); }}
+                        className="w-full text-left flex items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04] transition px-3 py-2.5"
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${dotCls}`} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[13px] text-white font-medium truncate">
+                            {p.title || "Untitled"}
+                          </span>
+                          <span className="block text-[11px] text-neutral-500 truncate">
+                            {cmd.headline}
+                          </span>
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wider text-amber-300/80 shrink-0">
+                          Your move →
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {!projectLoading && totalProjects > 0 && (
             <>
               <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
@@ -3435,26 +3546,87 @@ function getPublicVisibilityDiagnostic(p: any): PublicVisibilityDiagnostic {
   return { label: "Held — unknown state",                       tone: "held" };
 }
 
-function PublicVisibilityRow({ project }: { project: any }) {
-  const d = getPublicVisibilityDiagnostic(project);
-  const cls =
-    d.tone === "ready"
-      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-      : d.tone === "rejected"
-      ? "bg-red-500/15 text-red-300 border-red-500/40"
-      : d.tone === "held"
-      ? "bg-yellow-500/15 text-yellow-300 border-yellow-500/30"
-      : "bg-white/5 text-neutral-300 border-white/15";
-  return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-[11px] uppercase tracking-widest text-neutral-500">
-        Public visibility:
-      </span>
-      <span className={`text-[11px] px-2 py-0.5 rounded border ${cls}`}>
-        {d.label}
-      </span>
-    </div>
-  );
+// ── Phase 10J-I-B — Work command model ────────────────────────────────────
+//
+// Single source for the selected-work command panel and the Today's Priority
+// lane. Derives the four things an operator needs at a glance — status truth,
+// who owns the next move, why it's blocked/ready, and the one primary action —
+// from the SAME helpers the rest of the dashboard already uses
+// (getPublicVisibilityDiagnostic, the license row). No new data, no taxonomy
+// change; this is presentation over existing truth.
+
+type CommandTone  = "emerald" | "amber" | "blue" | "red" | "neutral";
+type CommandOwner = "creator" | "shangomaji" | "public" | "system" | "none";
+type CommandAction = "activate" | "review" | "media" | "removal" | "restore" | "none";
+
+function workCommand(p: any): {
+  headline: string;
+  tone:     CommandTone;
+  owner:    CommandOwner;
+  why:      string | null;
+  action:   CommandAction;
+} {
+  const s = p?.status;
+  if (s === "pending" || s === "in_review") {
+    return {
+      headline: "Awaiting review decision",
+      tone: "blue", owner: "shangomaji",
+      why: "Complete the review record below, then approve or reject.",
+      action: "review",
+    };
+  }
+  if (s === "approved") {
+    if (!p?.license) {
+      return {
+        headline: "Awaiting creator signature",
+        tone: "amber", owner: "creator",
+        why: "The creator must sign the Standard Distribution License before activation.",
+        action: "none",
+      };
+    }
+    return {
+      headline: "Signed — ready to activate",
+      tone: "emerald", owner: "shangomaji",
+      why: null, action: "activate",
+    };
+  }
+  if (s === "live") {
+    const d = getPublicVisibilityDiagnostic(p);
+    if (d.tone === "ready") {
+      return { headline: "Live · Publicly visible", tone: "emerald", owner: "public", why: null, action: "none" };
+    }
+    return {
+      headline: d.label, // e.g. "Held — Bunny video missing"
+      tone: "amber", owner: "shangomaji",
+      why: "Bind a Bunny video and mark media ready to make this public.",
+      action: "media",
+    };
+  }
+  if (s === "removal_requested") {
+    return {
+      headline: "Removal request — decide",
+      tone: "amber", owner: "shangomaji",
+      why: "Approve to remove from distribution, or deny to keep it live.",
+      action: "removal",
+    };
+  }
+  if (s === "removed")  return { headline: "Removed from distribution", tone: "red", owner: "none", why: null, action: "none" };
+  if (s === "rejected") return { headline: "Not approved",              tone: "red", owner: "none", why: null, action: "none" };
+  if (s === "archived") return { headline: "Internal hold",             tone: "neutral", owner: "system", why: null, action: "restore" };
+  if (s === "draft")    return { headline: "Draft — not submitted",     tone: "neutral", owner: "creator", why: null, action: "none" };
+  return { headline: String(s ?? "—"), tone: "neutral", owner: "none", why: null, action: "none" };
+}
+
+// Works that need an OPERATOR decision now (ShangoMaji owns the next move).
+// Lower rank = more urgent. Null = not an operator priority (waiting on the
+// creator, already public, or terminal). Drives the Today's Priority lane.
+function operatorPriorityRank(p: any): number | null {
+  const s = p?.status;
+  if (s === "removal_requested") return 0;                  // time-sensitive teardown
+  if (s === "pending" || s === "in_review") return 1;       // unblocks the funnel
+  if (s === "approved" && p?.license) return 2;             // one-click activation
+  if (s === "live" && getPublicVisibilityDiagnostic(p).tone === "held") return 3; // finish to go public
+  return null;
 }
 
 // ── Phase 7.2: Mission Control bucket classification ─────────────────
