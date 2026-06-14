@@ -461,7 +461,7 @@ function CreatorTitleFallback({ slug }: { slug: string }) {
                   className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl text-xs uppercase tracking-widest"
                   style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.06)" }}
                 >
-                  Coming soon
+                  Preparing for release
                 </span>
                 <FollowUpdatesButton slug={title.slug} />
               </>

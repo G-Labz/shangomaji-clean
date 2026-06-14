@@ -189,17 +189,17 @@ export default function BrowsePage() {
                 className="text-xs uppercase tracking-[0.25em] mb-4"
                 style={{ color: "rgba(240,112,48,0.7)" }}
               >
-                Catalog
+                The collection
               </p>
               <h2 className="text-display font-bold text-2xl md:text-3xl text-white tracking-tight mb-3">
-                The catalog is being prepared.
+                The collection is forming.
               </h2>
               <p
                 className="text-base leading-relaxed mx-auto max-w-xl"
                 style={{ color: "rgba(255,255,255,0.55)" }}
               >
-                Approved works will appear here once they are licensed and ready
-                for distribution.
+                Worlds are being prepared for release. What arrives here is
+                chosen, not uploaded.
               </p>
             </motion.div>
           ) : (

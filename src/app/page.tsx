@@ -128,14 +128,19 @@ export default function HomePage() {
                 className="text-xs uppercase tracking-[0.25em] mb-4"
                 style={{ color: "rgba(240,112,48,0.7)" }}
               >
-                Catalog
+                Launch preparation
               </p>
               <h1 className="text-display font-bold text-3xl md:text-4xl text-white tracking-tight mb-4">
-                The catalog is being prepared.
+                ShangoMaji is getting ready to launch
               </h1>
+              <p className="text-base leading-relaxed mb-4" style={{ color: "rgba(255,255,255,0.55)" }}>
+                We are onboarding creators and preparing the first worlds for
+                release. The collection is intentionally small while launch
+                preparations continue.
+              </p>
               <p className="text-base leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-                Approved works will appear here once they are licensed and ready
-                for distribution.
+                What arrives here is chosen, not uploaded. You are early to
+                something intentional.
               </p>
             </div>
           </div>
