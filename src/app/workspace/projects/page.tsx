@@ -48,7 +48,7 @@ function matchesFilter(status: string, filter: FilterKey): boolean {
 }
 
 const EMPTY_HEADINGS: Record<FilterKey, string> = {
-  all:      "Your catalog is empty.",
+  all:      "No worlds yet.",
   live:     "No live works.",
   pending:  "No works awaiting review.",
   draft:    "No drafts.",
@@ -303,18 +303,18 @@ export default function WorkspaceProjects() {
             className="font-bold text-2xl text-white tracking-tight"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            My Works
+            All worlds
           </h1>
           <p className="text-ink-faint text-sm mt-1">
-            Submit, track, and manage your catalog.
+            Every world in your studio.
           </p>
         </div>
         <Link
           href="/workspace/projects/new"
-          className="self-start md:self-auto px-4 py-2 rounded-xl text-black font-semibold text-sm transition-all active:scale-95"
-          style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
+          className="self-start md:self-auto inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium border transition"
+          style={{ borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)", background: "rgba(255,255,255,0.03)" }}
         >
-          New Work
+          Begin a world
         </Link>
       </div>
 
@@ -390,14 +390,14 @@ export default function WorkspaceProjects() {
           {filter === "all" && (
             <>
               <p className="text-ink-faint text-sm mt-2">
-                Submit your first work to begin distribution.
+                Begin your first world to bring it to ShangoMaji.
               </p>
               <Link
                 href="/workspace/projects/new"
-                className="inline-block mt-5 px-4 py-2 rounded-xl text-black font-semibold text-sm transition-all active:scale-95"
-                style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
+                className="inline-flex items-center mt-5 px-4 py-2 rounded-xl text-sm font-medium border transition"
+                style={{ borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)", background: "rgba(255,255,255,0.03)" }}
               >
-                New Work
+                Begin a world
               </Link>
             </>
           )}
@@ -517,7 +517,6 @@ function WorkCatalogCard({
 }) {
   const isLive            = project.status === "live";
   const isDraft           = project.status === "draft";
-  const isApproved        = project.status === "approved";
   const isRejected        = project.status === "rejected";
   const licenseExecuted   = project.license_status === "executed";
   const canDelete         = isDraft || isRejected;
@@ -530,13 +529,7 @@ function WorkCatalogCard({
   return (
     <div className="group flex flex-col gap-3">
       <Link
-        href={
-          isDraft || isRejected
-            ? `/workspace/projects/${project.id}/edit`
-            : (isApproved || isLive)
-              ? `/workspace/projects/${project.id}/media`
-              : `/workspace/projects/${project.id}/edit`
-        }
+        href={`/workspace/projects/${project.id}`}
         className="block transition-[border-color,filter] rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white/30"
       >
         <WorkPoster
@@ -589,7 +582,7 @@ function WorkCatalogCard({
             }
             style={
               action.emphasis === "amber"
-                ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                ? { background: "#E0763A" }
                 : undefined
             }
           >
@@ -606,7 +599,7 @@ function WorkCatalogCard({
             }
             style={
               action.emphasis === "amber"
-                ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                ? { background: "#E0763A" }
                 : undefined
             }
           >

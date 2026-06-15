@@ -15,18 +15,18 @@ function resolveRoute(pathname: string): RouteConfig {
   // /workspace/projects/[id]/edit
   if (/^\/workspace\/projects\/[^/]+\/edit$/.test(pathname)) {
     return {
-      label: "Edit Work",
+      label: "Edit world",
       parent: "/workspace/projects",
-      parentLabel: "Works",
+      parentLabel: "Worlds",
       primaryAction: null,
     };
   }
   // /workspace/projects/new
   if (pathname === "/workspace/projects/new") {
     return {
-      label: "New Work",
+      label: "Begin a world",
       parent: "/workspace/projects",
-      parentLabel: "Works",
+      parentLabel: "Worlds",
       primaryAction: null,
     };
   }
@@ -45,10 +45,10 @@ function resolveRoute(pathname: string): RouteConfig {
       primaryAction: null,
     },
     "/workspace/projects": {
-      label: "Works",
+      label: "Worlds",
       parent: "/workspace",
       parentLabel: "Studio",
-      primaryAction: { label: "+ New Work", href: "/workspace/projects/new" },
+      primaryAction: { label: "Begin a world", href: "/workspace/projects/new" },
     },
     "/workspace/media": {
       label: "Media",
@@ -61,7 +61,7 @@ function resolveRoute(pathname: string): RouteConfig {
       // to choose an existing work whose Media Package they want to
       // open. The list page surfaces "Manage Media Package" / "View
       // Media Package" inline per work.
-      primaryAction: { label: "Choose Work for Media", href: "/workspace/projects" },
+      primaryAction: { label: "Choose a world", href: "/workspace/projects" },
     },
     "/workspace/settings": {
       label: "Settings",
@@ -169,12 +169,13 @@ export default function WorkspaceShell({ children }: { children: React.ReactNode
                 gap: 6,
                 padding: "8px 16px",
                 borderRadius: 10,
-                background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
-                color: "black",
+                background: "rgba(255,255,255,0.04)",
+                color: "rgba(255,255,255,0.85)",
                 fontWeight: 600,
                 fontSize: 13,
                 textDecoration: "none",
-                transition: "opacity 0.15s",
+                border: "1px solid rgba(255,255,255,0.15)",
+                transition: "background 0.15s, border-color 0.15s",
               }}
             >
               {route.primaryAction.label}

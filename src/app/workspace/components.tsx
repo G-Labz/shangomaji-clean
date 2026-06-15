@@ -367,7 +367,9 @@ export function GradientButton({
   const baseClasses =
     "px-4 py-2 rounded-xl text-black font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed";
 
-  const style = { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" } as const;
+  // Phase 11A-R2-1 — Studio brand correction: the primary action is the single
+  // warm Signal accent (ShangoMaji editorial), not the parent-studio gradient.
+  const style = { background: "#E0763A" } as const;
 
   if (href) {
     return (
