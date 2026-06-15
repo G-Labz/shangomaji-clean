@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 // controlled presentation motion is used (founder-approved): a subtle
 // resolve-into-focus on the mark (opacity + a small vertical settle + blur
 // clearing), then the dark ground clears to reveal the homepage. The mark is
-// sized to dominate the opening frame and the beat runs ~3.5s.
+// sized to dominate the opening frame and the beat runs ~2.7s.
 //
 // No scale, no spin, no particles, no excessive glow, no Forge ignition, and
 // no underline/bar that could read as a loader.
@@ -19,15 +19,16 @@ import { useEffect, useState } from "react";
 // Colors are the exact ShangoMaji Ember Spectrum v1 brand-kit values.
 const SESSION_KEY = "sm:ident:v1";
 
-// Timeline — a deliberate arrival beat (~3.5s total), not a blink.
-const REVEAL_MS = 900; // subtle resolve-in of the mark
-const HOLD_MS = 2000; // static authority hold — the arrival beat
-const CLEAR_MS = 600; // ground fade-out into the homepage
+// Timeline — a deliberate but tighter arrival beat (~2.7s total), not a blink.
+const REVEAL_MS = 1000; // smooth resolve-in of the mark
+const HOLD_MS = 1150; // static authority hold — the arrival beat
+const CLEAR_MS = 550; // ground fade-out into the homepage
 
 // ShangoMaji Ember Spectrum v1 (exact brand-kit values).
 const VOID_BLACK = "#000000"; // foundation / cinematic stage
 const CHARCOAL = "#111111"; // secondary dark surface
-const EASE = "cubic-bezier(0.25,0.46,0.45,0.94)";
+// Soft, gently decelerating ease for a premium resolve (no abrupt arrival).
+const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 export function TitleCardIdent() {
   const [show, setShow] = useState(false);
