@@ -94,9 +94,9 @@ export default function WorkspacePage() {
     return null;
   })();
 
-  // Recent works — already sorted by updated_at desc on the API. Cap at
-  // four for the strip. Hidden states (archived) already filtered.
-  const recent = projects?.slice(0, 4) ?? [];
+  // Your worlds — already sorted by updated_at desc on the API; archived
+  // already filtered. Each card opens its Studio Desk.
+  const worlds = projects ?? [];
 
   return (
     <div className="space-y-12 pb-12">
@@ -109,21 +109,17 @@ export default function WorkspacePage() {
           Creator Studio
         </h1>
         <p className="text-ink-faint text-sm mt-2">
-          Your catalog and distribution room.
+          Where your worlds become ready for ShangoMaji.
         </p>
       </header>
 
-      {/* Catalog pulse — three large numerics. Restrained type, generous
-          spacing; no chart, no badge. Bordered top/bottom to read as a
-          studio status readout, not a card. */}
-      <section
-        aria-label="Catalog pulse"
-        className="grid grid-cols-3 gap-x-6 gap-y-4 border-y border-white/8 py-8"
-      >
-        <PulseStat label="LIVE"      value={pulse?.live} />
-        <PulseStat label="IN REVIEW" value={pulse?.inReview} />
-        <PulseStat label="DRAFTS"    value={pulse?.drafts} />
-      </section>
+      {/* Catalog summary — demoted to a single quiet line. No vanity
+          numerics; hidden until there is at least one world. */}
+      {pulse && totalShown > 0 && (
+        <p className="text-sm text-ink-faint">
+          {pulse.live} live · {pulse.inReview} in review · {pulse.drafts} in draft
+        </p>
+      )}
 
       {/* Primary action row — operational center of the studio.
           New Work is the accent action; Manage Works and Media Library
@@ -168,22 +164,21 @@ export default function WorkspacePage() {
         )}
       </section>
 
-      {/* Recent works strip — same poster-led visual language as My
-          Works, scaled compact. Hidden when the catalog is empty. */}
-      {recent.length > 0 && (
+      {/* Your worlds — each card opens its Studio Desk. */}
+      {worlds.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-end justify-between gap-3">
             <h2
               className="text-white text-lg font-semibold tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Recent works
+              Your worlds
             </h2>
             <Link
               href="/workspace/projects"
               className="text-xs text-ink-faint hover:text-white transition"
             >
-              View all →
+              Manage all →
             </Link>
           </div>
 
@@ -194,32 +189,58 @@ export default function WorkspacePage() {
                 "repeat(auto-fill, minmax(min(100%, 200px), 240px))",
             }}
           >
-            {recent.map((p) => (
+            {worlds.map((p) => (
               <RecentWorkTile key={p.id} project={p} />
             ))}
           </div>
         </section>
       )}
 
-      {/* Empty catalog — strong copy invitation. Pulse above still shows
-          zeros so creators see the system is responsive. */}
+      {/* First-time studio — a prepared desk, not an empty dashboard. Shows
+          the path ahead and what will be prepared, then one clear action. */}
       {isEmpty && !failed && (
-        <section className="border-y border-white/8 py-14">
-          <p
-            className="text-white text-2xl"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Your catalog is empty.
-          </p>
-          <p className="text-ink-faint text-sm mt-2 max-w-md">
-            Submit your first work to begin distribution.
-          </p>
+        <section className="space-y-6 border-y border-white/8 py-12">
+          <div className="max-w-xl">
+            <p className="text-white text-2xl" style={{ fontFamily: "var(--font-display)" }}>
+              This is where your first world becomes ready.
+            </p>
+            <p className="text-ink-faint text-sm mt-2">
+              ShangoMaji prepares each world for review, licensing, and distribution.
+              Here is the path ahead, and what you&rsquo;ll prepare to begin.
+            </p>
+          </div>
+
+          {/* The path ahead */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {["Draft", "Submitted", "In review", "Approved", "Signed", "Public"].map((s, i, arr) => (
+              <span key={s} className="flex items-center gap-1.5">
+                <span className="text-[11px] text-ink-muted">{s}</span>
+                {i < arr.length - 1 && <span className="text-white/15 text-[11px]">→</span>}
+              </span>
+            ))}
+          </div>
+
+          {/* What you'll prepare */}
+          <div className="max-w-md">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-muted mb-2">
+              What you&rsquo;ll prepare
+            </p>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-white/70">
+              <li>Thesis declaration</li>
+              <li>Rights attestation</li>
+              <li>Collaborator disclosure</li>
+              <li>AI disclosure</li>
+              <li>Prior distribution</li>
+              <li>License awareness</li>
+            </ul>
+          </div>
+
           <Link
             href="/workspace/projects/new"
-            className="inline-block mt-5 px-5 py-2.5 rounded-xl text-black font-semibold text-sm transition-all active:scale-95"
+            className="inline-block px-5 py-2.5 rounded-xl text-black font-semibold text-sm transition-all active:scale-95"
             style={{ background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }}
           >
-            New Work
+            Begin your first world
           </Link>
         </section>
       )}
@@ -252,24 +273,10 @@ export default function WorkspacePage() {
   );
 }
 
-function PulseStat({ label, value }: { label: string; value: number | undefined }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-[11px] uppercase tracking-[0.2em] text-ink-muted">{label}</span>
-      <span
-        className="text-white text-4xl md:text-5xl font-semibold tabular-nums leading-none"
-        style={{ fontFamily: "var(--font-display)" }}
-      >
-        {value ?? "—"}
-      </span>
-    </div>
-  );
-}
-
 function RecentWorkTile({ project }: { project: Project }) {
   return (
     <Link
-      href={`/workspace/projects/${project.id}/edit`}
+      href={`/workspace/projects/${project.id}`}
       className="group flex flex-col gap-2 outline-none focus-visible:ring-2 focus-visible:ring-white/30 rounded-lg"
     >
       <WorkPoster
