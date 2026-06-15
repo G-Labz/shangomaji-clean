@@ -6,26 +6,27 @@ import { useEffect, useState } from "react";
 //
 // A brief, premium arrival moment shown once per browser session before the
 // homepage. NOT a loading screen: there is no real loading dependency, no
-// audio, no countdown, no progress bar. The ShangoMaji mark is the primary
-// authority element; only a small amount of controlled presentation motion is
-// used (founder-approved for this phase): a subtle resolve-into-focus on the
-// mark (opacity + a small vertical settle + blur clearing), a single Shango
-// Gold signal accent, then the dark ground clears to reveal the homepage.
+// audio, no countdown, no progress bar, no loading indicator of any kind. The
+// ShangoMaji mark is the single authority element; only a small amount of
+// controlled presentation motion is used (founder-approved): a subtle
+// resolve-into-focus on the mark (opacity + a small vertical settle + blur
+// clearing), then the dark ground clears to reveal the homepage. The mark is
+// sized to dominate the opening frame and the beat runs ~3.5s.
 //
-// No scale, no spin, no particles, no excessive glow, no Forge ignition.
+// No scale, no spin, no particles, no excessive glow, no Forge ignition, and
+// no underline/bar that could read as a loader.
 //
 // Colors are the exact ShangoMaji Ember Spectrum v1 brand-kit values.
 const SESSION_KEY = "sm:ident:v1";
 
-// Timeline — total stays under 2s.
-const REVEAL_MS = 520; // subtle resolve-in of the mark
-const HOLD_MS = 700; // static authority hold
-const CLEAR_MS = 400; // ground fade-out into the homepage
+// Timeline — a deliberate arrival beat (~3.5s total), not a blink.
+const REVEAL_MS = 900; // subtle resolve-in of the mark
+const HOLD_MS = 2000; // static authority hold — the arrival beat
+const CLEAR_MS = 600; // ground fade-out into the homepage
 
 // ShangoMaji Ember Spectrum v1 (exact brand-kit values).
 const VOID_BLACK = "#000000"; // foundation / cinematic stage
 const CHARCOAL = "#111111"; // secondary dark surface
-const SHANGO_GOLD = "#FFD500"; // the signal accent ("the signal becomes visible")
 const EASE = "cubic-bezier(0.25,0.46,0.45,0.94)";
 
 export function TitleCardIdent() {
@@ -62,10 +63,11 @@ export function TitleCardIdent() {
     if (!show) return;
 
     if (reduced) {
-      // Accessibility: no entrance motion. Static mark, brief hold, then an
-      // instant clear (no transitions).
-      const tClear = setTimeout(() => setClearing(true), HOLD_MS);
-      const tUnmount = setTimeout(() => setShow(false), HOLD_MS + 20);
+      // Accessibility: no entrance motion. Static mark held for the full
+      // arrival length, then an instant clear (no transitions).
+      const STATIC_HOLD = REVEAL_MS + HOLD_MS;
+      const tClear = setTimeout(() => setClearing(true), STATIC_HOLD);
+      const tUnmount = setTimeout(() => setShow(false), STATIC_HOLD + 20);
       return () => {
         clearTimeout(tClear);
         clearTimeout(tUnmount);
@@ -124,21 +126,23 @@ export function TitleCardIdent() {
         style={{
           position: "relative",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
-          // Subtle resolve-into-focus on the MARK only — opacity + a small
-          // vertical settle + blur clearing. No scale, no spin, no swoop.
+          justifyContent: "center",
+          // Subtle resolve-into-focus on the MARK — opacity + a small vertical
+          // settle + blur clearing. No scale, no spin, no swoop, no glow.
           opacity: settled ? 1 : 0,
-          transform: settled ? "translateY(0)" : "translateY(10px)",
-          filter: settled ? "blur(0px)" : "blur(6px)",
+          transform: settled ? "translateY(0)" : "translateY(14px)",
+          filter: settled ? "blur(0px)" : "blur(8px)",
           transition: reduced
             ? "none"
             : `opacity ${REVEAL_MS}ms ${EASE}, transform ${REVEAL_MS}ms ${EASE}, filter ${REVEAL_MS}ms ${EASE}`,
         }}
       >
-        {/* The ShangoMaji mark — primary authority element. Static asset that
-            carries the official ember gradient. */}
-        <div style={{ width: "clamp(300px, 46vmin, 620px)", aspectRatio: "3 / 2" }}>
+        {/* The ShangoMaji mark — the single authority element of the title
+            card. Static asset that carries the official ember gradient. Sized
+            to dominate the opening frame (≈1.5x the prior pass) while staying
+            inside the viewport on any aspect ratio. No underline / signal bar. */}
+        <div style={{ width: "min(90vw, 117vh, 1100px)", aspectRatio: "3 / 2" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
@@ -150,21 +154,6 @@ export function TitleCardIdent() {
             style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
           />
         </div>
-
-        {/* One disciplined signal accent — a single Shango Gold hairline that
-            resolves in just after the mark ("the signal becomes visible",
-            brand kit §06). Single accent, no glow. */}
-        <div
-          style={{
-            marginTop: "clamp(10px, 2vmin, 22px)",
-            height: "2px",
-            width: "clamp(120px, 22vmin, 240px)",
-            borderRadius: "9999px",
-            background: SHANGO_GOLD,
-            opacity: settled ? 1 : 0,
-            transition: reduced ? "none" : `opacity ${REVEAL_MS}ms ease 140ms`,
-          }}
-        />
       </div>
     </div>
   );
