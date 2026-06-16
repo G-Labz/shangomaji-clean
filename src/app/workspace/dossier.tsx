@@ -12,10 +12,14 @@
 // Signal accent reserved for the single next move / active state. No gradients,
 // no glow.
 
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { workStateLine, ReadinessChip, GradientButton } from "./components";
+import { workStateLine, ReadinessChip, GradientButton, ReceiptLink } from "./components";
 import { nextAction, pipelineStage, PIPELINE_NODES, type WorkLike, type WorkAction } from "@/lib/work-state";
 import type { PublicReadiness } from "@/lib/public-visibility";
+// Read-only import of the existing creator-safe label maps. submission-integrity.ts
+// is the server source of truth and is NOT modified.
+import { THESIS_PATH_LABELS, AI_USAGE_LABELS, PRIOR_DISTRIBUTION_LABELS } from "@/lib/submission-integrity";
 
 // Single warm Signal accent for the Studio surface.
 export const SIGNAL = "#E0763A";
@@ -377,5 +381,248 @@ export function ShelfRow({ p }: { p: DossierWork }) {
       </div>
       <span className="text-white/25 group-hover:text-white/50 transition flex-shrink-0">→</span>
     </Link>
+  );
+}
+
+// ── Phase 11A-R3-1 — deepening sections (render-only over existing data) ──────
+// Surface the substance the New Work flow already collects and the API already
+// returns. No new fields, no backend. Editorial review uses ONLY creator-safe
+// state_history — never the raw admin review_* columns.
+
+function fmtDate(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
+export function approvalDate(p: DossierWork): string | null {
+  const e = [...(p.state_history ?? [])].reverse().find((h) => h.to === "approved");
+  return e?.at ?? null;
+}
+
+export function rejectionReason(p: DossierWork): string | null {
+  const e = [...(p.state_history ?? [])].reverse().find((h) => h.to === "rejected");
+  return e && isStr(e.reason) ? (e.reason as string).trim() : null;
+}
+
+const FACING_LABEL: Record<"internal" | "public" | "distribution", string> = {
+  internal: "Internal · between you and ShangoMaji",
+  public: "Public · appears on your title page",
+  distribution: "Distribution · prepares your release",
+};
+
+// Quiet, monochrome marker — never the warm Signal (reserved for the next move).
+export function Facing({ kind }: { kind: "internal" | "public" | "distribution" }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em]"
+      style={{ color: "rgba(255,255,255,0.35)" }}
+    >
+      <span className="inline-block w-1 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.3)" }} />
+      {FACING_LABEL[kind]}
+    </span>
+  );
+}
+
+function SectionHead({ title, facing }: { title: string; facing: "internal" | "public" | "distribution" }) {
+  return (
+    <div className="flex items-center justify-between gap-3 flex-wrap">
+      <h3 className="text-white font-semibold text-lg" style={{ fontFamily: "var(--font-display)" }}>
+        {title}
+      </h3>
+      <Facing kind={facing} />
+    </div>
+  );
+}
+
+function ProvRow({ label, value, extra }: { label: string; value: string; extra?: ReactNode }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:gap-4">
+      <span className="text-[11px] uppercase tracking-[0.16em] sm:w-40 sm:flex-shrink-0 pt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+        {label}
+      </span>
+      <span className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "rgba(255,255,255,0.78)" }}>
+        {value}
+        {extra ? <span className="ml-2">{extra}</span> : null}
+      </span>
+    </div>
+  );
+}
+
+// Thesis & Fit — first-class internal section (the editorial heart). Persists
+// read-only after submission; never a public badge (R3 §12 decided call).
+export function ThesisFit({ p }: { p: DossierWork }) {
+  const fit = isStr(p.thesis_path)
+    ? (THESIS_PATH_LABELS as Record<string, string>)[(p.thesis_path as string).trim()] ?? null
+    : null;
+  const explanation = isStr(p.thesis_explanation) ? (p.thesis_explanation as string).trim() : null;
+  if (!fit && !explanation) return null;
+  return (
+    <section className="space-y-3">
+      <SectionHead title="Why this world belongs at ShangoMaji" facing="internal" />
+      {fit && (
+        <p className="text-base" style={{ color: "rgba(255,255,255,0.85)" }}>
+          <span className="text-[11px] uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.4)" }}>Declared fit · </span>
+          <span style={{ color: "#fff" }}>{fit}</span>
+        </p>
+      )}
+      {explanation && (
+        <blockquote
+          className="pl-4 text-sm leading-relaxed italic whitespace-pre-line"
+          style={{ borderLeft: "2px solid rgba(224,118,58,0.45)", color: "rgba(255,255,255,0.72)" }}
+        >
+          {explanation}
+        </blockquote>
+      )}
+      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+        Read by ShangoMaji editorial. This is never shown publicly.
+      </p>
+    </section>
+  );
+}
+
+// Rights & Provenance — attestations + disclosures persisted as the world's
+// trust record. Affirmed statements, not cold checkboxes. Internal.
+export function RightsProvenance({ p }: { p: DossierWork }) {
+  const attest: string[] = [];
+  if (p.rights_ownership_ack === true) attest.push("Owns or controls the rights to this work");
+  if (p.rights_collaborators_disclosed_ack === true) attest.push("All collaborators and co-owners disclosed");
+  if (p.rights_no_conflicts_ack === true) attest.push("No conflicting distribution or licensing agreements");
+  if (p.rights_no_unlicensed_assets_ack === true) attest.push("No unlicensed third-party material");
+
+  const collaborators = isStr(p.collaborators) ? (p.collaborators as string).trim() : null;
+  const soleCreator = p.no_collaborators_ack === true && !collaborators;
+  const ai = isStr(p.ai_usage) ? (AI_USAGE_LABELS as Record<string, string>)[(p.ai_usage as string).trim()] ?? null : null;
+  const aiDesc = isStr(p.ai_usage_description) ? (p.ai_usage_description as string).trim() : null;
+  const prior = isStr(p.prior_distribution) ? (PRIOR_DISTRIBUTION_LABELS as Record<string, string>)[(p.prior_distribution as string).trim()] ?? null : null;
+  const priorDetails = isStr(p.prior_distribution_details) ? (p.prior_distribution_details as string).trim() : null;
+  const licensed = p.license_status === "executed";
+
+  if (!attest.length && !collaborators && !soleCreator && !ai && !prior && !licensed) return null;
+
+  return (
+    <section className="space-y-4">
+      <SectionHead title="Rights & provenance" facing="internal" />
+      {attest.length > 0 && (
+        <ul className="space-y-1.5">
+          {attest.map((a) => (
+            <li key={a} className="flex items-start gap-2 text-sm" style={{ color: "rgba(255,255,255,0.78)" }}>
+              <span style={{ color: "rgba(255,255,255,0.45)" }}>✓</span>
+              <span>{a}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="space-y-2.5">
+        {(collaborators || soleCreator) && (
+          <ProvRow label="Collaborators" value={soleCreator ? "Sole creator — none disclosed" : (collaborators as string)} />
+        )}
+        {ai && <ProvRow label="AI use" value={aiDesc ? `${ai} — ${aiDesc}` : ai} />}
+        {prior && <ProvRow label="Prior distribution" value={priorDetails ? `${prior} — ${priorDetails}` : prior} />}
+        {licensed && <ProvRow label="License" value="Distribution license executed" />}
+      </div>
+      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+        The world&rsquo;s trust and provenance record. Kept in your dossier; never shown publicly.
+      </p>
+    </section>
+  );
+}
+
+// Editorial review — creator-safe ONLY. In review → honest state; rejected →
+// the state_history reason. NEVER renders the raw admin review_* columns.
+export function EditorialReview({ p }: { p: DossierWork }) {
+  const inReview = p.status === "pending" || p.status === "in_review";
+  const rejected = p.status === "rejected";
+  if (!inReview && !rejected) return null;
+  const reason = rejectionReason(p);
+  return (
+    <section className="rounded-xl border p-5 space-y-3" style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.015)" }}>
+      <SectionHead title="Editorial review" facing="internal" />
+      {inReview ? (
+        <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
+          Your world is with our editorial team. ShangoMaji reviews each submission with
+          intention — there is nothing for you to do while it&rsquo;s with us.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
+            ShangoMaji did not move this world forward.
+          </p>
+          {reason ? (
+            <div className="rounded-lg border p-3" style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)" }}>
+              <p className="text-[11px] uppercase tracking-[0.18em] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+                Notes from ShangoMaji
+              </p>
+              <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: "rgba(255,255,255,0.8)" }}>
+                {reason}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+              No additional notes were left. Reach out if you have questions about this decision.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Distribution record — how the world ships. Honest state + deliverables manifest.
+export function DistributionRecord({ p }: { p: DossierWork }) {
+  const licensed = p.license_status === "executed";
+  if (!licensed && p.status !== "live") return null;
+  const deliverables = (p.deliverables ?? []).filter((d) => isStr(d));
+  return (
+    <section className="space-y-2.5">
+      <SectionHead title="Distribution" facing="distribution" />
+      {p.status === "live" && p.public_visibility?.state === "public" ? (
+        <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>Live and publicly visible in the ShangoMaji collection.</p>
+      ) : p.status === "live" ? (
+        <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
+          Finishing setup — not yet public. {finishingReason(p.public_visibility)} ShangoMaji curates go-live; nothing is needed from you.
+        </p>
+      ) : (
+        <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
+          Licensed and awaiting activation. ShangoMaji prepares and curates the release — what arrives in the collection is chosen, not uploaded.
+        </p>
+      )}
+      {deliverables.length > 0 && (
+        <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+          Release packet · {deliverables.join(" · ")}
+        </p>
+      )}
+    </section>
+  );
+}
+
+// Permanent record — what stands. Assembled from existing state_history +
+// license. Preserved (read-only). No backend.
+export function PermanentRecord({ p }: { p: DossierWork }) {
+  const approved = fmtDate(approvalDate(p));
+  const licensed = p.license_status === "executed";
+  const submitted = (p.state_history ?? []).some((h) => h.to === "pending");
+  if (!approved && !licensed && p.status !== "live") return null;
+  return (
+    <section className="space-y-3">
+      <SectionHead title="Permanent record" facing="internal" />
+      <ul className="space-y-2.5">
+        {submitted && (
+          <ProvRow label="Declared" value="Your world's identity, thesis, and rights — as you declared them at submission." />
+        )}
+        {approved && <ProvRow label="Accepted" value={`Accepted by ShangoMaji · ${approved}`} />}
+        {licensed && (
+          <ProvRow
+            label="Licensed"
+            value="Distribution license executed — core terms locked."
+            extra={isStr(p.license_id) ? <ReceiptLink licenseId={p.license_id as string} /> : null}
+          />
+        )}
+      </ul>
+      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+        What stands — declared, accepted, licensed. Never edited, never deleted.
+      </p>
+    </section>
   );
 }

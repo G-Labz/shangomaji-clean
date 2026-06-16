@@ -142,6 +142,12 @@ export default function StudioDeskPage() {
             <div className="space-y-4">
               <WorldIdentity p={focus} />
 
+              {focus.description && focus.description.trim() && (
+                <p className="text-sm leading-relaxed line-clamp-2" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  {focus.description.trim()}
+                </p>
+              )}
+
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
                 {workStateLine(focus.status, focus.license_status, focus.public_visibility)}
                 {focus.status === "draft" && (() => {
