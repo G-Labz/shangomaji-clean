@@ -12,14 +12,16 @@ type RouteConfig = {
 };
 
 function resolveRoute(pathname: string): RouteConfig {
-  // /workspace/projects/[id]/edit
-  if (/^\/workspace\/projects\/[^/]+\/edit$/.test(pathname)) {
-    return {
-      label: "Edit world",
-      parent: "/workspace/projects",
-      parentLabel: "Worlds",
-      primaryAction: null,
-    };
+  // /workspace/projects/[id] (Studio Desk) and its rooms. World Room (edit),
+  // Release Room (media), and Dossier all return to the Studio Desk.
+  const roomMatch = pathname.match(/^\/workspace\/projects\/([^/]+)(?:\/(edit|media|dossier))?$/);
+  if (roomMatch && roomMatch[1] !== "new") {
+    const desk = `/workspace/projects/${roomMatch[1]}`;
+    const sub = roomMatch[2];
+    if (sub === "edit")    return { label: "World Room",   parent: desk, parentLabel: "Studio Desk", primaryAction: null };
+    if (sub === "media")   return { label: "Release Room", parent: desk, parentLabel: "Studio Desk", primaryAction: null };
+    if (sub === "dossier") return { label: "Dossier",      parent: desk, parentLabel: "Studio Desk", primaryAction: null };
+    return { label: "Studio Desk", parent: "/workspace", parentLabel: "Studio", primaryAction: null };
   }
   // /workspace/projects/new
   if (pathname === "/workspace/projects/new") {

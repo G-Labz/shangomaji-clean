@@ -1,37 +1,45 @@
 "use client";
 
-// Phase 11A-R3-1 — World Dossier (the per-world working surface).
+// Phase 11C — Studio Desk (the per-world landing).
 //
-// The world shown as a persistent creative record: identity, premise, thesis &
-// fit, materials, rights & provenance, distribution, and permanent record —
-// with one warm next move. The world substance dominates; status supports.
-// Pure presentation over the existing GET /api/creators/projects row + shared
-// dossier module. No new APIs, no lifecycle. Editorial review is creator-safe
-// only (in-review state + state_history reason); raw admin review_* never render.
+// The creator meets their world as a ShangoMaji Title coming to life: the
+// Title-in-the-Making leads (key art / title treatment + premise + release-
+// facing presentation state). Standing and the next move sit beneath, never
+// dominating. Rooms (World, Release) shape it; the Dossier records it.
+// Pure presentation over the existing GET /api/creators/projects row. No backend.
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { WorkPoster, workStateLine } from "../../components";
+import { workStateLine } from "../../components";
 import {
   type DossierWork,
-  WorldIdentity,
-  Premise,
-  MaterialsBlock,
-  ReadinessSummary,
-  StageRail,
   NextMove,
-  ThesisFit,
-  RightsProvenance,
   EditorialReview,
   DistributionRecord,
-  PermanentRecord,
-  Facing,
-  railFor,
+  TrustPosture,
+  releaseReady,
+  isStr,
   SIGNAL,
 } from "../../dossier";
 
-export default function WorldDossierPage() {
+function RoomCard({ href, title, body }: { href: string; title: string; body: string }) {
+  return (
+    <Link
+      href={href}
+      className="group block rounded-xl border p-5 transition"
+      style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)" }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-white font-semibold" style={{ fontFamily: "var(--font-display)" }}>{title}</p>
+        <span className="text-white/25 group-hover:text-white/60 transition">→</span>
+      </div>
+      <p className="text-sm mt-1.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>{body}</p>
+    </Link>
+  );
+}
+
+export default function StudioDeskPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
@@ -58,13 +66,13 @@ export default function WorldDossierPage() {
   }, [id]);
 
   if (state === "loading") {
-    return <p className="text-sm py-10" style={{ color: "rgba(255,255,255,0.4)" }}>Opening the dossier…</p>;
+    return <p className="text-sm py-10" style={{ color: "rgba(255,255,255,0.4)" }}>Opening your title…</p>;
   }
   if (state === "notfound" || state === "error" || !work) {
     return (
       <div className="py-10 space-y-3">
         <p className="text-white text-lg" style={{ fontFamily: "var(--font-display)" }}>
-          {state === "notfound" ? "That world isn’t in your studio." : "The dossier could not be loaded."}
+          {state === "notfound" ? "That title isn’t in your studio." : "Your title could not be loaded."}
         </p>
         <Link href="/workspace" className="text-sm" style={{ color: SIGNAL }}>← Back to your studio</Link>
       </div>
@@ -72,9 +80,17 @@ export default function WorldDossierPage() {
   }
 
   const p = work;
-  const rail = railFor(p);
-  const isDraft = p.status === "draft";
-  const isLicensed = p.license_status === "executed";
+  const keyArt = isStr(p.banner_url) ? (p.banner_url as string) : isStr(p.cover_image_url) ? (p.cover_image_url as string) : null;
+  const release = releaseReady(p);
+  const isLive = p.status === "live";
+  const releaseHref = `/workspace/projects/${p.id}/media`;
+  const worldHref = `/workspace/projects/${p.id}/edit`;
+  const dossierHref = `/workspace/projects/${p.id}/dossier`;
+
+  // Release-facing presentation state — how the title currently presents.
+  const presentationState = isLive
+    ? workStateLine(p.status, p.license_status, p.public_visibility)
+    : `${release.ready} of ${release.total} release assets ready`;
 
   return (
     <div className="space-y-12 pb-14">
@@ -82,59 +98,82 @@ export default function WorldDossierPage() {
         ← Studio
       </Link>
 
-      {/* 1–2. World Identity + Premise — the substance dominates. */}
-      <section className="grid gap-6 sm:grid-cols-[140px_1fr] items-start">
-        <div className="w-full max-w-[140px]">
-          <WorkPoster
-            title={p.title}
-            projectType={p.project_type}
-            coverUrl={p.cover_image_url}
-            bannerUrl={p.banner_url}
-            status={p.status}
-            licenseStatus={p.license_status}
-            publicVisibility={p.public_visibility}
-          />
-        </div>
-        <div className="space-y-3">
-          <WorldIdentity p={p} />
-          <Facing kind="public" />
-          {isLicensed && (
-            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-              Core details are locked under your distribution license.
+      {/* ── Title-in-the-Making — the creator meets their world ── */}
+      <section
+        className="relative overflow-hidden rounded-2xl border"
+        style={{
+          borderColor: "rgba(217,38,28,0.24)",
+          background:
+            "linear-gradient(135deg, rgba(200,10,46,0.14) 0%, rgba(17,17,17,0.55) 46%, rgba(234,115,27,0.08) 100%)",
+        }}
+      >
+        {keyArt && (
+          <div className="relative w-full" style={{ aspectRatio: "16 / 6" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={keyArt} alt={p.title} className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(8,5,6,0.15) 0%, rgba(8,5,6,0.85) 100%)" }} />
+          </div>
+        )}
+
+        <div className={`relative p-7 md:p-10 ${keyArt ? "-mt-20" : ""}`}>
+          <p className="text-[11px] uppercase tracking-[0.28em] mb-3" style={{ color: "#F6A31A" }}>
+            ShangoMaji Title · in the making
+          </p>
+          {isStr(p.project_type) && (
+            <p className="text-[11px] uppercase tracking-[0.18em] mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+              {p.project_type}
             </p>
           )}
+          <h1
+            className="text-white font-bold tracking-tight"
+            style={{ fontFamily: "var(--font-display)", fontSize: "clamp(34px, 6vw, 64px)", lineHeight: 1.02 }}
+          >
+            {p.title}
+          </h1>
+
+          {isStr(p.logline) && (
+            <p className="text-base md:text-lg italic mt-3 max-w-2xl" style={{ color: "rgba(255,255,255,0.78)", fontFamily: "var(--font-display)" }}>
+              {(p.logline as string).trim()}
+            </p>
+          )}
+          {isStr(p.description) && (
+            <p className="text-sm leading-relaxed mt-3 max-w-2xl line-clamp-3" style={{ color: "rgba(255,255,255,0.6)" }}>
+              {(p.description as string).trim()}
+            </p>
+          )}
+
+          {/* Standing + presentation state — present, but supporting. */}
+          <div className="flex items-center gap-2 flex-wrap mt-5 text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
+            <span>{workStateLine(p.status, p.license_status, p.public_visibility)}</span>
+            <span className="text-white/20">·</span>
+            <span>{presentationState}</span>
+          </div>
+
+          {/* The one next move. */}
+          <div className="mt-5">
+            <NextMove p={p} />
+          </div>
         </div>
       </section>
 
-      <Premise p={p} />
-
-      {/* 3. Thesis & Fit — first-class internal section. */}
-      <ThesisFit p={p} />
-
-      {/* 4. Current move / honest state — prominent, but supporting; never the headline. */}
-      <section className="space-y-3 border-y py-6" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-        <p className="text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
-          {workStateLine(p.status, p.license_status, p.public_visibility)}
+      {/* ── Rooms — shape your title ── */}
+      <section className="space-y-4">
+        <p className="text-[11px] uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.4)" }}>
+          Rooms
         </p>
-        <StageRail active={rail.active} held={rail.held} terminal={rail.terminal} />
-        <NextMove p={p} />
-        {isDraft && <div className="pt-2"><ReadinessSummary p={p} /></div>}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <RoomCard href={worldHref} title="World Room" body="Shape identity, premise, thesis, and creative substance." />
+          <RoomCard href={releaseHref} title="Release Room" body="Prepare how your title presents — key art, gallery, and trailer." />
+          <RoomCard href={dossierHref} title="Dossier" body="The compiled record of your world. Read-only." />
+        </div>
       </section>
 
-      {/* 6. Editorial review — elevated here when the world is in review or has a decision. */}
+      {/* ── Rights & provenance — trust posture ── */}
+      <TrustPosture p={p} />
+
+      {/* ── Editorial & distribution (minimum, read-only) ── */}
       <EditorialReview p={p} />
-
-      {/* 5. Creative Materials — how the world presents. */}
-      <MaterialsBlock p={p} />
-
-      {/* 7. Rights & Provenance — the world's trust record. */}
-      <RightsProvenance p={p} />
-
-      {/* 8. Distribution record. */}
       <DistributionRecord p={p} />
-
-      {/* 9. Permanent record — what stands. */}
-      <PermanentRecord p={p} />
     </div>
   );
 }

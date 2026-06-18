@@ -553,7 +553,7 @@ export default function EditProjectPage({ params }: PageProps) {
               className="font-bold text-2xl text-white tracking-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Edit Work
+              World Room
             </h1>
             <StatusBadge status={projectStatus} />
             {projectStatus === "removal_requested" && (

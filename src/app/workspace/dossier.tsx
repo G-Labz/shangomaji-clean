@@ -626,3 +626,57 @@ export function PermanentRecord({ p }: { p: DossierWork }) {
     </section>
   );
 }
+
+// ── Phase 11C — Studio Desk shared pieces ────────────────────────────────────
+
+// How many of the four release-presentation assets are present.
+export function releaseReady(p: DossierWork): { ready: number; total: number } {
+  let ready = 0;
+  if (isStr(p.cover_image_url)) ready += 1;
+  if (isStr(p.banner_url)) ready += 1;
+  if ((p.stills_urls ?? []).some((s) => isStr(s))) ready += 1;
+  if (isStr(p.trailer_url)) ready += 1;
+  return { ready, total: 4 };
+}
+
+// Rights as a trust posture (the Desk summary). The full record lives in
+// RightsProvenance (the Dossier). Render-only; completing it reads as the
+// title becoming distribution-clear, not merely more documented.
+export function TrustPosture({ p }: { p: DossierWork }) {
+  const allClear =
+    p.rights_ownership_ack === true &&
+    p.rights_collaborators_disclosed_ack === true &&
+    p.rights_no_conflicts_ack === true &&
+    p.rights_no_unlicensed_assets_ack === true;
+  const ai = isStr(p.ai_usage) ? (AI_USAGE_LABELS as Record<string, string>)[(p.ai_usage as string).trim()] ?? null : null;
+  const collaborators = isStr(p.collaborators) ? (p.collaborators as string).trim() : null;
+  const sole = p.no_collaborators_ack === true && !collaborators;
+
+  const posture: string[] = [];
+  posture.push(p.rights_ownership_ack === true ? "Ownership attested" : "Ownership not yet attested");
+  posture.push(sole ? "Sole creator" : collaborators ? "Collaborators disclosed" : "Collaborators not yet disclosed");
+  if (ai) posture.push(`AI · ${ai}`);
+
+  return (
+    <section className="space-y-3">
+      <SectionHead title="Rights & provenance" facing="internal" />
+      <div
+        className="rounded-xl border p-4"
+        style={{
+          borderColor: allClear ? "rgba(246,163,26,0.32)" : "rgba(255,255,255,0.1)",
+          background: allClear ? "rgba(246,163,26,0.06)" : "rgba(255,255,255,0.015)",
+        }}
+      >
+        <p className="text-sm font-medium" style={{ color: allClear ? "#F6A31A" : "rgba(255,255,255,0.82)" }}>
+          {allClear ? "Distribution-clear — rights attested" : "Trust posture in progress"}
+        </p>
+        <p className="text-[13px] mt-1.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+          {posture.join("  ·  ")}
+        </p>
+      </div>
+      <Link href={`/workspace/projects/${p.id}/edit`} className="inline-block text-sm" style={{ color: SIGNAL }}>
+        Update rights in the World Room →
+      </Link>
+    </section>
+  );
+}
