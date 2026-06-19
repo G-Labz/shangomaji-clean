@@ -1,11 +1,12 @@
 "use client";
 
-// Phase 11D-R2 — New Work intake (minimal "start a title").
+// Phase 11D-R3 — New Work intake (name a world into being).
 //
-// No paperwork before a title exists. Name the world + an optional one-line
-// spark, then enter the Studio with the title on the bench. Everything else is
-// shaped in the rooms. Reuses the existing POST /api/creators/projects (partial
-// draft is supported); no backend change.
+// Container collapse: there is no form box here. The title you type IS the
+// masthead-in-waiting — large display type laid directly on the canvas, with
+// an ambient ember wash bleeding behind it (no bordered card, no field stack).
+// Name the world, add an optional spark, and carry that same title straight
+// into the World Room. Reuses POST /api/creators/projects; no backend change.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -41,52 +42,57 @@ export default function StartTitlePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-6 space-y-8">
-      <header className="space-y-2">
-        <p className="text-[11px] uppercase tracking-[0.26em]" style={{ color: "#F6A31A" }}>
-          Creator Studio
-        </p>
-        <h1 className="text-white font-bold text-3xl tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-          Start a title
-        </h1>
-        <p className="text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
-          Name your world and bring it to the bench. You&rsquo;ll shape it in the Studio — there&rsquo;s nothing
-          to fill out here.
-        </p>
-      </header>
-
+    <div className="start-canvas relative min-h-[62vh] flex flex-col justify-center">
+      {/* Ambient ember wash — bleeds, never frames. */}
       <div
-        className="rounded-2xl border px-7 py-8 space-y-6"
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10"
         style={{
-          borderColor: "rgba(217,38,28,0.22)",
           background:
-            "linear-gradient(135deg, rgba(200,10,46,0.12) 0%, rgba(17,17,17,0.55) 48%, rgba(234,115,27,0.07) 100%)",
+            "radial-gradient(120% 80% at 12% 18%, rgba(200,10,46,0.16) 0%, rgba(234,115,27,0.07) 38%, transparent 70%)",
         }}
-      >
-        <div className="start-field space-y-2">
-          <label className="block text-sm font-medium text-white">Name your world</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") startTitle(); }}
-            placeholder="The title of your world"
-            autoFocus
-          />
-        </div>
-        <div className="start-field space-y-2">
-          <label className="block text-sm font-medium text-white">
-            One-line spark <span className="text-ink-faint">(optional)</span>
-          </label>
-          <input
-            value={spark}
-            onChange={(e) => setSpark(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") startTitle(); }}
-            placeholder="A single line that captures it"
-          />
-        </div>
+      />
 
-        {error && <p className="text-sm" style={{ color: "rgba(252,165,165,0.9)" }}>{error}</p>}
+      <p className="text-[11px] uppercase tracking-[0.3em] mb-6" style={{ color: "#F6A31A" }}>
+        Creator Studio · a new world
+      </p>
 
+      {/* The title named into being — the masthead before it has a home. */}
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") startTitle(); }}
+        placeholder="Name your world"
+        autoFocus
+        aria-label="Name your world"
+        className="title-input w-full bg-transparent border-0 outline-none text-white font-bold tracking-tight"
+        style={{ fontFamily: "var(--font-display)", fontSize: "clamp(34px, 7vw, 68px)", lineHeight: 1.02 }}
+      />
+
+      {/* A single warm rule stands in for the stage the world will occupy. */}
+      <div
+        className="mt-4 mb-5 h-px w-full max-w-2xl"
+        style={{ background: "linear-gradient(90deg, rgba(224,118,58,0.55), rgba(224,118,58,0))" }}
+      />
+
+      <input
+        value={spark}
+        onChange={(e) => setSpark(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") startTitle(); }}
+        placeholder="One line that captures it — optional"
+        aria-label="One-line spark (optional)"
+        className="spark-input w-full max-w-2xl bg-transparent border-0 outline-none italic"
+        style={{ fontFamily: "var(--font-display)", fontSize: "clamp(16px, 2.4vw, 22px)", color: "rgba(255,255,255,0.78)" }}
+      />
+
+      <p className="text-sm mt-7 max-w-md" style={{ color: "rgba(255,255,255,0.5)" }}>
+        Nothing to fill out here. Name it, and shape the rest in the Studio — the title carries
+        straight into the World Room.
+      </p>
+
+      {error && <p className="text-sm mt-4" style={{ color: "rgba(252,165,165,0.9)" }}>{error}</p>}
+
+      <div className="mt-7">
         <button
           onClick={startTitle}
           disabled={busy}
@@ -94,27 +100,17 @@ export default function StartTitlePage() {
           style={{ background: "#E0763A" }}
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
-          {busy ? "Starting…" : "Enter Creator Studio"}
+          {busy ? "Opening the Studio…" : "Enter Creator Studio"}
         </button>
       </div>
 
       <style jsx global>{`
-        .start-field input {
-          width: 100%;
-          background: rgba(26, 26, 26, 1);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 0.75rem;
-          padding: 0.85rem 1rem;
-          color: white;
-          font-size: 0.95rem;
-          outline: none;
-          transition: border-color 0.2s;
+        .start-canvas .title-input::placeholder {
+          color: rgba(255, 255, 255, 0.26);
+          font-style: normal;
         }
-        .start-field input:focus {
-          border-color: rgba(224, 118, 58, 0.5);
-        }
-        .start-field input::placeholder {
-          color: rgba(120, 120, 120, 1);
+        .start-canvas .spark-input::placeholder {
+          color: rgba(255, 255, 255, 0.32);
         }
       `}</style>
     </div>

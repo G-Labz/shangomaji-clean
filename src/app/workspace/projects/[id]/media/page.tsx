@@ -1,10 +1,11 @@
 "use client";
 
-// Phase 11D-R2 — Release Room (assemble through the preview).
+// Phase 11D-R3 — Release Room (the page IS the release).
 //
-// The preview IS the workspace: every asset is edited inline in its
-// presentation position — hero banner, key art, trailer action, and the
-// release gallery. No upload-wall cards, no slot grids. Reuses the existing
+// Container collapse: the single framing card is gone. Each part of the release
+// occupies the canvas as itself — an edge-to-edge hero band, a poster that
+// floats over the hero's edge, the title treatment on the open page, and a real
+// gallery strip. Every asset is still edited in place; reuses the existing
 // upload + PUT endpoints and the same server-enforced media whitelist
 // (cover/banner/stills/trailer/deliverables). No backend, no media editing.
 //
@@ -202,7 +203,7 @@ export default function ReleaseRoomPage({ params }: PageProps) {
   if (draft.stillsUrls.length) ships.push(`${draft.stillsUrls.length} still${draft.stillsUrls.length === 1 ? "" : "s"}`);
 
   return (
-    <div className="space-y-7 pb-10">
+    <div className="release-room space-y-8 pb-14">
       <div>
         <Link href={deskHref} className="text-ink-faint text-sm hover:text-white inline-flex items-center gap-1.5 mb-3">
           <ArrowLeft size={14} /> Studio Desk
@@ -223,133 +224,133 @@ export default function ReleaseRoomPage({ params }: PageProps) {
         <div style={{ padding: "10px 16px", borderRadius: 10, background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.25)", fontSize: 13, color: "rgba(252,165,165,0.9)" }}>{error}</div>
       )}
 
-      {/* ── The release — assembled directly in the preview ── */}
-      <div
-        className="rounded-2xl border overflow-hidden"
-        style={{ borderColor: "rgba(217,38,28,0.22)", background: "linear-gradient(135deg, rgba(200,10,46,0.12) 0%, rgba(17,17,17,0.6) 50%, rgba(234,115,27,0.07) 100%)" }}
-      >
-        {/* Hero band — edited in place */}
-        <div className="relative w-full" style={{ aspectRatio: "16 / 6", background: "rgba(0,0,0,0.4)" }}>
-          {draft.bannerUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={draft.bannerUrl} alt="Hero" className="absolute inset-0 h-full w-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>The hero banner appears here</span>
-            </div>
-          )}
-          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(8,5,6,0.15) 0%, rgba(8,5,6,0.65) 100%)" }} />
-          <div className="absolute top-2 right-2">
-            <InlineUpload
-              label={draft.bannerUrl ? "Replace hero" : "Add hero"}
-              busy={uploading.banner}
-              onFile={async (f) => { try { const url = await uploadFile(f, "banner"); setDraft((d) => ({ ...d, bannerUrl: url })); } catch (e: any) { showError(e.message || "Upload failed"); } }}
-            />
+      {/* ── Hero band — edge-to-edge across the canvas; the hero itself, not a
+          card. Edited in place. ── */}
+      <div className="relative -mx-6 overflow-hidden" style={{ aspectRatio: "16 / 6", minHeight: 200, background: "rgba(0,0,0,0.45)" }}>
+        {draft.bannerUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={draft.bannerUrl} alt="Hero" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ background: "radial-gradient(120% 90% at 50% 0%, rgba(200,10,46,0.16), rgba(234,115,27,0.05) 45%, transparent 72%)" }}
+          >
+            <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>The hero banner spans the top of your release</span>
           </div>
+        )}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(8,5,6,0.05) 40%, rgba(8,5,6,0.85) 100%)" }} />
+        <div className="absolute top-3 right-9">
+          <InlineUpload
+            label={draft.bannerUrl ? "Replace hero" : "Add hero"}
+            busy={uploading.banner}
+            onFile={async (f) => { try { const url = await uploadFile(f, "banner"); setDraft((d) => ({ ...d, bannerUrl: url })); } catch (e: any) { showError(e.message || "Upload failed"); } }}
+          />
         </div>
+      </div>
 
-        <div className="grid gap-5 p-6 sm:grid-cols-[150px_1fr] items-start -mt-10 relative">
-          {/* Key art position */}
-          <div className="w-full max-w-[150px] space-y-2">
-            <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.5)" }}>
-              {draft.thumbUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={draft.thumbUrl} alt={project.title} className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center p-3 text-center">
-                  <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>Key art appears here</span>
-                </div>
-              )}
-            </div>
-            <InlineUpload
-              label={draft.thumbUrl ? "Replace key art" : "Add key art"}
-              busy={uploading.poster}
-              onFile={async (f) => { try { const url = await uploadFile(f, "poster"); setDraft((d) => ({ ...d, thumbUrl: url })); } catch (e: any) { showError(e.message || "Upload failed"); } }}
-            />
-          </div>
-
-          {/* Title presentation */}
-          <div className="space-y-3 pt-10">
-            <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: "#F6A31A" }}>ShangoMaji Title</p>
-            <h2 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(24px, 4vw, 40px)", lineHeight: 1.05 }}>
-              {project.title}
-            </h2>
-            {project.logline && project.logline.trim() && (
-              <p className="text-sm italic max-w-xl" style={{ color: "rgba(255,255,255,0.72)", fontFamily: "var(--font-display)" }}>
-                {project.logline.trim()}
-              </p>
+      {/* ── Title presentation — the poster floats over the hero's edge; the
+          title treatment sits on the open canvas. ── */}
+      <div className="relative -mt-24 grid gap-6 sm:grid-cols-[150px_1fr] items-start">
+        {/* The poster — feels like a poster */}
+        <div className="w-full max-w-[150px] space-y-2">
+          <div className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border shadow-[0_18px_40px_-18px_rgba(0,0,0,0.9)]" style={{ borderColor: "rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.5)" }}>
+            {draft.thumbUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={draft.thumbUrl} alt={project.title} className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center p-3 text-center">
+                <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>The poster goes here</span>
+              </div>
             )}
-            {/* Trailer action — edited in place */}
-            <div className="space-y-2 pt-1">
-              {trailer ? (
-                <a href={trailer} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg text-black" style={{ background: SIGNAL }}>
-                  ▷ Watch trailer
-                </a>
-              ) : (
-                <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>The Watch-trailer action appears once you add a link.</p>
-              )}
-              <input
-                value={draft.trailerUrl}
-                onChange={(e) => setDraft((d) => ({ ...d, trailerUrl: e.target.value }))}
-                placeholder="Trailer link (https://…)"
-                className="w-full max-w-md rounded-lg px-3 py-2 text-[13px] text-white outline-none"
-                style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.12)" }}
-              />
-            </div>
           </div>
+          <InlineUpload
+            label={draft.thumbUrl ? "Replace poster" : "Add poster"}
+            busy={uploading.poster}
+            onFile={async (f) => { try { const url = await uploadFile(f, "poster"); setDraft((d) => ({ ...d, thumbUrl: url })); } catch (e: any) { showError(e.message || "Upload failed"); } }}
+          />
         </div>
 
-        {/* Release gallery — assembled in place */}
-        <div className="px-6 pb-6 space-y-3">
-          <p className="text-[11px] uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.45)" }}>Release gallery</p>
-          <div className="flex gap-3 flex-wrap">
-            {draft.stillsUrls.map((url, i) => (
-              <div key={`${url}-${i}`} className="relative h-24 w-40 rounded-lg overflow-hidden border flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="h-full w-full object-cover" />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 p-1" style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.75), transparent)" }}>
-                  <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => moveStill(i, "left")} disabled={i === 0} className="p-1 rounded bg-black/50 text-white disabled:opacity-30 hover:bg-black/70" aria-label="Move left"><ChevronLeft size={12} /></button>
-                    <button type="button" onClick={() => moveStill(i, "right")} disabled={i === draft.stillsUrls.length - 1} className="p-1 rounded bg-black/50 text-white disabled:opacity-30 hover:bg-black/70" aria-label="Move right"><ChevronRight size={12} /></button>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => { setDraft((d) => ({ ...d, thumbUrl: url })); showFeedback("Set as key art. Save to apply."); }} className="p-1 rounded bg-black/50 text-white hover:bg-black/70" aria-label="Set as key art" title="Set as key art"><Star size={11} /></button>
-                    <button type="button" onClick={() => setDraft((d) => ({ ...d, stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i) }))} className="px-1.5 py-0.5 rounded bg-black/50 text-white text-[10px] hover:bg-black/70">Remove</button>
-                  </div>
+        {/* Title treatment + trailer */}
+        <div className="space-y-3 pt-24 sm:pt-28">
+          <p className="text-[10px] uppercase tracking-[0.24em]" style={{ color: "#F6A31A" }}>ShangoMaji Title</p>
+          <h2 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(26px, 4.4vw, 44px)", lineHeight: 1.04 }}>
+            {project.title}
+          </h2>
+          {project.logline && project.logline.trim() && (
+            <p className="text-sm italic max-w-xl" style={{ color: "rgba(255,255,255,0.72)", fontFamily: "var(--font-display)" }}>
+              {project.logline.trim()}
+            </p>
+          )}
+          {/* Trailer action — feels like a trailer; edited in place */}
+          <div className="space-y-2 pt-1">
+            {trailer ? (
+              <a href={trailer} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-3.5 py-2 rounded-lg text-black" style={{ background: SIGNAL }}>
+                ▷ Watch trailer
+              </a>
+            ) : (
+              <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>The Watch-trailer action appears once you add a link.</p>
+            )}
+            <input
+              value={draft.trailerUrl}
+              onChange={(e) => setDraft((d) => ({ ...d, trailerUrl: e.target.value }))}
+              placeholder="Trailer link (https://…)"
+              className="release-line w-full max-w-md bg-transparent border-0 border-b outline-none text-[13px] text-white py-1.5"
+              style={{ borderColor: "rgba(255,255,255,0.16)" }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Release gallery — a gallery on the open canvas ── */}
+      <div className="space-y-3 pt-2">
+        <p className="text-[11px] uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.45)" }}>Release gallery</p>
+        <div className="flex gap-3 flex-wrap">
+          {draft.stillsUrls.map((url, i) => (
+            <div key={`${url}-${i}`} className="relative h-24 w-40 rounded-lg overflow-hidden border flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="h-full w-full object-cover" />
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 p-1" style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.75), transparent)" }}>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => moveStill(i, "left")} disabled={i === 0} className="p-1 rounded bg-black/50 text-white disabled:opacity-30 hover:bg-black/70" aria-label="Move left"><ChevronLeft size={12} /></button>
+                  <button type="button" onClick={() => moveStill(i, "right")} disabled={i === draft.stillsUrls.length - 1} className="p-1 rounded bg-black/50 text-white disabled:opacity-30 hover:bg-black/70" aria-label="Move right"><ChevronRight size={12} /></button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => { setDraft((d) => ({ ...d, thumbUrl: url })); showFeedback("Set as key art. Save to apply."); }} className="p-1 rounded bg-black/50 text-white hover:bg-black/70" aria-label="Set as key art" title="Set as key art"><Star size={11} /></button>
+                  <button type="button" onClick={() => setDraft((d) => ({ ...d, stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i) }))} className="px-1.5 py-0.5 rounded bg-black/50 text-white text-[10px] hover:bg-black/70">Remove</button>
                 </div>
               </div>
-            ))}
-            {/* Add-still position */}
-            <label
-              className={`h-24 w-40 rounded-lg border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer flex-shrink-0 transition ${uploading.still ? "opacity-60 cursor-not-allowed" : "hover:border-white/30"}`}
-              style={{ borderColor: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.5)" }}
-            >
-              {uploading.still ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-              <span className="text-[11px]">{draft.stillsUrls.length ? "Add still" : "Add your first still"}</span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                disabled={uploading.still}
-                className="sr-only"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!f) return;
-                  try { const url = await uploadFile(f, "still"); setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] })); }
-                  catch (err: any) { showError(err.message || "Upload failed"); }
-                }}
-              />
-            </label>
-          </div>
+            </div>
+          ))}
+          {/* Add-still position */}
+          <label
+            className={`h-24 w-40 rounded-lg border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer flex-shrink-0 transition ${uploading.still ? "opacity-60 cursor-not-allowed" : "hover:border-white/30"}`}
+            style={{ borderColor: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.5)" }}
+          >
+            {uploading.still ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+            <span className="text-[11px]">{draft.stillsUrls.length ? "Add still" : "Add your first still"}</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              disabled={uploading.still}
+              className="sr-only"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f) return;
+                try { const url = await uploadFile(f, "still"); setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] })); }
+                catch (err: any) { showError(err.message || "Upload failed"); }
+              }}
+            />
+          </label>
         </div>
       </div>
 
       {/* What ships — derived, not a checklist */}
       <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-        {ships.length ? <>Ships with · {ships.join(" · ")}</> : "Add key art to begin assembling your release."}
+        {ships.length ? <>Ships with · {ships.join(" · ")}</> : "Add a poster to begin assembling your release."}
       </p>
 
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap border-t border-white/8 pt-5">
         <p className="text-[11px] text-ink-muted leading-relaxed max-w-md inline-flex items-start gap-1.5">
           <Lock size={12} className="mt-[2px] shrink-0 opacity-70" aria-hidden="true" />
           <span>
@@ -364,6 +365,11 @@ export default function ReleaseRoomPage({ params }: PageProps) {
           {saving ? (<><Loader2 size={14} className="animate-spin" /> Saving…</>) : saved ? "Saved" : (<><Save size={14} /> Save release</>)}
         </GradientButton>
       </div>
+
+      <style jsx global>{`
+        .release-room .release-line::placeholder { color: rgba(255, 255, 255, 0.34); }
+        .release-room .release-line:focus { border-color: rgba(224, 118, 58, 0.6) !important; }
+      `}</style>
     </div>
   );
 }

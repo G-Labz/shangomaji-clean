@@ -167,7 +167,8 @@ export default function SubmissionIntegrityForm({
             helper="Establish the title's trust posture. Confirm each statement applies to this work."
             topRule={zone === "trust"}
           >
-            <div className="rounded-lg border border-white/8 divide-y divide-white/8 overflow-hidden">
+            {/* A ledger of affirmed statements, ruled — not a boxed form panel. */}
+            <div className="divide-y divide-white/8 border-t border-white/8">
               <AttestationRow
                 checked={value.rights_ownership_ack}
                 onChange={set("rights_ownership_ack")}
@@ -270,12 +271,13 @@ export default function SubmissionIntegrityForm({
             )}
           </Block>
 
-          {/* License awareness — institutional callout */}
-          <div className="mt-8 rounded-xl border border-[#E0763A]/[0.3] bg-[#E0763A]/[0.05] p-5">
+          {/* License awareness — an editorial callout on the canvas, marked by
+              a single warm rule. Not a boxed panel. */}
+          <div className="mt-8 pl-5 border-l-2" style={{ borderColor: "rgba(224,118,58,0.5)" }}>
             <p className="text-[11px] uppercase tracking-[0.18em] text-[#E0763A] font-semibold">
               License awareness
             </p>
-            <p className="mt-2 text-[13px] text-white/80 leading-relaxed">
+            <p className="mt-2 text-[13px] text-white/70 leading-relaxed max-w-xl">
               ShangoMaji is a licensing destination. Acceptance leads to a binding distribution
               license, not an automatic publication. Please confirm you understand what
               submission means.
@@ -417,7 +419,7 @@ function AttestationRow({
   label: string;
 }) {
   return (
-    <label className={`flex items-start gap-3 px-4 py-3.5 cursor-pointer transition ${checked ? "bg-white/[0.03]" : "hover:bg-white/[0.02]"}`}>
+    <label className="flex items-start gap-3 py-3.5 cursor-pointer group">
       <input
         type="checkbox"
         checked={checked}
@@ -425,7 +427,12 @@ function AttestationRow({
         className="mt-1 h-4 w-4 shrink-0"
         style={{ accentColor: "#E0763A" }}
       />
-      <span className="text-[13px] text-white/85 leading-relaxed">{label}</span>
+      <span
+        className="text-[13px] leading-relaxed transition"
+        style={{ color: checked ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)" }}
+      >
+        {label}
+      </span>
     </label>
   );
 }

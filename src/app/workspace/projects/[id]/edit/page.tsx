@@ -3,14 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Save, Loader2, Send, Lock } from "lucide-react";
+import { Save, Loader2, Send, Lock, ImagePlus } from "lucide-react";
 import {
   Card,
-  SectionHeading,
   GradientButton,
   StatusBadge,
   ItemActions,
-  UploadField,
   useConfirm,
 } from "../../../components";
 import SubmissionIntegrityForm, {
@@ -38,6 +36,7 @@ interface ProjectDraft {
 
 const TYPES  = ["Series", "Film", "Short"];
 const GENRES = ["Mythic", "Sci-Fi", "Drama", "Spiritual", "Action", "Coming of Age"];
+const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 
 interface PageProps {
   params: { id: string };
@@ -447,14 +446,23 @@ export default function EditProjectPage({ params }: PageProps) {
     );
   }
 
-  // ── Normal edit form ─────────────────────────────────────────────────────
+  // ── World Room ─────────────────────────────────────────────────────────────
+  // Container collapse: the title is the page. No outer card frames the world —
+  // an ambient ember wash bleeds behind a title-led masthead, the world's body
+  // flows as prose, the thesis reads as an editorial argument, and trust is
+  // demoted to "the standing of this title." Actions live in a quiet sticky
+  // support bar. Inputs are editable only on a draft; every other state renders
+  // the title at rest. The server PUT gate stays authoritative regardless.
+  const isDraft     = projectStatus === "draft";
   const canDelete   = projectStatus === "draft" || projectStatus === "rejected";
   const isLive      = projectStatus === "live";
   const isBlocked   = !canDelete && !isLive;
   const showBlockedDelete = isBlocked && projectStatus !== "removed";
+  const trailer     = draft.trailerUrl.trim();
+  const factLine    = [draft.type, draft.genre, draft.runtime].map((v) => v && v.trim()).filter(Boolean).join("  ·  ");
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12">
+    <div className="world-room space-y-14 pb-32">
       {dialog}
 
       {/* Removal request modal */}
@@ -545,16 +553,39 @@ export default function EditProjectPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-1">
+      {/* ── Masthead / Stage — the title is the page ── */}
+      <section className="relative">
+        {/* Ambient ember wash + (when present) the hero image as a faint
+            backdrop — bleeds off the masthead, never frames it. */}
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-12 -bottom-6 -z-10 overflow-hidden">
+          {draft.bannerUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={draft.bannerUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{
+                opacity: 0.22,
+                maskImage: "linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 82%)",
+                WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 82%)",
+              }}
+            />
+          )}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(115% 75% at 6% 8%, rgba(200,10,46,0.16) 0%, rgba(234,115,27,0.06) 40%, transparent 72%)",
+            }}
+          />
+        </div>
+
+        {/* Room label · standing · actions — quiet chrome, not the headline */}
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-9">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1
-              className="font-bold text-2xl text-white tracking-tight"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
+            <span className="text-[11px] uppercase tracking-[0.26em]" style={{ color: "rgba(255,255,255,0.42)" }}>
               World Room
-            </h1>
+            </span>
             <StatusBadge status={projectStatus} />
             {projectStatus === "removal_requested" && (
               <span className="text-[11px] px-2.5 py-1 rounded-full border bg-[#E0763A]/[0.1] text-[#E0763A] border-[#E0763A]/[0.3]">
@@ -567,84 +598,224 @@ export default function EditProjectPage({ params }: PageProps) {
               </span>
             )}
           </div>
-          <p className="text-xs text-ink-faint italic">
-            {projectStatus === "draft"
-              ? "Private draft. Fully editable."
-              : projectStatus === "pending"
-              ? "Submitted for review. Editing locked."
-              : projectStatus === "in_review"
-              ? "Under editorial evaluation. No changes allowed."
-              : projectStatus === "approved"
-              ? "Selected for distribution consideration. License required."
-              : projectStatus === "live"
-              ? "Under active distribution license. Managed by ShangoMaji."
-              : projectStatus === "archived"
-              ? "Removed from active catalog."
-              : projectStatus === "rejected"
-              ? "Not selected. Revise to create a new draft."
-              : projectStatus === "removal_requested"
-              ? "Removal request under review."
-              : projectStatus === "removed"
-              ? "Distribution ended."
-              : ""}
-          </p>
-          {isLive && (
-            <p className="text-[11px] text-ink-muted">
-              Subject to review. Removal may be denied during an active license term.
-            </p>
-          )}
-          {projectStatus === "removal_requested" && (
-            <>
-              <p className="text-[11px] text-[#E0763A]/[0.85] leading-relaxed max-w-xl">
-                Your work remains live while ShangoMaji reviews this request. Removal is not
-                automatic and may be denied under the active license terms.
-              </p>
-              <p className="text-[11px] text-ink-muted">
-                Editing is closed while the removal request is under review.
-              </p>
-            </>
-          )}
-          {projectStatus === "removed" && (
-            <p className="text-[11px] text-red-300/80 leading-relaxed max-w-xl">
-              This work has been removed from distribution. It is no longer eligible for
-              restoration through the creator workspace.
-            </p>
-          )}
+          <ItemActions
+            onDelete={canDelete ? handleDelete : undefined}
+            onDeleteBlocked={showBlockedDelete ? (reason) => showError(reason) : undefined}
+            deleteBlockedReason={
+              showBlockedDelete
+                ? projectStatus === "live"
+                  ? "Live projects cannot be deleted. Submit a removal request instead."
+                  : projectStatus === "pending" || projectStatus === "in_review"
+                  ? "Projects under review cannot be deleted."
+                  : projectStatus === "approved"
+                  ? "Approved projects cannot be deleted."
+                  : "This work cannot be deleted."
+                : undefined
+            }
+            onRequestRemoval={
+              isLive && !removalRequested ? () => setRemovalModalOpen(true) : undefined
+            }
+          />
         </div>
-        <ItemActions
-          onDelete={canDelete ? handleDelete : undefined}
-          onDeleteBlocked={showBlockedDelete ? (reason) => showError(reason) : undefined}
-          deleteBlockedReason={
-            showBlockedDelete
-              ? projectStatus === "live"
-                ? "Live projects cannot be deleted. Submit a removal request instead."
-                : projectStatus === "pending" || projectStatus === "in_review"
-                ? "Projects under review cannot be deleted."
-                : projectStatus === "approved"
-                ? "Approved projects cannot be deleted."
-                : "This work cannot be deleted."
-              : undefined
-          }
-          onRequestRemoval={
-            isLive && !removalRequested ? () => setRemovalModalOpen(true) : undefined
-          }
-        />
-      </div>
 
-      {/* Approved projects: license-required / license-executed banner.
-          Without an executed license, distribution cannot be activated. */}
+        {/* Title-in-the-making — the world's face beside its name */}
+        <div className="grid gap-7 sm:grid-cols-[minmax(140px,190px)_1fr] items-start">
+          {/* The title's face (key art) */}
+          <div className="w-full max-w-[190px]">
+            <div
+              className="relative aspect-[2/3] w-full rounded-lg overflow-hidden border"
+              style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.45)" }}
+            >
+              {draft.thumbUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={draft.thumbUrl} alt={draft.title || "Key art"} className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center p-3 text-center">
+                  <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                    {isDraft ? "The title’s face" : "No key art"}
+                  </span>
+                </div>
+              )}
+              {isDraft && (
+                <label
+                  className="absolute inset-0 flex items-end justify-center pb-3 cursor-pointer opacity-0 hover:opacity-100 focus-within:opacity-100 transition"
+                  style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.72), transparent 62%)" }}
+                >
+                  <span
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg text-white"
+                    style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.2)" }}
+                  >
+                    {uploading.poster ? <Loader2 size={12} className="animate-spin" /> : <ImagePlus size={12} />}
+                    {draft.thumbUrl ? "Replace" : "Add key art"}
+                  </span>
+                  <input
+                    type="file"
+                    accept={ACCEPT}
+                    disabled={uploading.poster}
+                    className="sr-only"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!f) return;
+                      try { const url = await uploadFile(f, "poster"); set("thumbUrl")(url); }
+                      catch (err: any) { setErrors((p) => ({ ...p, thumbUrl: err.message })); }
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+            {errors.thumbUrl && <p className="text-xs text-brand-red mt-1.5">{errors.thumbUrl}</p>}
+
+            {/* Hero image — folds the title's wide presentation into the face,
+                not a separate upload field. */}
+            {isDraft && (
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
+                <label className="inline-flex items-center gap-1.5 text-[11px] cursor-pointer transition hover:text-white" style={{ color: "rgba(255,255,255,0.5)" }}>
+                  {uploading.banner ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
+                  <span className="underline-offset-2 hover:underline">{draft.bannerUrl ? "Replace hero" : "Add hero image"}</span>
+                  <input
+                    type="file"
+                    accept={ACCEPT}
+                    disabled={uploading.banner}
+                    className="sr-only"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!f) return;
+                      try { const url = await uploadFile(f, "banner"); set("bannerUrl")(url); }
+                      catch (err: any) { setErrors((p) => ({ ...p, bannerUrl: err.message })); }
+                    }}
+                  />
+                </label>
+                {draft.bannerUrl && (
+                  <button type="button" onClick={() => set("bannerUrl")("")} className="text-[11px] transition hover:text-white" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            )}
+            {errors.bannerUrl && <p className="text-xs text-brand-red mt-1.5">{errors.bannerUrl}</p>}
+          </div>
+
+          {/* The name + premise headline */}
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.28em] mb-3" style={{ color: "#F6A31A" }}>
+              Title in the making
+            </p>
+
+            {isDraft ? (
+              <input
+                value={draft.title}
+                onChange={(e) => set("title")(e.target.value)}
+                placeholder="Name your world"
+                aria-label="Title"
+                className="title-input w-full bg-transparent border-0 outline-none text-white font-bold tracking-tight"
+                style={{ fontFamily: "var(--font-display)", fontSize: "clamp(30px, 5vw, 52px)", lineHeight: 1.04 }}
+              />
+            ) : (
+              <h1 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(30px, 5vw, 52px)", lineHeight: 1.04 }}>
+                {draft.title.trim() || "Untitled world"}
+              </h1>
+            )}
+            {errors.title && <p className="text-xs text-brand-red mt-1">{errors.title}</p>}
+
+            {isDraft ? (
+              <input
+                value={draft.logline}
+                onChange={(e) => set("logline")(e.target.value)}
+                placeholder="One line that captures it"
+                aria-label="Logline"
+                className="logline-input mt-3 w-full max-w-2xl bg-transparent border-0 outline-none italic"
+                style={{ fontFamily: "var(--font-display)", fontSize: "clamp(15px, 2vw, 20px)", color: "rgba(255,255,255,0.78)" }}
+              />
+            ) : (
+              draft.logline.trim() && (
+                <p className="mt-3 italic max-w-2xl" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(15px, 2vw, 20px)", color: "rgba(255,255,255,0.78)" }}>
+                  {draft.logline.trim()}
+                </p>
+              )
+            )}
+            {errors.logline && <p className="text-xs text-brand-red mt-1">{errors.logline}</p>}
+
+            {/* Facts — type, genre, runtime as a quiet strip, not stacked fields */}
+            {isDraft ? (
+              <div className="mt-7 space-y-3.5">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="w-[58px] shrink-0 text-[11px] uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.4)" }}>Type</span>
+                  <div className="flex gap-2 flex-wrap">
+                    {TYPES.map((t) => (
+                      <button key={t} type="button" onClick={() => set("type")(t)}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs border transition ${draft.type === t ? "border-transparent text-black" : "border-white/10 text-ink-faint hover:border-white/25 hover:text-white"}`}
+                        style={draft.type === t ? { background: "#E0763A" } : {}}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  {errors.type && <span className="text-xs text-brand-red">{errors.type}</span>}
+                </div>
+                <div className="flex items-start gap-3 flex-wrap">
+                  <span className="w-[58px] shrink-0 pt-1.5 text-[11px] uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.4)" }}>Genre</span>
+                  <div className="flex gap-2 flex-wrap">
+                    {GENRES.map((g) => (
+                      <button key={g} type="button" onClick={() => set("genre")(g)}
+                        className={`px-3 py-1.5 rounded-lg text-xs border transition ${draft.genre === g ? "border-transparent text-black" : "border-white/10 text-ink-faint hover:border-white/25 hover:text-white"}`}
+                        style={draft.genre === g ? { background: "#E0763A" } : {}}>
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                  {errors.genre && <span className="text-xs text-brand-red">{errors.genre}</span>}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="w-[58px] shrink-0 text-[11px] uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.4)" }}>Runtime</span>
+                  <input
+                    value={draft.runtime}
+                    onChange={(e) => set("runtime")(e.target.value)}
+                    placeholder="e.g., 6 x 22min  ·  optional"
+                    aria-label="Runtime or episodes"
+                    className="inline-line bg-transparent border-0 border-b outline-none text-sm py-1"
+                    style={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.85)", minWidth: 200 }}
+                  />
+                </div>
+              </div>
+            ) : (
+              factLine && (
+                <p className="mt-6 text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>{factLine}</p>
+              )
+            )}
+
+            {/* Trailer — the single Watch-trailer action */}
+            <div className="mt-6">
+              {trailer && (
+                <a href={trailer} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg text-black" style={{ background: "#E0763A" }}>
+                  ▷ Watch trailer
+                </a>
+              )}
+              {isDraft && (
+                <div className={`flex items-center gap-3 flex-wrap ${trailer ? "mt-2" : ""}`}>
+                  <span className="text-[11px] uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.4)" }}>Trailer</span>
+                  <input
+                    value={draft.trailerUrl}
+                    onChange={(e) => set("trailerUrl")(e.target.value)}
+                    placeholder="https://…  ·  optional"
+                    aria-label="Trailer link"
+                    className="inline-line bg-transparent border-0 border-b outline-none text-sm py-1"
+                    style={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.85)", minWidth: 260 }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Approved → license is the next move (informational; the bar carries the CTA). */}
       {projectStatus === "approved" && (
         <div
           className="flex flex-col md:flex-row md:items-center gap-3 px-4 py-3 rounded-lg border"
           style={{
-            borderColor:
-              licenseStatus === "executed"
-                ? "rgba(52,211,153,0.25)"
-                : "rgba(245,197,24,0.3)",
-            background:
-              licenseStatus === "executed"
-                ? "rgba(52,211,153,0.06)"
-                : "rgba(245,197,24,0.06)",
+            borderColor: licenseStatus === "executed" ? "rgba(52,211,153,0.25)" : "rgba(245,197,24,0.3)",
+            background: licenseStatus === "executed" ? "rgba(52,211,153,0.06)" : "rgba(245,197,24,0.06)",
           }}
         >
           <div className="flex-1 text-sm">
@@ -662,285 +833,106 @@ export default function EditProjectPage({ params }: PageProps) {
           <Link
             href={`/license/${id}`}
             className="px-4 py-2 rounded-lg text-xs font-semibold text-black transition active:scale-95 self-start md:self-auto"
-            style={{
-              background:
-                licenseStatus === "executed"
-                  ? "rgba(255,255,255,0.85)"
-                  : "#E0763A",
-            }}
+            style={{ background: licenseStatus === "executed" ? "rgba(255,255,255,0.85)" : "#E0763A" }}
           >
             {licenseStatus === "executed" ? "View License" : "Review and Sign License"}
           </Link>
         </div>
       )}
 
-      {/* World Room — two zones in the main column (Creative shaping first,
-          then Trust & Provenance); the submission Actions sit in the right
-          rail (sticky on desktop). Inputs are semantically disabled for any
-          non-draft state and shown as a settled record; the server-side gate
-          in PUT /api/creators/projects rejects saves from non-draft states
-          regardless. */}
-      <div className="lg:flex lg:items-start lg:gap-6">
-        {/* Main column — Creative zone + Trust & Provenance zone */}
-        <div className="lg:flex-1 min-w-0 space-y-6">
-          {/* ── Zone 1 · Creative shaping — the Title as it currently reads ── */}
-          <section className="space-y-6">
-            <div
-              className="relative overflow-hidden rounded-2xl border px-6 py-7"
-              style={{
-                borderColor: "rgba(217,38,28,0.22)",
-                background:
-                  "linear-gradient(135deg, rgba(200,10,46,0.12) 0%, rgba(17,17,17,0.55) 48%, rgba(234,115,27,0.07) 100%)",
-              }}
-            >
-              <p className="text-[11px] uppercase tracking-[0.26em] mb-2" style={{ color: "#F6A31A" }}>
-                Title in the making
-              </p>
-              <h2
-                className="text-white font-bold tracking-tight"
-                style={{ fontFamily: "var(--font-display)", fontSize: "clamp(26px, 4.5vw, 44px)", lineHeight: 1.05 }}
-              >
-                {draft.title.trim() || "Untitled world"}
-              </h2>
-              {draft.logline.trim() && (
-                <p
-                  className="text-base italic mt-2 max-w-2xl"
-                  style={{ color: "rgba(255,255,255,0.75)", fontFamily: "var(--font-display)" }}
-                >
-                  {draft.logline.trim()}
-                </p>
-              )}
-            </div>
+      {/* State note for non-draft, non-approved (the page is at rest). */}
+      {!isDraft && projectStatus !== "approved" && (
+        <p className="text-xs text-ink-faint italic max-w-2xl">
+          {projectStatus === "pending"
+            ? "Submitted for review. The world is settled while it’s with our editorial team."
+            : projectStatus === "in_review"
+            ? "Under editorial evaluation. The world is settled — no changes while it’s with us."
+            : projectStatus === "live"
+            ? "Under active distribution license. Core identity is managed by ShangoMaji; refine the release in the Release Room."
+            : projectStatus === "removal_requested"
+            ? "Your work remains live while ShangoMaji reviews this removal request. Editing is closed while it’s under review."
+            : projectStatus === "removed"
+            ? "This work has been removed from distribution and is no longer editable here."
+            : projectStatus === "archived"
+            ? "Removed from active catalog."
+            : ""}
+        </p>
+      )}
 
-            <fieldset
-              disabled={projectStatus !== "draft"}
-              style={{ border: "none", padding: 0, margin: 0, opacity: 1, pointerEvents: projectStatus === "draft" ? "auto" : "none" }}
-            >
-              {projectStatus !== "draft" ? (
-                <div className="space-y-3">
-                  {[
-                    { label: "Title", value: draft.title },
-                    { label: "Type", value: draft.type },
-                    { label: "Logline", value: draft.logline },
-                    { label: "Synopsis", value: draft.synopsis },
-                    { label: "Runtime / Episodes", value: draft.runtime },
-                    { label: "Genre", value: draft.genre },
-                  ].map((r) => (
-                    <div key={r.label} className="flex flex-col sm:flex-row sm:gap-4">
-                      <span className="text-[11px] uppercase tracking-[0.16em] sm:w-36 sm:flex-shrink-0 pt-0.5 text-ink-faint">
-                        {r.label}
-                      </span>
-                      <span className="text-sm leading-relaxed whitespace-pre-line text-white/80">
-                        {r.value && r.value.trim() ? r.value : "—"}
-                      </span>
-                    </div>
-                  ))}
-                  {(draft.thumbUrl || draft.bannerUrl) && (
-                    <div className="flex items-center gap-3 pt-2">
-                      {draft.thumbUrl && <img src={draft.thumbUrl} alt="Poster" className="h-20 w-auto rounded-lg object-cover" />}
-                      {draft.bannerUrl && <img src={draft.bannerUrl} alt="Banner" className="h-20 w-auto rounded-lg object-cover" />}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-ink-faint">Identity</p>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <Field label="Title" error={errors.title}>
-                        <input value={draft.title} onChange={(e) => set("title")(e.target.value)} placeholder="Name your world" />
-                      </Field>
-                      <Field label="Type" error={errors.type}>
-                        <div className="grid grid-cols-3 gap-2">
-                          {TYPES.map((t) => (
-                            <button key={t} onClick={() => set("type")(t)} type="button"
-                              className={`py-2.5 px-3 rounded-lg border text-sm transition ${draft.type === t ? "border-transparent text-black" : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"}`}
-                              style={draft.type === t ? { background: "#E0763A" } : {}}>
-                              {t}
-                            </button>
-                          ))}
-                        </div>
-                      </Field>
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <Field label="Runtime / Episodes" hint="Optional. e.g., 2h 7m, 6 x 22min.">
-                        <input value={draft.runtime} onChange={(e) => set("runtime")(e.target.value)} placeholder="e.g., 6 x 22min" />
-                      </Field>
-                      <Field label="Genre" error={errors.genre}>
-                        <div className="flex flex-wrap gap-2">
-                          {GENRES.map((g) => (
-                            <button key={g} onClick={() => set("genre")(g)} type="button"
-                              className={`px-3 py-1.5 rounded-lg text-xs border transition ${draft.genre === g ? "border-transparent text-black" : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"}`}
-                              style={draft.genre === g ? { background: "#E0763A" } : {}}>
-                              {g}
-                            </button>
-                          ))}
-                        </div>
-                      </Field>
-                    </div>
-                  </div>
+      {/* ── The world's body — premise flows as the world's text ── */}
+      <section>
+        <p className="text-[11px] uppercase tracking-[0.22em] mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>Premise</p>
+        {isDraft ? (
+          <textarea
+            value={draft.synopsis}
+            onChange={(e) => set("synopsis")(e.target.value)}
+            placeholder="What is this world, and what unfolds in it? Write it the way you'd want it read."
+            rows={6}
+            aria-label="Synopsis"
+            className="premise-input w-full max-w-3xl bg-transparent border-0 outline-none"
+            style={{ color: "rgba(255,255,255,0.82)", fontSize: "1.02rem", lineHeight: 1.75, resize: "vertical" }}
+          />
+        ) : draft.synopsis.trim() ? (
+          <p className="max-w-3xl whitespace-pre-line" style={{ color: "rgba(255,255,255,0.78)", fontSize: "1.02rem", lineHeight: 1.75 }}>
+            {draft.synopsis.trim()}
+          </p>
+        ) : (
+          <p className="text-sm text-ink-faint">—</p>
+        )}
+      </section>
 
-                  <div className="space-y-4 border-t border-white/8 pt-6">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-ink-faint">Premise — how the world reads</p>
-                    <Field label="Logline" error={errors.logline} hint="One to two sentences.">
-                      <input value={draft.logline} onChange={(e) => set("logline")(e.target.value)} placeholder="A young warrior..." />
-                    </Field>
-                    <Field label="Synopsis" hint="Tell the fuller story.">
-                      <textarea value={draft.synopsis} onChange={(e) => set("synopsis")(e.target.value)} placeholder="What is this world, and what unfolds in it?" rows={5} />
-                    </Field>
-                  </div>
+      {/* ── The editorial argument — why this world belongs ── */}
+      <section className="border-t border-white/10 pt-10">
+        <SubmissionIntegrityForm
+          value={integrity}
+          onChange={setIntegrity}
+          disabled={!isDraft}
+          zone="thesis"
+        />
+      </section>
 
-                  <div className="space-y-4 border-t border-white/8 pt-6">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-ink-faint">Key art — the title&rsquo;s face</p>
-                    <UploadField
-                      label="Poster / key art"
-                      hint="2:3 portrait recommended. Becomes your title's primary image."
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      uploading={uploading["poster"]}
-                      preview={draft.thumbUrl ? (<img src={draft.thumbUrl} alt="Poster" className="h-24 w-auto rounded-lg object-cover" />) : null}
-                      onFile={async (file) => { try { const url = await uploadFile(file, "poster"); set("thumbUrl")(url); } catch (err: any) { setErrors((p) => ({ ...p, thumbUrl: err.message })); } }}
-                      onRemove={draft.thumbUrl ? () => set("thumbUrl")("") : undefined}
-                    />
-                    <UploadField
-                      label="Hero banner"
-                      hint="Wide cinematic image used in hero contexts."
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      uploading={uploading["banner"]}
-                      preview={draft.bannerUrl ? (<img src={draft.bannerUrl} alt="Banner" className="h-16 w-full rounded-lg object-cover" />) : null}
-                      onFile={async (file) => { try { const url = await uploadFile(file, "banner"); set("bannerUrl")(url); } catch (err: any) { setErrors((p) => ({ ...p, bannerUrl: err.message })); } }}
-                      onRemove={draft.bannerUrl ? () => set("bannerUrl")("") : undefined}
-                    />
-                    <Field label="Trailer link" hint="An outbound link. Your title page renders this as a single “Watch trailer” action.">
-                      <input value={draft.trailerUrl} onChange={(e) => set("trailerUrl")(e.target.value)} placeholder="https://..." />
-                    </Field>
-                  </div>
-                </div>
-              )}
-            </fieldset>
+      {/* ── The standing of this title — trust & provenance (secondary) ── */}
+      <section className="border-t border-white/10 pt-10">
+        <p className="text-[11px] uppercase tracking-[0.26em] mb-1" style={{ color: "#E0763A" }}>
+          The standing of this title
+        </p>
+        <p className="text-sm mb-7 max-w-xl" style={{ color: "rgba(255,255,255,0.5)" }}>
+          Ownership, collaborators, AI, and prior distribution — the title’s trust posture.
+          Required before review; save as you go.
+        </p>
+        <SubmissionIntegrityForm
+          value={integrity}
+          onChange={setIntegrity}
+          disabled={!isDraft}
+          fieldError={integrityError}
+          zone="trust"
+        />
 
-            {/* The editorial argument — thesis / fit */}
-            <div className="border-t border-white/8 pt-6">
-              <SubmissionIntegrityForm
-                value={integrity}
-                onChange={setIntegrity}
-                disabled={projectStatus !== "draft"}
-                zone="thesis"
-              />
-            </div>
-          </section>
-
-          {/* ── Zone 2 · Trust & Provenance — establish the title's trust posture ── */}
-          <section className="space-y-5 border-t border-white/10 pt-8">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.26em] mb-1" style={{ color: "#E0763A" }}>
-                Trust &amp; provenance
-              </p>
-              <p className="text-sm text-ink-faint max-w-xl">
-                Establish the title&rsquo;s trust posture. Required before review; drafts can be saved as you go.
-              </p>
-            </div>
-            <SubmissionIntegrityForm
-              value={integrity}
-              onChange={setIntegrity}
-              disabled={projectStatus !== "draft"}
-              fieldError={integrityError}
-              zone="trust"
+        {/* Private review screener — an internal declaration, not a boxed field. */}
+        <div className="mt-9">
+          <p className="text-[11px] uppercase tracking-widest inline-flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+            <Lock size={11} className="opacity-70" aria-hidden="true" />
+            Private review screener
+          </p>
+          <p className="text-xs mt-1 mb-2.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+            Shared with ShangoMaji review only. Never part of your public release.
+          </p>
+          {isDraft ? (
+            <input
+              value={draft.sampleUrl}
+              onChange={(e) => set("sampleUrl")(e.target.value)}
+              placeholder="Screener link (https://…)"
+              aria-label="Sample or screener URL"
+              className="inline-line bg-transparent border-0 border-b outline-none text-sm py-1 w-full max-w-md"
+              style={{ borderColor: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.85)" }}
             />
-            <fieldset
-              disabled={projectStatus !== "draft"}
-              style={{ border: "none", padding: 0, margin: 0, opacity: 1, pointerEvents: projectStatus === "draft" ? "auto" : "none" }}
-            >
-              <div className="rounded-xl border border-white/8 bg-white/[0.01] p-5 space-y-2">
-                <p className="text-[11px] uppercase tracking-widest text-ink-faint inline-flex items-center gap-1.5">
-                  <Lock size={11} className="opacity-70" aria-hidden="true" />
-                  Private review screener
-                </p>
-                <p className="text-xs text-ink-muted leading-relaxed">
-                  Shared with ShangoMaji review only. Never part of your public release.
-                </p>
-                {projectStatus !== "draft" ? (
-                  <p className="text-sm text-white/80">
-                    {draft.sampleUrl.trim() ? draft.sampleUrl.trim() : "— none provided"}
-                  </p>
-                ) : (
-                  <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
-                    <input value={draft.sampleUrl} onChange={(e) => set("sampleUrl")(e.target.value)} placeholder="https://..." />
-                  </Field>
-                )}
-              </div>
-            </fieldset>
-          </section>
-        </div>
-
-        {/* Right rail — submission actions (sticky on desktop). */}
-        <aside className="mt-6 lg:mt-0 lg:w-[340px] lg:shrink-0 space-y-6">
-
-          {/* Submission Actions panel — status-conditional. Pinned on
-              desktop via sticky so the creator can submit without
-              scrolling back up. Drafts get Save + Submit; approved gets
-              the license CTA; other states render no panel (the page is
-              read-only at this point and the top header / banner already
-              carry the relevant signals). */}
-          {(projectStatus === "draft" || projectStatus === "approved") && (
-            <div className="lg:sticky lg:top-[140px]">
-              <Card className="space-y-4">
-                <SectionHeading title="Submission Actions" />
-                {projectStatus === "draft" ? (
-                  <>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={handleSubmit}
-                        disabled={submitting || saving}
-                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-                        style={{
-                          background: "#E0763A",
-                          color: "black",
-                        }}
-                      >
-                        {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                        {submitting ? "Submitting..." : "Submit for Review"}
-                      </button>
-                      <GradientButton
-                        onClick={saveProject}
-                        disabled={saving || submitting}
-                        className="w-full"
-                      >
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                        {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
-                      </GradientButton>
-                    </div>
-                    <p className="text-[11px] text-ink-muted leading-relaxed">
-                      Save to keep editing later, or submit when the required declaration is complete.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href={`/license/${id}`}
-                      className="inline-flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl text-sm font-semibold text-black transition-all active:scale-95"
-                      style={{
-                        background:
-                          licenseStatus === "executed"
-                            ? "rgba(255,255,255,0.85)"
-                            : "#E0763A",
-                      }}
-                    >
-                      {licenseStatus === "executed" ? "View License" : "Sign License"}
-                    </Link>
-                    <p className="text-[11px] text-ink-muted leading-relaxed">
-                      {licenseStatus === "executed"
-                        ? "Your license is on file. Distribution activates after ShangoMaji review."
-                        : "Sign the Standard Distribution License to enable activation."}
-                    </p>
-                  </>
-                )}
-              </Card>
-            </div>
+          ) : (
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
+              {draft.sampleUrl.trim() ? draft.sampleUrl.trim() : "— none provided"}
+            </p>
           )}
-        </aside>
-      </div>
-
-      {errors.save && <p className="text-brand-red text-sm">{errors.save}</p>}
+        </div>
+      </section>
 
       {feedback && (
         <div
@@ -956,48 +948,44 @@ export default function EditProjectPage({ params }: PageProps) {
           {feedback}
         </div>
       )}
-    </div>
-  );
-}
 
-function Field({
-  label,
-  hint,
-  error,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="workspace-field space-y-1.5">
-      <label className="block text-sm font-medium text-white">{label}</label>
-      {hint && <p className="text-xs text-ink-faint">{hint}</p>}
-      <div className="space-y-2">{children}</div>
-      {error && <p className="text-xs text-brand-red">{error}</p>}
+      {/* ── Sticky support bar — the submission actions sit beneath the work,
+            never as a dominant panel beside it. Draft only; approved uses the
+            license banner above. ── */}
+      {isDraft && (
+        <div
+          className="sticky bottom-0 z-30 -mx-6 px-6 py-3.5 flex items-center justify-between gap-4 flex-wrap"
+          style={{ background: "rgba(8,8,11,0.9)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <p className="text-[11px] max-w-md leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+            {errors.save
+              ? <span className="text-brand-red">{errors.save}</span>
+              : "Save to keep shaping later, or submit when the title’s standing is complete."}
+          </p>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={saveProject}
+              disabled={saving || submitting}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition active:scale-95 disabled:opacity-50"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "white" }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {saving ? "Saving…" : saved ? "Saved" : "Save"}
+            </button>
+            <GradientButton onClick={handleSubmit} disabled={submitting || saving}>
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {submitting ? "Submitting…" : "Submit for Review"}
+            </GradientButton>
+          </div>
+        </div>
+      )}
+
       <style jsx global>{`
-        .workspace-field input,
-        .workspace-field textarea {
-          width: 100%;
-          background: rgba(26, 26, 26, 1);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 0.75rem;
-          padding: 0.75rem 1rem;
-          color: white;
-          font-size: 0.9rem;
-          outline: none;
-          transition: border-color 0.2s;
-        }
-        .workspace-field input:focus,
-        .workspace-field textarea:focus {
-          border-color: rgba(240, 112, 48, 0.5);
-        }
-        .workspace-field input::placeholder,
-        .workspace-field textarea::placeholder {
-          color: rgba(120, 120, 120, 1);
-        }
+        .world-room .title-input::placeholder { color: rgba(255, 255, 255, 0.24); font-style: normal; }
+        .world-room .logline-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+        .world-room .premise-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+        .world-room .inline-line::placeholder { color: rgba(255, 255, 255, 0.32); }
+        .world-room .inline-line:focus { border-color: rgba(224, 118, 58, 0.6) !important; }
       `}</style>
     </div>
   );
