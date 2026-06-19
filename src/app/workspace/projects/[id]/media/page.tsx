@@ -1,21 +1,23 @@
 "use client";
 
-// Phase 11D-R4A — Release Room = Assembly Table.
+// Phase 11D-R4A — Release Room = Assembly Table.  Phase 11D-R5B — refinement.
 //
 // A bounded workspace frame (hosted by the route-aware WorkspaceShell): a fixed
 // top ribbon and ONE persistent central object — the title presentation as a
 // visitor will see it (hero backdrop, poster in place, trailer play surface,
-// gallery strip). No left rail: the parts are spatially distinct, so they are
-// engaged by DIRECT in-place click. Each click summons the same single side
-// stage (right entry, ~58%, presentation stays visible/live) carrying that
-// region's picker; uploading happens inside the picker — there is no standing
-// upload zone. Persistence is ambient (saved on stage close via the existing
-// PUT). No media-manager grid, no Save bar, no page scroll. No backend change.
+// gallery strip). No left rail: the parts are spatially distinct, engaged by
+// DIRECT in-place click. R5B gives the presentation cinematic weight (wider,
+// larger hero/poster/title, grounded ember stage) and makes regions feel alive:
+// edit affordances REVEAL ON HOVER (clean at rest), and the active region gains
+// a strong ember frame. Each click summons the same single side stage carrying
+// that region's picker; uploading happens inside the picker. Persistence is
+// ambient (saved on stage close via the existing PUT). No media-manager grid,
+// no Save bar, no page scroll. No backend change.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Lock, ChevronLeft, ChevronRight, Star, Plus, ImagePlus } from "lucide-react";
+import { Loader2, Lock, ChevronLeft, ChevronRight, Star, Plus, ImagePlus, Pencil } from "lucide-react";
 import { StatusBadge } from "../../../components";
 import { RoomLayout, STUDIO_SIGNAL } from "../../../WorkspaceShell";
 
@@ -47,11 +49,12 @@ type MediaDraft = {
 const emptyDraft: MediaDraft = { thumbUrl: "", bannerUrl: "", trailerUrl: "", stillsUrls: [], deliverables: [] };
 
 type Region = "hero" | "poster" | "trailer" | "gallery";
-const REGION_TITLE: Record<Region, string> = {
-  hero: "Hero — the backdrop",
-  poster: "Poster — the key art",
-  trailer: "Trailer — the play surface",
-  gallery: "Gallery — the stills strip",
+const REGION_EYEBROW: Record<Region, string> = { hero: "Hero", poster: "Poster", trailer: "Trailer", gallery: "Gallery" };
+const REGION_HEAD: Record<Region, { title: string; purpose: string }> = {
+  hero:    { title: "Hero backdrop", purpose: "The cinematic backdrop behind the title card." },
+  poster:  { title: "Poster / key art", purpose: "The portrait that anchors the title." },
+  trailer: { title: "Trailer", purpose: "A reference shown as a single Watch-trailer action." },
+  gallery: { title: "Gallery", purpose: "The stills a visitor will browse." },
 };
 
 export default function ReleaseRoomPage({ params }: PageProps) {
@@ -127,8 +130,6 @@ export default function ReleaseRoomPage({ params }: PageProps) {
     });
   }
 
-  // Ambient persistence — placing a part is the commit; the PUT runs silently
-  // on stage close. Reuses the existing media whitelist; no Save bar.
   async function ambientSave() {
     if (!project) return;
     try {
@@ -189,11 +190,8 @@ export default function ReleaseRoomPage({ params }: PageProps) {
   const isLive = project.status === "live";
   const licenseExecuted = project.license_status === "executed";
   const trailer = draft.trailerUrl.trim();
+  const ra = (r: Region) => activeRegion === r && stageOpen;
 
-  const ringFor = (r: Region) =>
-    activeRegion === r && stageOpen ? "0 0 0 2px rgba(224,118,58,0.7)" : undefined;
-
-  // Readiness reading — which positions are filled vs open (not a checklist).
   const readiness: { label: string; on: boolean }[] = [
     { label: "Hero", on: !!draft.bannerUrl.trim() },
     { label: "Poster", on: !!draft.thumbUrl.trim() },
@@ -203,7 +201,7 @@ export default function ReleaseRoomPage({ params }: PageProps) {
 
   // ── Ribbon ────────────────────────────────────────────────────────────────
   const ribbon = (
-    <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-white/8" style={{ background: "rgba(8,5,6,0.4)" }}>
+    <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-white/8" style={{ background: "rgba(8,5,6,0.55)" }}>
       <div className="min-w-0 flex items-center gap-3">
         <span className="text-[11px] uppercase tracking-[0.24em] shrink-0" style={{ color: "rgba(255,255,255,0.34)" }}>Title</span>
         <h1 className="truncate font-bold text-lg text-white tracking-tight" style={{ fontFamily: "var(--font-display)" }}>{project.title}</h1>
@@ -220,8 +218,7 @@ export default function ReleaseRoomPage({ params }: PageProps) {
         <span className="hidden md:block w-px h-4" style={{ background: "rgba(255,255,255,0.12)" }} />
         <StatusBadge status={project.status} />
         {project.status === "approved" && (
-          <Link href={`/license/${id}`} className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-black transition active:scale-95"
-            style={{ background: licenseExecuted ? "rgba(255,255,255,0.85)" : STUDIO_SIGNAL }}>
+          <Link href={`/license/${id}`} className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-black transition active:scale-95" style={{ background: licenseExecuted ? "rgba(255,255,255,0.85)" : STUDIO_SIGNAL }}>
             {licenseExecuted ? "View license" : "Review & sign license"}
           </Link>
         )}
@@ -229,79 +226,84 @@ export default function ReleaseRoomPage({ params }: PageProps) {
     </div>
   );
 
-  // ── Persistent center — the title presentation ───────────────────────────
+  // ── Persistent center — the title presentation (cinematic, on an ember stage) ──
   const center = (
-    <div className="px-6 py-8">
-      <div className="mx-auto" style={{ maxWidth: 880 }}>
-        {/* The composition — hero backdrop with poster + trailer in place */}
-        <div className="rounded-2xl overflow-hidden border" style={{ borderColor: "rgba(217,38,28,0.22)" }}>
-          {/* Hero region */}
-          <button type="button" onClick={(e) => { e.stopPropagation(); openRegion("hero"); }}
-            className="group relative block w-full text-left" style={{ aspectRatio: "16 / 8", background: "rgba(0,0,0,0.45)", boxShadow: ringFor("hero") ? `inset ${ringFor("hero")}` : undefined }}>
-            {draft.bannerUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={draft.bannerUrl} alt="Hero" className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center" style={{ background: "radial-gradient(120% 90% at 50% 0%, rgba(200,10,46,0.16), rgba(234,115,27,0.05) 45%, transparent 72%)" }}>
-                <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>Click to set the hero backdrop</span>
-              </div>
-            )}
-            <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(8,5,6,0.05) 35%, rgba(8,5,6,0.9) 100%)" }} />
-            <span className="absolute top-3 left-3 text-[10px] uppercase tracking-[0.18em] opacity-0 group-hover:opacity-100 transition" style={{ color: "#F6A31A" }}>Hero</span>
-
-            {/* Trailer play surface — its own region over the hero */}
-            <span
-              role="button" tabIndex={0}
-              onClick={(e) => { e.stopPropagation(); openRegion("trailer"); }}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); openRegion("trailer"); } }}
-              className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition"
-              style={{ background: trailer ? STUDIO_SIGNAL : "rgba(0,0,0,0.55)", color: trailer ? "#000" : "rgba(255,255,255,0.85)", border: trailer ? "none" : "1px solid rgba(255,255,255,0.25)", boxShadow: ringFor("trailer") }}>
-              ▷ {trailer ? "Trailer" : "Add trailer"}
-            </span>
-
-            {/* Title + poster anchored in the composition */}
-            <div className="absolute left-5 right-5 bottom-4 flex items-end gap-4">
-              <span
-                role="button" tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); openRegion("poster"); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); openRegion("poster"); } }}
-                className="block w-[92px] shrink-0 aspect-[2/3] rounded-lg overflow-hidden border cursor-pointer"
-                style={{ borderColor: "rgba(255,255,255,0.2)", background: "rgba(0,0,0,0.6)", boxShadow: ringFor("poster") || "0 14px 30px -14px rgba(0,0,0,0.9)" }}>
-                {draft.thumbUrl ? (
+    <div className="relative min-h-full">
+      <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(80% 50% at 50% 0%, rgba(200,10,46,0.14) 0%, transparent 58%), radial-gradient(70% 45% at 88% 8%, rgba(234,115,27,0.1) 0%, transparent 62%)" }} />
+      <div className="relative px-6 lg:px-10 py-10">
+        <div className="mx-auto" style={{ maxWidth: 1160 }}>
+          <div className="rounded-2xl overflow-hidden border" style={{ borderColor: "rgba(217,38,28,0.3)", boxShadow: "0 50px 110px -45px rgba(0,0,0,0.92)" }}>
+            {/* HERO SECTION — sibling region buttons sit over a clickable hero layer */}
+            <div className="relative" style={{ aspectRatio: "16 / 8", minHeight: 380, background: "rgba(0,0,0,0.5)" }}>
+              {/* Hero layer (click → hero picker) */}
+              <button type="button" onClick={(e) => { e.stopPropagation(); openRegion("hero"); }} className="group/hero absolute inset-0 z-0 block text-left">
+                {draft.bannerUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={draft.thumbUrl} alt={project.title} className="h-full w-full object-cover" />
+                  <img src={draft.bannerUrl} alt="Hero" className="absolute inset-0 h-full w-full object-cover" />
                 ) : (
-                  <span className="h-full w-full flex items-center justify-center text-center text-[10px] p-1" style={{ color: "rgba(255,255,255,0.45)" }}>Poster</span>
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: "radial-gradient(120% 90% at 50% 0%, rgba(200,10,46,0.18), rgba(234,115,27,0.06) 45%, transparent 72%)" }}>
+                    <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>Click to set the hero backdrop</span>
+                  </div>
                 )}
-              </span>
-              <div className="min-w-0 pb-1">
-                <p className="text-[10px] uppercase tracking-[0.22em] mb-1" style={{ color: "#F6A31A" }}>ShangoMaji Title</p>
-                <h2 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(20px, 3vw, 34px)", lineHeight: 1.05 }}>{project.title}</h2>
-                {project.logline && project.logline.trim() && (
-                  <p className="text-[13px] italic mt-1 line-clamp-2" style={{ color: "rgba(255,255,255,0.72)", fontFamily: "var(--font-display)" }}>{project.logline.trim()}</p>
-                )}
-              </div>
-            </div>
-          </button>
+                <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(8,5,6,0.05) 30%, rgba(8,5,6,0.92) 100%)" }} />
+                <span aria-hidden className="pointer-events-none absolute inset-0 opacity-0 group-hover/hero:opacity-100 transition" style={{ boxShadow: "inset 0 0 0 2px rgba(224,118,58,0.55)" }} />
+                {ra("hero") && <span aria-hidden className="pointer-events-none absolute inset-0" style={{ boxShadow: "inset 0 0 0 2px rgba(224,118,58,0.95), 0 0 70px -10px rgba(224,118,58,0.45)" }} />}
+                <span className={`absolute top-3 left-3 inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] px-2.5 py-1 rounded-full font-semibold transition ${ra("hero") ? "opacity-100" : "opacity-0 group-hover/hero:opacity-100"}`} style={{ background: ra("hero") ? "#E0763A" : "rgba(0,0,0,0.6)", color: ra("hero") ? "#000" : "#F6A31A" }}>
+                  <Pencil size={10} /> {ra("hero") ? "Editing hero" : "Edit hero"}
+                </span>
+              </button>
 
-          {/* Gallery region — stills strip along the bottom (horizontal scroll) */}
-          <button type="button" onClick={(e) => { e.stopPropagation(); openRegion("gallery"); }}
-            className="group block w-full text-left px-4 py-4" style={{ background: "rgba(0,0,0,0.25)", boxShadow: ringFor("gallery") ? `inset ${ringFor("gallery")}` : undefined }}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.45)" }}>Gallery</p>
-              <span className="text-[11px] opacity-0 group-hover:opacity-100 transition" style={{ color: STUDIO_SIGNAL }}>Assemble →</span>
-            </div>
-            {draft.stillsUrls.length ? (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {draft.stillsUrls.map((url, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={`${url}-${i}`} src={url} alt="" className="h-16 w-28 shrink-0 rounded-md object-cover border" style={{ borderColor: "rgba(255,255,255,0.12)" }} />
-                ))}
+              {/* Trailer play surface (own region) */}
+              <button type="button" onClick={(e) => { e.stopPropagation(); openRegion("trailer"); }} className="group/trailer absolute top-3 right-3 z-20 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition"
+                style={{ background: trailer ? STUDIO_SIGNAL : "rgba(0,0,0,0.6)", color: trailer ? "#000" : "rgba(255,255,255,0.9)", border: trailer ? "none" : "1px solid rgba(255,255,255,0.28)", boxShadow: ra("trailer") ? "0 0 0 2px rgba(224,118,58,0.95), 0 0 40px -8px rgba(224,118,58,0.5)" : undefined }}>
+                ▷ {trailer ? "Watch trailer" : "Add trailer"}
+                <span className={`text-[10px] font-normal transition ${ra("trailer") ? "opacity-100" : "opacity-0 group-hover/trailer:opacity-100"}`}>· edit</span>
+              </button>
+
+              {/* Poster + title block (overlay; only the poster is interactive) */}
+              <div className="absolute left-6 right-6 bottom-5 z-10 flex items-end gap-5 pointer-events-none">
+                <button type="button" onClick={(e) => { e.stopPropagation(); openRegion("poster"); }} className="group/poster pointer-events-auto relative block w-[120px] lg:w-[132px] shrink-0 aspect-[2/3] rounded-lg overflow-hidden border"
+                  style={{ borderColor: "rgba(255,255,255,0.22)", background: "rgba(0,0,0,0.6)", boxShadow: ra("poster") ? "0 0 0 2px rgba(224,118,58,0.95), 0 0 50px -10px rgba(224,118,58,0.5)" : "0 18px 40px -16px rgba(0,0,0,0.9)" }}>
+                  {draft.thumbUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={draft.thumbUrl} alt={project.title} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="h-full w-full flex items-center justify-center text-center text-[11px] p-2" style={{ color: "rgba(255,255,255,0.5)" }}>Poster</span>
+                  )}
+                  <span aria-hidden className="absolute inset-0 opacity-0 group-hover/poster:opacity-100 transition" style={{ boxShadow: "inset 0 0 0 2px rgba(224,118,58,0.6)" }} />
+                  <span className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full font-semibold transition ${ra("poster") ? "opacity-100" : "opacity-0 group-hover/poster:opacity-100"}`} style={{ background: ra("poster") ? "#E0763A" : "rgba(0,0,0,0.7)", color: ra("poster") ? "#000" : "#F6A31A" }}><Pencil size={9} /> edit</span>
+                </button>
+                <div className="min-w-0 pb-1">
+                  <p className="text-[10px] uppercase tracking-[0.24em] mb-1.5" style={{ color: "#F6A31A" }}>ShangoMaji Title</p>
+                  <h2 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 52px)", lineHeight: 1.02 }}>{project.title}</h2>
+                  {project.logline && project.logline.trim() && (
+                    <p className="text-[15px] italic mt-2 line-clamp-2 max-w-xl" style={{ color: "rgba(255,255,255,0.78)", fontFamily: "var(--font-display)" }}>{project.logline.trim()}</p>
+                  )}
+                </div>
               </div>
-            ) : (
-              <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>Click to add the stills visitors will browse.</p>
-            )}
-          </button>
+            </div>
+
+            {/* GALLERY SECTION (own region) */}
+            <button type="button" onClick={(e) => { e.stopPropagation(); openRegion("gallery"); }} className="group/gallery relative block w-full text-left px-5 py-5" style={{ background: "rgba(0,0,0,0.3)" }}>
+              {ra("gallery") && <span aria-hidden className="pointer-events-none absolute inset-0" style={{ boxShadow: "inset 0 0 0 2px rgba(224,118,58,0.9)" }} />}
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] uppercase tracking-[0.22em] inline-flex items-center gap-2.5" style={{ color: "rgba(255,255,255,0.5)" }}>
+                  <span className="inline-block w-5 h-px" style={{ background: "rgba(224,118,58,0.7)" }} />Gallery{draft.stillsUrls.length ? ` · ${draft.stillsUrls.length}` : ""}
+                </p>
+                <span className={`inline-flex items-center gap-1 text-[11px] transition ${ra("gallery") ? "opacity-100" : "opacity-0 group-hover/gallery:opacity-100"}`} style={{ color: STUDIO_SIGNAL }}><Pencil size={11} /> {ra("gallery") ? "Assembling" : "Assemble"}</span>
+              </div>
+              {draft.stillsUrls.length ? (
+                <div className="flex gap-2.5 overflow-x-auto pb-1">
+                  {draft.stillsUrls.map((url, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={`${url}-${i}`} src={url} alt="" className="h-20 w-32 shrink-0 rounded-md object-cover border" style={{ borderColor: "rgba(255,255,255,0.14)" }} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.42)" }}>Click to add the stills visitors will browse.</p>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -309,57 +311,57 @@ export default function ReleaseRoomPage({ params }: PageProps) {
 
   // ── Side-stage picker for the active region ───────────────────────────────
   const stageContent = (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <div className="pb-4 mb-2 border-b border-white/10">
+        <h3 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: 23, lineHeight: 1.15 }}>{REGION_HEAD[activeRegion].title}</h3>
+        <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,0.55)" }}>{REGION_HEAD[activeRegion].purpose}</p>
+      </div>
+
       {activeRegion === "hero" && (
-        <RegionPicker label="Hero backdrop" preview={draft.bannerUrl} ratio="16/9" busy={uploading.banner}
+        <RegionPicker preview={draft.bannerUrl} ratio="16/9" busy={uploading.banner}
           onFile={async (f) => { try { const url = await uploadFile(f, "banner"); setDraft((d) => ({ ...d, bannerUrl: url })); } catch (e: any) { showError(e.message || "Upload failed"); } }}
           onClear={draft.bannerUrl ? () => setDraft((d) => ({ ...d, bannerUrl: "" })) : undefined} />
       )}
 
       {activeRegion === "poster" && (
-        <RegionPicker label="Poster / key art" preview={draft.thumbUrl} ratio="2/3" busy={uploading.poster}
+        <RegionPicker preview={draft.thumbUrl} ratio="2/3" busy={uploading.poster}
           onFile={async (f) => { try { const url = await uploadFile(f, "poster"); setDraft((d) => ({ ...d, thumbUrl: url })); } catch (e: any) { showError(e.message || "Upload failed"); } }}
           onClear={draft.thumbUrl ? () => setDraft((d) => ({ ...d, thumbUrl: "" })) : undefined} />
       )}
 
       {activeRegion === "trailer" && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-white">Trailer reference</p>
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>A link, shown as a single Watch-trailer action on the title.</p>
           <input value={draft.trailerUrl} onChange={(e) => setDraft((d) => ({ ...d, trailerUrl: e.target.value }))} placeholder="https://…"
-            className="w-full rounded-lg px-3 py-2.5 text-sm text-white outline-none" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.14)" }} />
+            className="w-full rounded-lg px-3.5 py-3 text-sm text-white outline-none" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.14)" }} />
           {trailer && (
-            <a href={trailer} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-3.5 py-2 rounded-lg text-black" style={{ background: STUDIO_SIGNAL }}>▷ Preview trailer</a>
+            <a href={trailer} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-lg text-black" style={{ background: STUDIO_SIGNAL }}>▷ Preview trailer</a>
           )}
         </div>
       )}
 
       {activeRegion === "gallery" && (
-        <div className="space-y-4">
-          <p className="text-sm font-medium text-white">Stills — assemble the gallery</p>
-          <div className="space-y-2">
-            {draft.stillsUrls.map((url, i) => (
-              <div key={`${url}-${i}`} className="flex items-center gap-3 rounded-lg border p-2" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.25)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="h-12 w-20 rounded object-cover shrink-0" />
-                <div className="flex-1" />
-                <button type="button" onClick={() => moveStill(i, "left")} disabled={i === 0} className="p-1.5 rounded text-white/70 hover:text-white disabled:opacity-30" aria-label="Move earlier"><ChevronLeft size={14} /></button>
-                <button type="button" onClick={() => moveStill(i, "right")} disabled={i === draft.stillsUrls.length - 1} className="p-1.5 rounded text-white/70 hover:text-white disabled:opacity-30" aria-label="Move later"><ChevronRight size={14} /></button>
-                <button type="button" onClick={() => { setDraft((d) => ({ ...d, thumbUrl: url })); showFeedback("Set as key art."); }} className="p-1.5 rounded text-white/70 hover:text-white" aria-label="Set as key art" title="Set as key art"><Star size={13} /></button>
-                <button type="button" onClick={() => setDraft((d) => ({ ...d, stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i) }))} className="px-2 py-1 rounded text-[11px] text-white/70 hover:text-white">Remove</button>
-              </div>
-            ))}
-            <label className={`flex items-center justify-center gap-2 rounded-lg border border-dashed py-4 cursor-pointer transition ${uploading.still ? "opacity-60" : "hover:border-white/30"}`} style={{ borderColor: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.55)" }}>
-              {uploading.still ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-              <span className="text-[12px]">{draft.stillsUrls.length ? "Add still" : "Add your first still"}</span>
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading.still} className="sr-only"
-                onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; try { const url = await uploadFile(f, "still"); setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] })); } catch (err: any) { showError(err.message || "Upload failed"); } }} />
-            </label>
-          </div>
+        <div className="space-y-3">
+          {draft.stillsUrls.map((url, i) => (
+            <div key={`${url}-${i}`} className="flex items-center gap-3 rounded-lg border p-2" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(0,0,0,0.25)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="h-14 w-24 rounded object-cover shrink-0" />
+              <div className="flex-1" />
+              <button type="button" onClick={() => moveStill(i, "left")} disabled={i === 0} className="p-1.5 rounded text-white/70 hover:text-white disabled:opacity-30" aria-label="Move earlier"><ChevronLeft size={14} /></button>
+              <button type="button" onClick={() => moveStill(i, "right")} disabled={i === draft.stillsUrls.length - 1} className="p-1.5 rounded text-white/70 hover:text-white disabled:opacity-30" aria-label="Move later"><ChevronRight size={14} /></button>
+              <button type="button" onClick={() => { setDraft((d) => ({ ...d, thumbUrl: url })); showFeedback("Set as key art."); }} className="p-1.5 rounded text-white/70 hover:text-white" aria-label="Set as key art" title="Set as key art"><Star size={13} /></button>
+              <button type="button" onClick={() => setDraft((d) => ({ ...d, stillsUrls: d.stillsUrls.filter((_, idx) => idx !== i) }))} className="px-2 py-1 rounded text-[11px] text-white/70 hover:text-white">Remove</button>
+            </div>
+          ))}
+          <label className={`flex items-center justify-center gap-2 rounded-lg border border-dashed py-5 cursor-pointer transition ${uploading.still ? "opacity-60" : "hover:border-white/30"}`} style={{ borderColor: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.55)" }}>
+            {uploading.still ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+            <span className="text-[12px]">{draft.stillsUrls.length ? "Add still" : "Add your first still"}</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading.still} className="sr-only"
+              onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; try { const url = await uploadFile(f, "still"); setDraft((d) => ({ ...d, stillsUrls: [...d.stillsUrls, url] })); } catch (err: any) { showError(err.message || "Upload failed"); } }} />
+          </label>
         </div>
       )}
 
-      <p className="inline-flex items-start gap-1.5 text-[11px] pt-2" style={{ color: "rgba(255,255,255,0.4)" }}>
+      <p className="inline-flex items-start gap-1.5 text-[11px] pt-3 border-t border-white/8 mt-2" style={{ color: "rgba(255,255,255,0.4)" }}>
         <Lock size={11} className="mt-[2px] opacity-70" />
         <span>{isLive ? "Live — the release stays updatable; core identity is locked under the license." : licenseExecuted ? "Core identity is locked under your executed license; ShangoMaji activates distribution after review." : "Core identity is locked. Media is required for activation."}</span>
       </p>
@@ -378,26 +380,25 @@ export default function ReleaseRoomPage({ params }: PageProps) {
       <RoomLayout
         ribbon={ribbon}
         center={center}
-        stage={{ open: stageOpen, title: REGION_TITLE[activeRegion], onClose: closeStage, children: stageContent }}
+        stage={{ open: stageOpen, title: REGION_EYEBROW[activeRegion], onClose: closeStage, children: stageContent }}
       />
     </>
   );
 }
 
-function RegionPicker({ label, preview, ratio, busy, onFile, onClear }: { label: string; preview: string; ratio: string; busy?: boolean; onFile: (f: File) => void | Promise<void>; onClear?: () => void }) {
+function RegionPicker({ preview, ratio, busy, onFile, onClear }: { preview: string; ratio: string; busy?: boolean; onFile: (f: File) => void | Promise<void>; onClear?: () => void }) {
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium text-white">{label}</p>
-      <div className="rounded-lg overflow-hidden border" style={{ aspectRatio: ratio, maxWidth: ratio === "2/3" ? 220 : "100%", borderColor: "rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.4)" }}>
+      <div className="rounded-lg overflow-hidden border" style={{ aspectRatio: ratio, maxWidth: ratio === "2/3" ? 240 : "100%", borderColor: "rgba(255,255,255,0.16)", background: "rgba(0,0,0,0.4)" }}>
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={preview} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className="h-full w-full flex items-center justify-center"><ImagePlus size={20} style={{ color: "rgba(255,255,255,0.3)" }} /></div>
+          <div className="h-full w-full flex items-center justify-center"><ImagePlus size={22} style={{ color: "rgba(255,255,255,0.3)" }} /></div>
         )}
       </div>
       <div className="flex items-center gap-3">
-        <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold cursor-pointer text-black transition active:scale-95" style={{ background: STUDIO_SIGNAL }}>
+        <label className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold cursor-pointer text-black transition active:scale-95" style={{ background: STUDIO_SIGNAL }}>
           {busy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={14} />}
           {preview ? "Replace" : "Upload"}
           <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={busy} className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) await onFile(f); }} />

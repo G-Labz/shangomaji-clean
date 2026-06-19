@@ -1,16 +1,18 @@
 "use client";
 
-// Phase 11D-R4A — World Room = Workbench.
+// Phase 11D-R4A — World Room = Workbench.  Phase 11D-R5B — execution refinement.
 //
 // A bounded workspace frame (hosted by the route-aware WorkspaceShell): a fixed
 // top ribbon, a fixed left facet rail, and ONE persistent central object — the
-// world as it reads (identity · premise · thesis as a continuous editorial
-// reading, never a field stack). Shaping happens in the single side-stage
-// summon (right entry, ~58%, the world stays visible/live). Persistence is
-// ambient (saved on stage close via the existing PUT); the only deliberate
-// commit is lifecycle advancement, which lives in the ribbon. No Save bar, no
-// page scroll, no centered column. Reuses every existing handler/endpoint/
-// validation/lifecycle; no backend change.
+// world as it reads (identity · premise · thesis as one continuous editorial
+// reading on a lit ember stage, never a field stack). Shaping happens in the
+// single side-stage summon. R5B increases the central object's visual mass,
+// fuses the reading into one editorial artifact, makes focus SPOTLIGHT the
+// active facet (it lifts; the rest dim), and rebuilds each stage view as a
+// purpose-built instrument. Persistence is ambient (saved on stage close via
+// the existing PUT); the only deliberate commit is lifecycle advancement, in
+// the ribbon. No Save bar, no page scroll, no centered-column. Reuses every
+// existing handler/endpoint/validation/lifecycle; no backend change.
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -52,11 +54,17 @@ const FACETS: { key: Facet; label: string }[] = [
   { key: "thesis",   label: "Thesis & Fit" },
   { key: "trust",    label: "Trust" },
 ];
-const FACET_TITLE: Record<Facet, string> = {
+const FACET_EYEBROW: Record<Facet, string> = {
   identity: "Identity",
-  premise:  "Premise — what is this world?",
-  thesis:   "Thesis — why this belongs at ShangoMaji",
-  trust:    "Trust — the title's standing",
+  premise:  "Premise",
+  thesis:   "Thesis & Fit",
+  trust:    "Trust",
+};
+const FACET_HEAD: Record<Facet, { title: string; purpose: string }> = {
+  identity: { title: "Identity", purpose: "The world's recognizable face — its name, kind, and key art." },
+  premise:  { title: "What is this world?", purpose: "Write the premise the way you'd want it read." },
+  thesis:   { title: "Why this belongs at ShangoMaji", purpose: "Make the editorial case for the collection." },
+  trust:    { title: "The title's standing", purpose: "Declare ownership, collaborators, AI, and prior distribution." },
 };
 
 interface PageProps {
@@ -85,18 +93,11 @@ export default function WorldRoomPage({ params }: PageProps) {
   const [removalBusy, setRemovalBusy]       = useState(false);
   const { confirm, dialog }                 = useConfirm();
 
-  // Side-stage summon state — which facet is being shaped, and whether the
-  // stage is open. This is the single Studio-wide summon mechanism.
   const [activeFacet, setActiveFacet] = useState<Facet>("identity");
   const [stageOpen, setStageOpen]     = useState(false);
 
-  function showFeedback(msg: string) {
-    setFeedback(msg);
-    setTimeout(() => setFeedback(""), 2500);
-  }
-  function showError(msg: string) {
-    setErrors((prev) => ({ ...prev, save: msg }));
-  }
+  function showFeedback(msg: string) { setFeedback(msg); setTimeout(() => setFeedback(""), 2500); }
+  function showError(msg: string) { setErrors((prev) => ({ ...prev, save: msg })); }
 
   useEffect(() => {
     async function loadProject() {
@@ -105,11 +106,7 @@ export default function WorldRoomPage({ params }: PageProps) {
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Could not load projects");
         const project = (data.projects ?? []).find((p: any) => p.id === id);
-        if (!project) {
-          setErrors({ load: "Project not found" });
-          setLoading(false);
-          return;
-        }
+        if (!project) { setErrors({ load: "Project not found" }); setLoading(false); return; }
         setProjectStatus(project.status || "draft");
         setRejectionReason(project.rejection_reason || "");
         setRemovalRequested(project.removal_requested ?? false);
@@ -184,8 +181,6 @@ export default function WorldRoomPage({ params }: PageProps) {
     };
   }
 
-  // Ambient persistence — drafts save silently on stage close via the existing
-  // PUT. Nothing resolves as "saved"; the world is simply, visibly changed.
   async function ambientSave() {
     if (!draft || projectStatus !== "draft") return;
     try {
@@ -211,11 +206,7 @@ export default function WorldRoomPage({ params }: PageProps) {
     });
     if (!ok) return;
     try {
-      const res  = await fetch("/api/creators/projects", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
+      const res  = await fetch("/api/creators/projects", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Delete failed");
       router.push("/workspace/projects");
@@ -226,7 +217,6 @@ export default function WorldRoomPage({ params }: PageProps) {
 
   async function handleSubmit() {
     if (!draft || !validate()) {
-      // Surface what's missing by opening the relevant facet.
       if (errors.title || errors.type || errors.logline || errors.genre) openFacet("identity");
       return;
     }
@@ -240,26 +230,15 @@ export default function WorldRoomPage({ params }: PageProps) {
     setIntegrityError(null);
     setSubmitting(true);
     try {
-      const saveRes  = await fetch("/api/creators/projects", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload()),
-      });
+      const saveRes  = await fetch("/api/creators/projects", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload()) });
       const saveData = await saveRes.json();
       if (!saveRes.ok) throw new Error(saveData?.error || "Save failed");
 
-      const submitRes  = await fetch("/api/creators/projects", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "pending", ...integrityToPayload(integrity) }),
-      });
+      const submitRes  = await fetch("/api/creators/projects", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "pending", ...integrityToPayload(integrity) }) });
       const submitData = await submitRes.json();
       if (submitRes.status === 422) {
         const msg = submitData?.error || "Submission required declaration is incomplete.";
-        setIntegrityError(msg);
-        showError(msg);
-        openFacet("trust");
-        return;
+        setIntegrityError(msg); showError(msg); openFacet("trust"); return;
       }
       if (!submitRes.ok) throw new Error(submitData?.error || "Submit failed");
 
@@ -276,11 +255,7 @@ export default function WorldRoomPage({ params }: PageProps) {
   async function handleRevise() {
     setReviseBusy(true);
     try {
-      const res  = await fetch("/api/creators/projects/revise", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
+      const res  = await fetch("/api/creators/projects/revise", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Revise failed");
       router.push(`/workspace/projects/${data.id}/edit`);
@@ -294,11 +269,7 @@ export default function WorldRoomPage({ params }: PageProps) {
     if (!removalReason.trim()) { showError("A reason is required for removal requests."); return; }
     setRemovalBusy(true);
     try {
-      const res  = await fetch("/api/creators/projects", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action: "requestRemoval", reason: removalReason.trim() }),
-      });
+      const res  = await fetch("/api/creators/projects", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "requestRemoval", reason: removalReason.trim() }) });
       const data = await res.json();
       if (res.status === 409) throw new Error("A removal request has already been submitted.");
       if (!res.ok) throw new Error(data?.error || "Request failed");
@@ -314,16 +285,11 @@ export default function WorldRoomPage({ params }: PageProps) {
     }
   }
 
-  const set = (key: keyof ProjectDraft) => (value: string) =>
-    setDraft((d) => (d ? { ...d, [key]: value } : d));
+  const set = (key: keyof ProjectDraft) => (value: string) => setDraft((d) => (d ? { ...d, [key]: value } : d));
 
   // ── Frame-level guards ───────────────────────────────────────────────────
   if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center w-full">
-        <p className="text-ink-faint">Opening the workbench…</p>
-      </div>
-    );
+    return <div className="flex-1 flex items-center justify-center w-full"><p className="text-ink-faint">Opening the workbench…</p></div>;
   }
   if (errors.load || !draft) {
     return (
@@ -336,22 +302,17 @@ export default function WorldRoomPage({ params }: PageProps) {
     );
   }
 
-  const isDraft   = projectStatus === "draft";
-  const isLive    = projectStatus === "live";
+  const isDraft    = projectStatus === "draft";
+  const isLive     = projectStatus === "live";
   const isRejected = projectStatus === "rejected";
   const canDelete  = isDraft || isRejected;
-  const trailer    = draft.trailerUrl.trim();
   const factLine   = [draft.type, draft.genre, draft.runtime].map((v) => v && v.trim()).filter(Boolean).join("  ·  ");
 
   const trustEstablished =
-    integrity.rights_ownership_ack &&
-    integrity.rights_collaborators_disclosed_ack &&
-    integrity.rights_no_conflicts_ack &&
-    integrity.rights_no_unlicensed_assets_ack &&
+    integrity.rights_ownership_ack && integrity.rights_collaborators_disclosed_ack &&
+    integrity.rights_no_conflicts_ack && integrity.rights_no_unlicensed_assets_ack &&
     (integrity.collaborators.trim() !== "" || integrity.no_collaborators_ack) &&
-    integrity.ai_usage !== "" &&
-    integrity.prior_distribution !== "" &&
-    integrity.license_awareness_ack;
+    integrity.ai_usage !== "" && integrity.prior_distribution !== "" && integrity.license_awareness_ack;
 
   const fitLabel: Record<string, string> = {
     black_creator: "Culture-led story",
@@ -360,63 +321,46 @@ export default function WorldRoomPage({ params }: PageProps) {
     edge_case: "Other cultural fit",
   };
 
+  // Spotlight: while a stage is open, the active facet lifts and the rest dim.
+  const facetState = (f: Facet): "active" | "dim" | "rest" =>
+    !stageOpen ? "rest" : activeFacet === f ? "active" : "dim";
+
   // ── Ribbon ────────────────────────────────────────────────────────────────
   const ribbon = (
-    <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-white/8" style={{ background: "rgba(8,5,6,0.4)" }}>
+    <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-white/8" style={{ background: "rgba(8,5,6,0.55)" }}>
       <div className="min-w-0 flex items-center gap-3">
         <span className="text-[11px] uppercase tracking-[0.24em] shrink-0" style={{ color: "rgba(255,255,255,0.34)" }}>World</span>
-        <h1 className="truncate font-bold text-lg text-white tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-          {draft.title.trim() || "Untitled world"}
-        </h1>
+        <h1 className="truncate font-bold text-lg text-white tracking-tight" style={{ fontFamily: "var(--font-display)" }}>{draft.title.trim() || "Untitled world"}</h1>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        {/* Trust posture gauge — single-glance; engaging it summons the declaration. */}
-        <button
-          onClick={() => openFacet("trust")}
-          className="hidden sm:inline-flex items-center gap-1.5 text-[12px] transition hover:text-white"
-          style={{ color: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.5)" }}
-          title="Trust posture"
-        >
+        <button onClick={() => openFacet("trust")} className="hidden sm:inline-flex items-center gap-1.5 text-[12px] transition hover:text-white" style={{ color: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.5)" }} title="Trust posture">
           <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.35)" }} />
           {trustEstablished ? "Trust · established" : "Trust · needs establishing"}
         </button>
         <span className="hidden sm:block w-px h-4" style={{ background: "rgba(255,255,255,0.12)" }} />
         <StatusBadge status={projectStatus} />
-        {/* The single lifecycle-advance affordance lives here — never a bottom bar. */}
         {isDraft && (
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-black transition active:scale-95 disabled:opacity-50"
-            style={{ background: STUDIO_SIGNAL }}
-          >
+          <button onClick={handleSubmit} disabled={submitting} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-black transition active:scale-95 disabled:opacity-50" style={{ background: STUDIO_SIGNAL }}>
             {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             {submitting ? "Submitting…" : "Submit for review"}
           </button>
         )}
         {projectStatus === "approved" && (
-          <Link href={`/license/${id}`} className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-black transition active:scale-95"
-            style={{ background: licenseStatus === "executed" ? "rgba(255,255,255,0.85)" : STUDIO_SIGNAL }}>
+          <Link href={`/license/${id}`} className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold text-black transition active:scale-95" style={{ background: licenseStatus === "executed" ? "rgba(255,255,255,0.85)" : STUDIO_SIGNAL }}>
             {licenseStatus === "executed" ? "View license" : "Review & sign license"}
           </Link>
         )}
         {isRejected && (
-          <button onClick={handleRevise} disabled={reviseBusy}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-black transition active:scale-95 disabled:opacity-50"
-            style={{ background: STUDIO_SIGNAL }}>
+          <button onClick={handleRevise} disabled={reviseBusy} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-black transition active:scale-95 disabled:opacity-50" style={{ background: STUDIO_SIGNAL }}>
             {reviseBusy ? <Loader2 size={14} className="animate-spin" /> : null}
             {reviseBusy ? "Creating draft…" : "Revise"}
           </button>
         )}
         {isLive && !removalRequested && (
-          <button onClick={() => setRemovalModalOpen(true)} className="text-[12px] transition hover:text-white" style={{ color: "rgba(245,197,24,0.75)" }}>
-            Request removal
-          </button>
+          <button onClick={() => setRemovalModalOpen(true)} className="text-[12px] transition hover:text-white" style={{ color: "rgba(245,197,24,0.75)" }}>Request removal</button>
         )}
         {canDelete && (
-          <button onClick={handleDelete} className="text-[12px] transition hover:text-red-300" style={{ color: "rgba(255,255,255,0.3)" }}>
-            Delete
-          </button>
+          <button onClick={handleDelete} className="text-[12px] transition hover:text-red-300" style={{ color: "rgba(255,255,255,0.3)" }}>Delete</button>
         )}
       </div>
     </div>
@@ -424,21 +368,14 @@ export default function WorldRoomPage({ params }: PageProps) {
 
   // ── Facet rail ──────────────────────────────────────────────────────────
   const rail = (
-    <nav className="wb-rail h-full flex sm:flex-col gap-1 px-3 py-4 sm:w-[170px] border-b sm:border-b-0 sm:border-r border-white/8 overflow-x-auto sm:overflow-visible" style={{ background: "rgba(8,5,6,0.25)" }} aria-label="World facets">
-      <p className="hidden sm:block text-[10px] uppercase tracking-[0.22em] px-2 mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Facets</p>
+    <nav className="h-full flex sm:flex-col gap-1 px-3 py-5 sm:w-[176px] border-b sm:border-b-0 sm:border-r border-white/8 overflow-x-auto sm:overflow-visible" style={{ background: "rgba(8,5,6,0.4)" }} aria-label="World facets">
+      <p className="hidden sm:block text-[10px] uppercase tracking-[0.22em] px-3 mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Facets</p>
       {FACETS.map((f) => {
         const active = activeFacet === f.key && stageOpen;
         return (
-          <button
-            key={f.key}
-            onClick={() => openFacet(f.key)}
-            className="text-left text-sm rounded-lg px-3 py-2 transition whitespace-nowrap"
-            style={{
-              background: active ? "rgba(224,118,58,0.14)" : "transparent",
-              color: active ? "#F6A31A" : "rgba(255,255,255,0.6)",
-              border: active ? "1px solid rgba(224,118,58,0.3)" : "1px solid transparent",
-            }}
-          >
+          <button key={f.key} onClick={() => openFacet(f.key)} className="relative text-left text-sm rounded-lg px-3 py-2.5 transition whitespace-nowrap"
+            style={{ background: active ? "rgba(224,118,58,0.16)" : "transparent", color: active ? "#F6A31A" : "rgba(255,255,255,0.6)", border: active ? "1px solid rgba(224,118,58,0.32)" : "1px solid transparent" }}>
+            {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full" style={{ background: "#E0763A" }} />}
             {f.label}
           </button>
         );
@@ -446,95 +383,99 @@ export default function WorldRoomPage({ params }: PageProps) {
     </nav>
   );
 
-  // ── Persistent center — the world as it reads ─────────────────────────────
-  const facetRing = (f: Facet) =>
-    activeFacet === f && stageOpen
-      ? { boxShadow: "inset 2px 0 0 0 rgba(224,118,58,0.7)", background: "rgba(224,118,58,0.04)" }
-      : undefined;
-
+  // ── Persistent center — the world as it reads, on a lit ember stage ───────
   const center = (
-    <div className="relative">
-      {draft.bannerUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={draft.bannerUrl} alt="" aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-64 w-full object-cover"
-          style={{ opacity: 0.18, maskImage: "linear-gradient(180deg, rgba(0,0,0,0.9), transparent 90%)", WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,0.9), transparent 90%)" }} />
-      )}
-      <article className="relative max-w-3xl mx-auto px-8 py-10 space-y-9">
-        <p className="text-[11px] uppercase tracking-[0.28em]" style={{ color: "#F6A31A" }}>ShangoMaji Title · in the making</p>
+    <div className="relative min-h-full">
+      {/* Grounded stage — ember atmosphere + hero backdrop fill the whole pane */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        {draft.bannerUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={draft.bannerUrl} alt="" className="absolute inset-x-0 top-0 w-full object-cover" style={{ height: 460, opacity: 0.3, maskImage: "linear-gradient(180deg, rgba(0,0,0,0.95), transparent 94%)", WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,0.95), transparent 94%)" }} />
+        )}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(110% 55% at 12% 0%, rgba(200,10,46,0.16) 0%, transparent 55%), radial-gradient(90% 50% at 92% 6%, rgba(234,115,27,0.12) 0%, transparent 60%)" }} />
+      </div>
 
-        {/* Identity */}
-        <button type="button" onClick={(e) => { e.stopPropagation(); openFacet("identity"); }}
-          className="group block w-full text-left rounded-r-lg -mx-3 px-3 py-3 transition" style={facetRing("identity")}>
-          <div className="flex gap-5 items-start">
-            <div className="w-[104px] shrink-0 aspect-[2/3] rounded-lg overflow-hidden border" style={{ borderColor: "rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.5)" }}>
+      <div className="relative px-8 lg:px-14 py-12">
+        <p className="text-[11px] uppercase tracking-[0.3em] mb-7" style={{ color: "#F6A31A" }}>ShangoMaji Title · in the making</p>
+
+        {/* Masthead = Identity facet (the world's dominant face + name) */}
+        <FacetZone state={facetState("identity")} onOpen={() => openFacet("identity")} editable={isDraft}>
+          <div className="flex flex-col sm:flex-row gap-7 items-start" style={{ maxWidth: 980 }}>
+            <div className="w-[150px] lg:w-[172px] shrink-0 aspect-[2/3] rounded-xl overflow-hidden border" style={{ borderColor: "rgba(255,255,255,0.16)", background: "rgba(0,0,0,0.5)", boxShadow: "0 28px 60px -24px rgba(0,0,0,0.9)" }}>
               {draft.thumbUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={draft.thumbUrl} alt={draft.title} className="h-full w-full object-cover" />
               ) : (
-                <div className="h-full w-full flex items-center justify-center p-2 text-center"><span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>the title's face</span></div>
+                <div className="h-full w-full flex items-center justify-center p-3 text-center"><span className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>the title's face</span></div>
               )}
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(26px, 3.4vw, 40px)", lineHeight: 1.05 }}>
-                {draft.title.trim() || "Untitled world"}
-              </h2>
+            <div className="min-w-0 flex-1 pt-1">
+              <h2 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(34px, 5vw, 64px)", lineHeight: 1.01 }}>{draft.title.trim() || "Untitled world"}</h2>
               {draft.logline.trim() && (
-                <p className="mt-2 italic" style={{ fontFamily: "var(--font-display)", color: "rgba(255,255,255,0.76)", fontSize: "1.05rem" }}>{draft.logline.trim()}</p>
+                <p className="mt-4 italic" style={{ fontFamily: "var(--font-display)", color: "rgba(255,255,255,0.82)", fontSize: "clamp(17px, 2.1vw, 24px)", lineHeight: 1.4 }}>{draft.logline.trim()}</p>
               )}
-              <p className="mt-3 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>{factLine || (isDraft ? "Type · genre · runtime —" : "—")}</p>
-              {isDraft && <span className="mt-2 inline-block text-[11px] opacity-0 group-hover:opacity-100 transition" style={{ color: STUDIO_SIGNAL }}>Shape identity →</span>}
+              <p className="mt-5 text-sm tracking-wide" style={{ color: "rgba(255,255,255,0.55)" }}>{factLine || (isDraft ? "Type · genre · runtime —" : "—")}</p>
             </div>
           </div>
-        </button>
+        </FacetZone>
 
-        {/* Premise */}
-        <FacetReading label="Premise" onOpen={() => openFacet("premise")} ring={facetRing("premise")} editable={isDraft}>
-          {draft.synopsis.trim()
-            ? <p className="whitespace-pre-line" style={{ color: "rgba(255,255,255,0.82)", fontSize: "1.02rem", lineHeight: 1.75 }}>{draft.synopsis.trim()}</p>
-            : <p className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>The world has no premise yet. {isDraft ? "Open to shape what this world is." : "—"}</p>}
-        </FacetReading>
+        {/* Reading body — premise & thesis as one continuous editorial flow */}
+        <div className="mt-12 space-y-2" style={{ maxWidth: 760 }}>
+          <FacetZone state={facetState("premise")} onOpen={() => openFacet("premise")} editable={isDraft}>
+            <SectionMark>Premise</SectionMark>
+            {draft.synopsis.trim()
+              ? <p className="whitespace-pre-line" style={{ color: "rgba(255,255,255,0.86)", fontSize: "1.1rem", lineHeight: 1.85 }}>{draft.synopsis.trim()}</p>
+              : <p style={{ color: "rgba(255,255,255,0.42)", fontSize: "1.05rem", lineHeight: 1.8 }}>{isDraft ? "The world has no premise yet — open to shape what this world is." : "—"}</p>}
+          </FacetZone>
 
-        {/* Thesis */}
-        <FacetReading label="Why this belongs at ShangoMaji" onOpen={() => openFacet("thesis")} ring={facetRing("thesis")} editable={isDraft}>
-          {integrity.thesis_path && (
-            <p className="text-sm mb-2"><span style={{ color: "rgba(255,255,255,0.4)" }}>Declared fit · </span><span className="text-white">{fitLabel[integrity.thesis_path] || integrity.thesis_path}</span></p>
-          )}
-          {integrity.thesis_explanation.trim()
-            ? <blockquote className="pl-4 italic whitespace-pre-line" style={{ borderLeft: "2px solid rgba(224,118,58,0.45)", color: "rgba(255,255,255,0.74)", lineHeight: 1.7 }}>{integrity.thesis_explanation.trim()}</blockquote>
-            : <p className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>The curatorial case isn't made yet. {isDraft ? "Open to argue why this world belongs in the collection." : "—"}</p>}
-        </FacetReading>
+          <div className="h-px my-2" style={{ background: "rgba(255,255,255,0.08)" }} />
 
-        {/* Trust — posture reading (the declaration itself is summoned) */}
-        <FacetReading label="Trust & provenance" onOpen={() => openFacet("trust")} ring={facetRing("trust")} editable={isDraft}>
-          <p className="text-sm" style={{ color: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.6)" }}>
-            {trustEstablished ? "Standing established — ownership, collaborators, AI, and prior distribution declared." : "Standing not yet established. The declaration is summoned here."}
-          </p>
-        </FacetReading>
+          <FacetZone state={facetState("thesis")} onOpen={() => openFacet("thesis")} editable={isDraft}>
+            <SectionMark>The case for the collection</SectionMark>
+            {integrity.thesis_path && (
+              <p className="text-sm mb-3"><span style={{ color: "rgba(255,255,255,0.42)" }}>Declared fit · </span><span className="text-white">{fitLabel[integrity.thesis_path] || integrity.thesis_path}</span></p>
+            )}
+            {integrity.thesis_explanation.trim()
+              ? <blockquote className="pl-5 italic whitespace-pre-line" style={{ borderLeft: "2px solid rgba(224,118,58,0.5)", color: "rgba(255,255,255,0.8)", fontSize: "1.05rem", lineHeight: 1.75 }}>{integrity.thesis_explanation.trim()}</blockquote>
+              : <p style={{ color: "rgba(255,255,255,0.42)", fontSize: "1rem", lineHeight: 1.75 }}>{isDraft ? "The curatorial case isn't made yet — open to argue why this world belongs in the collection." : "—"}</p>}
+          </FacetZone>
+
+          <div className="h-px my-2" style={{ background: "rgba(255,255,255,0.08)" }} />
+
+          <FacetZone state={facetState("trust")} onOpen={() => openFacet("trust")} editable={isDraft}>
+            <SectionMark>Standing</SectionMark>
+            <p style={{ color: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.62)", fontSize: "1rem", lineHeight: 1.6 }}>
+              {trustEstablished ? "Established — ownership, collaborators, AI, and prior distribution declared." : "Not yet established. The declaration is summoned here."}
+            </p>
+          </FacetZone>
+        </div>
 
         {isRejected && rejectionReason && (
-          <div className="rounded-lg border p-4" style={{ borderColor: "rgba(220,38,38,0.25)", background: "rgba(220,38,38,0.06)" }}>
+          <div className="mt-10 rounded-lg border p-4" style={{ maxWidth: 760, borderColor: "rgba(220,38,38,0.25)", background: "rgba(220,38,38,0.06)" }}>
             <p className="text-[11px] uppercase tracking-[0.16em] mb-1.5" style={{ color: "rgba(252,165,165,0.7)" }}>Notes from ShangoMaji</p>
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.82)", lineHeight: 1.6 }}>{rejectionReason}</p>
           </div>
         )}
-      </article>
+      </div>
     </div>
   );
 
   // ── Side-stage instrument for the active facet ────────────────────────────
   const stageContent = (
-    <div className="world-stage space-y-6">
+    <div className="world-stage">
+      <StageHead title={FACET_HEAD[activeFacet].title} purpose={FACET_HEAD[activeFacet].purpose} />
+
       {!isDraft && (
-        <p className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+        <p className="inline-flex items-center gap-1.5 text-[11px] mb-5" style={{ color: "rgba(255,255,255,0.45)" }}>
           <Lock size={11} className="opacity-70" /> Settled with the label — read-only in this state.
         </p>
       )}
 
       {activeFacet === "identity" && (
         isDraft ? (
-          <>
+          <div className="space-y-6">
             <StageField label="Name" hint="What is this world called?">
-              <input value={draft.title} onChange={(e) => set("title")(e.target.value)} placeholder="Name your world" />
+              <input value={draft.title} onChange={(e) => set("title")(e.target.value)} placeholder="Name your world" className="name-input" />
             </StageField>
             {errors.title && <p className="text-xs text-brand-red -mt-3">{errors.title}</p>}
             <StageField label="Logline" hint="One line that captures it.">
@@ -543,22 +484,14 @@ export default function WorldRoomPage({ params }: PageProps) {
             <StageField label="Type">
               <div className="grid grid-cols-3 gap-2">
                 {TYPES.map((t) => (
-                  <button key={t} type="button" onClick={() => set("type")(t)}
-                    className="py-2.5 rounded-lg border text-sm transition"
-                    style={draft.type === t ? { background: STUDIO_SIGNAL, color: "#000", borderColor: "transparent" } : { borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }}>
-                    {t}
-                  </button>
+                  <button key={t} type="button" onClick={() => set("type")(t)} className="py-2.5 rounded-lg border text-sm transition" style={draft.type === t ? { background: STUDIO_SIGNAL, color: "#000", borderColor: "transparent" } : { borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }}>{t}</button>
                 ))}
               </div>
             </StageField>
             <StageField label="Genre">
               <div className="flex flex-wrap gap-2">
                 {GENRES.map((g) => (
-                  <button key={g} type="button" onClick={() => set("genre")(g)}
-                    className="px-3 py-1.5 rounded-lg border text-xs transition"
-                    style={draft.genre === g ? { background: STUDIO_SIGNAL, color: "#000", borderColor: "transparent" } : { borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }}>
-                    {g}
-                  </button>
+                  <button key={g} type="button" onClick={() => set("genre")(g)} className="px-3 py-1.5 rounded-lg border text-xs transition" style={draft.genre === g ? { background: STUDIO_SIGNAL, color: "#000", borderColor: "transparent" } : { borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }}>{g}</button>
                 ))}
               </div>
             </StageField>
@@ -574,7 +507,7 @@ export default function WorldRoomPage({ params }: PageProps) {
             <StageField label="Trailer link" hint="Renders as a single Watch-trailer action.">
               <input value={draft.trailerUrl} onChange={(e) => set("trailerUrl")(e.target.value)} placeholder="https://…" />
             </StageField>
-          </>
+          </div>
         ) : (
           <div className="space-y-3">
             {[["Title", draft.title], ["Logline", draft.logline], ["Type", draft.type], ["Genre", draft.genre], ["Runtime", draft.runtime], ["Trailer", draft.trailerUrl]].map(([l, v]) => (
@@ -586,11 +519,12 @@ export default function WorldRoomPage({ params }: PageProps) {
 
       {activeFacet === "premise" && (
         isDraft ? (
-          <StageField label="What is this world?" hint="Write it the way you'd want it read.">
-            <textarea value={draft.synopsis} onChange={(e) => set("synopsis")(e.target.value)} rows={14} placeholder="What is this world, and what unfolds in it?" />
-          </StageField>
+          <div className="space-y-2">
+            <textarea value={draft.synopsis} onChange={(e) => set("synopsis")(e.target.value)} placeholder="What is this world, and what unfolds in it?" className="premise-composer" />
+            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>This becomes the premise readers experience. Write freely — it saves as you go.</p>
+          </div>
         ) : (
-          <p className="whitespace-pre-line text-sm" style={{ color: "rgba(255,255,255,0.8)", lineHeight: 1.7 }}>{draft.synopsis.trim() || "—"}</p>
+          <p className="whitespace-pre-line" style={{ color: "rgba(255,255,255,0.82)", fontSize: "1.05rem", lineHeight: 1.8 }}>{draft.synopsis.trim() || "—"}</p>
         )
       )}
 
@@ -599,21 +533,21 @@ export default function WorldRoomPage({ params }: PageProps) {
       )}
 
       {activeFacet === "trust" && (
-        <>
+        <div className="space-y-7">
           <SubmissionIntegrityForm value={integrity} onChange={setIntegrity} disabled={!isDraft} fieldError={integrityError} zone="trust" />
-          <div className="pt-2">
-            <p className="text-[11px] uppercase tracking-widest inline-flex items-center gap-1.5 mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <div className="pt-1 border-t border-white/8">
+            <p className="text-[11px] uppercase tracking-widest inline-flex items-center gap-1.5 mt-5 mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>
               <Lock size={11} className="opacity-70" /> Private review screener
             </p>
             {isDraft ? (
-              <div className="world-stage"><StageField label="Screener URL" hint="Shared with ShangoMaji review only.">
+              <StageField label="Screener URL" hint="Shared with ShangoMaji review only.">
                 <input value={draft.sampleUrl} onChange={(e) => set("sampleUrl")(e.target.value)} placeholder="https://…" />
-              </StageField></div>
+              </StageField>
             ) : (
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>{draft.sampleUrl.trim() || "— none provided"}</p>
             )}
           </div>
-        </>
+        </div>
       )}
 
       <style jsx global>{`
@@ -629,8 +563,21 @@ export default function WorldRoomPage({ params }: PageProps) {
           transition: border-color 0.2s;
           resize: vertical;
         }
-        .world-stage input:focus, .world-stage textarea:focus { border-color: rgba(224,118,58,0.55); }
+        .world-stage input:focus, .world-stage textarea:focus { border-color: rgba(224,118,58,0.6); }
         .world-stage input::placeholder, .world-stage textarea::placeholder { color: rgba(255,255,255,0.3); }
+        .world-stage .name-input {
+          font-family: var(--font-display);
+          font-size: 1.4rem;
+          font-weight: 700;
+          padding: 0.6rem 0.85rem;
+        }
+        .world-stage .premise-composer {
+          min-height: 380px;
+          font-size: 1.06rem;
+          line-height: 1.85;
+          background: rgba(0,0,0,0.28);
+          padding: 1rem 1.1rem;
+        }
       `}</style>
     </div>
   );
@@ -664,19 +611,48 @@ export default function WorldRoomPage({ params }: PageProps) {
         ribbon={ribbon}
         rail={rail}
         center={center}
-        stage={{ open: stageOpen, title: FACET_TITLE[activeFacet], onClose: closeStage, children: stageContent }}
+        stage={{ open: stageOpen, title: FACET_EYEBROW[activeFacet], onClose: closeStage, children: stageContent }}
       />
     </>
   );
 }
 
-function FacetReading({ label, onOpen, ring, editable, children }: { label: string; onOpen: () => void; ring?: React.CSSProperties; editable: boolean; children: React.ReactNode }) {
+// Spotlight wrapper — the active facet lifts and anchors; the rest dim back.
+function FacetZone({ state, onOpen, editable, children }: { state: "active" | "dim" | "rest"; onOpen: () => void; editable: boolean; children: React.ReactNode }) {
+  const style: React.CSSProperties =
+    state === "active"
+      ? { boxShadow: "inset 3px 0 0 0 rgba(224,118,58,0.95), 0 0 0 1px rgba(224,118,58,0.22), 0 22px 60px -28px rgba(224,118,58,0.4)", background: "rgba(224,118,58,0.05)", borderRadius: 12, transition: "all .25s ease" }
+      : state === "dim"
+      ? { opacity: 0.4, transition: "all .25s ease" }
+      : { transition: "all .25s ease" };
   return (
-    <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} className="group block w-full text-left rounded-r-lg -mx-3 px-3 py-3 transition" style={ring}>
-      <p className="text-[11px] uppercase tracking-[0.22em] mb-2" style={{ color: "rgba(255,255,255,0.42)" }}>{label}</p>
+    <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} className="group relative block w-full text-left -mx-4 px-4 py-4" style={style}>
+      {state === "active" && (
+        <span className="absolute -top-2.5 left-4 inline-flex items-center text-[10px] uppercase tracking-[0.16em] px-2 py-0.5 rounded-full font-semibold" style={{ background: "#E0763A", color: "#000" }}>Shaping now</span>
+      )}
       {children}
-      {editable && <span className="mt-2 inline-block text-[11px] opacity-0 group-hover:opacity-100 transition" style={{ color: "#E0763A" }}>Shape →</span>}
+      {editable && state === "rest" && (
+        <span className="mt-3 inline-block text-[11px] opacity-0 group-hover:opacity-100 transition" style={{ color: "#E0763A" }}>Shape →</span>
+      )}
     </button>
+  );
+}
+
+function SectionMark({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] uppercase tracking-[0.22em] mb-3 inline-flex items-center gap-2.5" style={{ color: "rgba(255,255,255,0.42)" }}>
+      <span className="inline-block w-5 h-px" style={{ background: "rgba(224,118,58,0.7)" }} />
+      {children}
+    </p>
+  );
+}
+
+function StageHead({ title, purpose }: { title: string; purpose: string }) {
+  return (
+    <div className="pb-4 mb-6 border-b border-white/10">
+      <h3 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: 23, lineHeight: 1.15 }}>{title}</h3>
+      <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,0.55)" }}>{purpose}</p>
+    </div>
   );
 }
 
@@ -695,7 +671,7 @@ function StageUpload({ label, busy, preview, ratio, onFile, onClear }: { label: 
     <div className="space-y-2">
       <label className="block text-sm font-medium text-white">{label}</label>
       <div className="flex items-center gap-3">
-        <div className="rounded-lg overflow-hidden border shrink-0" style={{ width: ratio === "2/3" ? 72 : 128, aspectRatio: ratio, borderColor: "rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.5)" }}>
+        <div className="rounded-lg overflow-hidden border shrink-0" style={{ width: ratio === "2/3" ? 84 : 148, aspectRatio: ratio, borderColor: "rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.5)" }}>
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={preview} alt="" className="h-full w-full object-cover" />
