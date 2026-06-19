@@ -411,7 +411,7 @@ export default function EditProjectPage({ params }: PageProps) {
                 padding: "11px 22px",
                 borderRadius: 10,
                 border: "none",
-                background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                background: "#E0763A",
                 color: "black",
                 fontWeight: 600,
                 fontSize: 14,
@@ -557,7 +557,7 @@ export default function EditProjectPage({ params }: PageProps) {
             </h1>
             <StatusBadge status={projectStatus} />
             {projectStatus === "removal_requested" && (
-              <span className="text-[11px] px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-300 border-amber-500/30">
+              <span className="text-[11px] px-2.5 py-1 rounded-full border bg-[#E0763A]/[0.1] text-[#E0763A] border-[#E0763A]/[0.3]">
                 Removal Requested
               </span>
             )}
@@ -595,7 +595,7 @@ export default function EditProjectPage({ params }: PageProps) {
           )}
           {projectStatus === "removal_requested" && (
             <>
-              <p className="text-[11px] text-amber-300/80 leading-relaxed max-w-xl">
+              <p className="text-[11px] text-[#E0763A]/[0.85] leading-relaxed max-w-xl">
                 Your work remains live while ShangoMaji reviews this request. Removal is not
                 automatic and may be denied under the active license terms.
               </p>
@@ -666,7 +666,7 @@ export default function EditProjectPage({ params }: PageProps) {
               background:
                 licenseStatus === "executed"
                   ? "rgba(255,255,255,0.85)"
-                  : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                  : "#E0763A",
             }}
           >
             {licenseStatus === "executed" ? "View License" : "Review and Sign License"}
@@ -690,89 +690,112 @@ export default function EditProjectPage({ params }: PageProps) {
               border: "none",
               padding: 0,
               margin: 0,
-              opacity: projectStatus === "draft" ? 1 : 0.55,
+              opacity: 1,
               pointerEvents: projectStatus === "draft" ? "auto" : "none",
             }}
           >
             <Card className="space-y-5">
-              <SectionHeading title="Work Identity" />
-              <div className="grid md:grid-cols-2 gap-4">
-                <Field label="Title" error={errors.title}>
-                  <input
-                    value={draft.title}
-                    onChange={(e) => set("title")(e.target.value)}
-                    placeholder="Project title"
-                  />
-                </Field>
-                <Field label="Type" error={errors.type}>
-                  <div className="grid grid-cols-3 gap-2">
-                    {TYPES.map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => set("type")(t)}
-                        type="button"
-                        className={`py-2.5 px-3 rounded-lg border text-sm transition ${
-                          draft.type === t
-                            ? "border-transparent text-black"
-                            : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                        }`}
-                        style={
-                          draft.type === t
-                            ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                            : {}
-                        }
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-              </div>
-              <Field label="Logline" error={errors.logline} hint="One to two sentences.">
-                <input
-                  value={draft.logline}
-                  onChange={(e) => set("logline")(e.target.value)}
-                  placeholder="A young warrior..."
-                />
-              </Field>
-              <Field label="Synopsis" hint="Optional detailed description.">
-                <textarea
-                  value={draft.synopsis}
-                  onChange={(e) => set("synopsis")(e.target.value)}
-                  placeholder="Tell the full story..."
-                  rows={4}
-                />
-              </Field>
-              <Field label="Runtime / Episode count" hint="Optional. e.g., 2h 7m, 22 min, 6 x 22min.">
-                <input
-                  value={draft.runtime}
-                  onChange={(e) => set("runtime")(e.target.value)}
-                  placeholder="e.g., 6 x 22min"
-                />
-              </Field>
-              <Field label="Genre" error={errors.genre}>
-                <div className="flex flex-wrap gap-2">
-                  {GENRES.map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => set("genre")(g)}
-                      type="button"
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-                        draft.genre === g
-                          ? "border-transparent text-black"
-                          : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                      }`}
-                      style={
-                        draft.genre === g
-                          ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
-                          : {}
-                      }
-                    >
-                      {g}
-                    </button>
+              <SectionHeading
+                title="Work Identity"
+                description={
+                  projectStatus !== "draft"
+                    ? "Settled for this stage — these details are on record while ShangoMaji handles your title."
+                    : undefined
+                }
+              />
+              {projectStatus !== "draft" ? (
+                <div className="space-y-3">
+                  {[
+                    { label: "Title", value: draft.title },
+                    { label: "Type", value: draft.type },
+                    { label: "Logline", value: draft.logline },
+                    { label: "Synopsis", value: draft.synopsis },
+                    { label: "Runtime / Episodes", value: draft.runtime },
+                    { label: "Genre", value: draft.genre },
+                  ].map((r) => (
+                    <div key={r.label} className="flex flex-col sm:flex-row sm:gap-4">
+                      <span className="text-[11px] uppercase tracking-[0.16em] sm:w-36 sm:flex-shrink-0 pt-0.5 text-ink-faint">
+                        {r.label}
+                      </span>
+                      <span className="text-sm leading-relaxed whitespace-pre-line text-white/80">
+                        {r.value && r.value.trim() ? r.value : "—"}
+                      </span>
+                    </div>
                   ))}
                 </div>
-              </Field>
+              ) : (
+                <>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Field label="Title" error={errors.title}>
+                      <input
+                        value={draft.title}
+                        onChange={(e) => set("title")(e.target.value)}
+                        placeholder="Project title"
+                      />
+                    </Field>
+                    <Field label="Type" error={errors.type}>
+                      <div className="grid grid-cols-3 gap-2">
+                        {TYPES.map((t) => (
+                          <button
+                            key={t}
+                            onClick={() => set("type")(t)}
+                            type="button"
+                            className={`py-2.5 px-3 rounded-lg border text-sm transition ${
+                              draft.type === t
+                                ? "border-transparent text-black"
+                                : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                            }`}
+                            style={draft.type === t ? { background: "#E0763A" } : {}}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
+                  <Field label="Logline" error={errors.logline} hint="One to two sentences.">
+                    <input
+                      value={draft.logline}
+                      onChange={(e) => set("logline")(e.target.value)}
+                      placeholder="A young warrior..."
+                    />
+                  </Field>
+                  <Field label="Synopsis" hint="Optional detailed description.">
+                    <textarea
+                      value={draft.synopsis}
+                      onChange={(e) => set("synopsis")(e.target.value)}
+                      placeholder="Tell the full story..."
+                      rows={4}
+                    />
+                  </Field>
+                  <Field label="Runtime / Episode count" hint="Optional. e.g., 2h 7m, 22 min, 6 x 22min.">
+                    <input
+                      value={draft.runtime}
+                      onChange={(e) => set("runtime")(e.target.value)}
+                      placeholder="e.g., 6 x 22min"
+                    />
+                  </Field>
+                  <Field label="Genre" error={errors.genre}>
+                    <div className="flex flex-wrap gap-2">
+                      {GENRES.map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => set("genre")(g)}
+                          type="button"
+                          className={`px-3 py-1.5 rounded-lg text-xs border transition ${
+                            draft.genre === g
+                              ? "border-transparent text-black"
+                              : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
+                          }`}
+                          style={draft.genre === g ? { background: "#E0763A" } : {}}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                </>
+              )}
             </Card>
           </fieldset>
 
@@ -801,14 +824,18 @@ export default function EditProjectPage({ params }: PageProps) {
               border: "none",
               padding: 0,
               margin: 0,
-              opacity: projectStatus === "draft" ? 1 : 0.55,
+              opacity: 1,
               pointerEvents: projectStatus === "draft" ? "auto" : "none",
             }}
           >
             <Card className="space-y-6">
               <SectionHeading
                 title="Release Assets"
-                description="These ship with your release. Add what you have; remaining items can come later."
+                description={
+                  projectStatus !== "draft"
+                    ? "On record. Release presentation is prepared in the Release Room once your title is approved."
+                    : "These ship with your release. Add what you have; remaining items can come later."
+                }
               />
               <UploadField
                 label="Poster / Thumbnail"
@@ -898,7 +925,7 @@ export default function EditProjectPage({ params }: PageProps) {
                         disabled={submitting || saving}
                         className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
                         style={{
-                          background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                          background: "#E0763A",
                           color: "black",
                         }}
                       >
@@ -927,7 +954,7 @@ export default function EditProjectPage({ params }: PageProps) {
                         background:
                           licenseStatus === "executed"
                             ? "rgba(255,255,255,0.85)"
-                            : "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                            : "#E0763A",
                       }}
                     >
                       {licenseStatus === "executed" ? "View License" : "Sign License"}

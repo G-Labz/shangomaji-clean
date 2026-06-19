@@ -139,7 +139,7 @@ export default function SubmissionIntegrityForm({
   return (
     <fieldset
       disabled={disabled}
-      className={disabled ? "opacity-60 pointer-events-none" : ""}
+      className={disabled ? "pointer-events-none" : ""}
       style={{ border: "none", padding: 0, margin: 0 }}
     >
       {/* A. Thesis Declaration */}
@@ -286,8 +286,8 @@ export default function SubmissionIntegrityForm({
       </div>
 
       {/* F. License Awareness — institutional callout */}
-      <div className="mt-8 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] p-5">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300/85 font-semibold">
+      <div className="mt-8 rounded-xl border border-[#E0763A]/[0.3] bg-[#E0763A]/[0.05] p-5">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-[#E0763A] font-semibold">
           F · License Awareness
         </p>
         <p className="mt-2 text-[13px] text-white/80 leading-relaxed">
@@ -301,7 +301,7 @@ export default function SubmissionIntegrityForm({
             checked={value.license_awareness_ack}
             onChange={(e) => set("license_awareness_ack")(e.target.checked)}
             className="mt-1 h-4 w-4 shrink-0"
-            style={{ accentColor: "#f5c518" }}
+            style={{ accentColor: "#E0763A" }}
           />
           <span className="text-[13px] text-white/85 leading-relaxed">
             {LICENSE_AWARENESS_COPY}
@@ -392,7 +392,7 @@ function DossierTextarea({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={rows ?? 3}
-      className="w-full bg-black/40 border border-white/10 rounded-lg px-3.5 py-3 text-[13px] text-white placeholder:text-white/30 leading-relaxed outline-none focus:border-amber-500/50 focus:bg-black/55 transition resize-y"
+      className="w-full bg-black/40 border border-white/10 rounded-lg px-3.5 py-3 text-[13px] text-white placeholder:text-white/30 leading-relaxed outline-none focus:border-[#E0763A]/[0.5] focus:bg-black/55 transition resize-y"
     />
   );
 }
@@ -417,17 +417,17 @@ function ChoiceGrid({
             onClick={() => onSelect(opt.value)}
             className={`text-left px-4 py-3.5 rounded-lg border text-[13px] leading-snug transition ${
               active
-                ? "border-amber-500/50 bg-amber-500/[0.06] text-white"
+                ? "border-[#E0763A]/[0.5] bg-[#E0763A]/[0.07] text-white"
                 : "border-white/10 bg-white/[0.02] text-ink-faint hover:border-white/25 hover:text-white"
             }`}
           >
             <span className="flex items-center gap-2.5">
               <span
                 className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border ${
-                  active ? "border-amber-400/80" : "border-white/25"
+                  active ? "border-[#E0763A]/[0.7]" : "border-white/25"
                 }`}
               >
-                {active && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+                {active && <span className="h-1.5 w-1.5 rounded-full bg-[#E0763A]" />}
               </span>
               <span>{opt.label}</span>
             </span>
@@ -458,7 +458,7 @@ function AttestationRow({
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
         className="mt-1 h-4 w-4 shrink-0"
-        style={{ accentColor: "#f5c518" }}
+        style={{ accentColor: "#E0763A" }}
       />
       <span className="text-[13px] text-white/85 leading-relaxed">{label}</span>
     </label>
@@ -487,7 +487,7 @@ function ConfirmationRow({
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
         className="h-4 w-4 shrink-0"
-        style={{ accentColor: "#f5c518" }}
+        style={{ accentColor: "#E0763A" }}
       />
       <span className="text-[13px] text-white/85">{label}</span>
     </label>

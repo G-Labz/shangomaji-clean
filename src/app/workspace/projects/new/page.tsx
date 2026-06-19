@@ -295,7 +295,7 @@ export default function WorkspaceNewProject() {
                           }`}
                           style={
                             draft.type === t
-                              ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                              ? { background: "#E0763A" }
                               : {}
                           }
                           type="button"
@@ -336,7 +336,7 @@ export default function WorkspaceNewProject() {
                           }`}
                           style={
                             draft.genre === g
-                              ? { background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)" }
+                              ? { background: "#E0763A" }
                               : {}
                           }
                           type="button"
@@ -638,7 +638,7 @@ export default function WorkspaceNewProject() {
                   padding: "14px 28px",
                   borderRadius: 12,
                   border: "none",
-                  background: "linear-gradient(90deg, #e53e2a, #f07030, #f5c518)",
+                  background: "#E0763A",
                   color: "black",
                   fontSize: 14,
                   fontWeight: 700,
