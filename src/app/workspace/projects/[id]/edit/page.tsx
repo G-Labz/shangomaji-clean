@@ -674,35 +674,48 @@ export default function EditProjectPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Studio Desk — two-column on desktop, stacked on mobile.
-          Mobile source order: Identity → Release Assets → Declaration → Actions.
-          Desktop visual: Identity (top-left) | Release Assets (top-right);
-                          Declaration (bottom-left) | Actions (bottom-right, sticky).
-          Edit form is semantically disabled for any non-draft state. The
-          server-side gate in PUT /api/creators/projects rejects saves
-          from non-draft states regardless. */}
+      {/* World Room — two zones in the main column (Creative shaping first,
+          then Trust & Provenance); the submission Actions sit in the right
+          rail (sticky on desktop). Inputs are semantically disabled for any
+          non-draft state and shown as a settled record; the server-side gate
+          in PUT /api/creators/projects rejects saves from non-draft states
+          regardless. */}
       <div className="lg:flex lg:items-start lg:gap-6">
-        {/* Left/main column — Work Identity + Submission Declaration */}
+        {/* Main column — Creative zone + Trust & Provenance zone */}
         <div className="lg:flex-1 min-w-0 space-y-6">
-          <fieldset
-            disabled={projectStatus !== "draft"}
-            style={{
-              border: "none",
-              padding: 0,
-              margin: 0,
-              opacity: 1,
-              pointerEvents: projectStatus === "draft" ? "auto" : "none",
-            }}
-          >
-            <Card className="space-y-5">
-              <SectionHeading
-                title="Work Identity"
-                description={
-                  projectStatus !== "draft"
-                    ? "Settled for this stage — these details are on record while ShangoMaji handles your title."
-                    : undefined
-                }
-              />
+          {/* ── Zone 1 · Creative shaping — the Title as it currently reads ── */}
+          <section className="space-y-6">
+            <div
+              className="relative overflow-hidden rounded-2xl border px-6 py-7"
+              style={{
+                borderColor: "rgba(217,38,28,0.22)",
+                background:
+                  "linear-gradient(135deg, rgba(200,10,46,0.12) 0%, rgba(17,17,17,0.55) 48%, rgba(234,115,27,0.07) 100%)",
+              }}
+            >
+              <p className="text-[11px] uppercase tracking-[0.26em] mb-2" style={{ color: "#F6A31A" }}>
+                Title in the making
+              </p>
+              <h2
+                className="text-white font-bold tracking-tight"
+                style={{ fontFamily: "var(--font-display)", fontSize: "clamp(26px, 4.5vw, 44px)", lineHeight: 1.05 }}
+              >
+                {draft.title.trim() || "Untitled world"}
+              </h2>
+              {draft.logline.trim() && (
+                <p
+                  className="text-base italic mt-2 max-w-2xl"
+                  style={{ color: "rgba(255,255,255,0.75)", fontFamily: "var(--font-display)" }}
+                >
+                  {draft.logline.trim()}
+                </p>
+              )}
+            </div>
+
+            <fieldset
+              disabled={projectStatus !== "draft"}
+              style={{ border: "none", padding: 0, margin: 0, opacity: 1, pointerEvents: projectStatus === "draft" ? "auto" : "none" }}
+            >
               {projectStatus !== "draft" ? (
                 <div className="space-y-3">
                   {[
@@ -722,190 +735,145 @@ export default function EditProjectPage({ params }: PageProps) {
                       </span>
                     </div>
                   ))}
+                  {(draft.thumbUrl || draft.bannerUrl) && (
+                    <div className="flex items-center gap-3 pt-2">
+                      {draft.thumbUrl && <img src={draft.thumbUrl} alt="Poster" className="h-20 w-auto rounded-lg object-cover" />}
+                      {draft.bannerUrl && <img src={draft.bannerUrl} alt="Banner" className="h-20 w-auto rounded-lg object-cover" />}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <Field label="Title" error={errors.title}>
-                      <input
-                        value={draft.title}
-                        onChange={(e) => set("title")(e.target.value)}
-                        placeholder="Project title"
-                      />
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-ink-faint">Identity</p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <Field label="Title" error={errors.title}>
+                        <input value={draft.title} onChange={(e) => set("title")(e.target.value)} placeholder="Name your world" />
+                      </Field>
+                      <Field label="Type" error={errors.type}>
+                        <div className="grid grid-cols-3 gap-2">
+                          {TYPES.map((t) => (
+                            <button key={t} onClick={() => set("type")(t)} type="button"
+                              className={`py-2.5 px-3 rounded-lg border text-sm transition ${draft.type === t ? "border-transparent text-black" : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"}`}
+                              style={draft.type === t ? { background: "#E0763A" } : {}}>
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </Field>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <Field label="Runtime / Episodes" hint="Optional. e.g., 2h 7m, 6 x 22min.">
+                        <input value={draft.runtime} onChange={(e) => set("runtime")(e.target.value)} placeholder="e.g., 6 x 22min" />
+                      </Field>
+                      <Field label="Genre" error={errors.genre}>
+                        <div className="flex flex-wrap gap-2">
+                          {GENRES.map((g) => (
+                            <button key={g} onClick={() => set("genre")(g)} type="button"
+                              className={`px-3 py-1.5 rounded-lg text-xs border transition ${draft.genre === g ? "border-transparent text-black" : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"}`}
+                              style={draft.genre === g ? { background: "#E0763A" } : {}}>
+                              {g}
+                            </button>
+                          ))}
+                        </div>
+                      </Field>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 border-t border-white/8 pt-6">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-ink-faint">Premise — how the world reads</p>
+                    <Field label="Logline" error={errors.logline} hint="One to two sentences.">
+                      <input value={draft.logline} onChange={(e) => set("logline")(e.target.value)} placeholder="A young warrior..." />
                     </Field>
-                    <Field label="Type" error={errors.type}>
-                      <div className="grid grid-cols-3 gap-2">
-                        {TYPES.map((t) => (
-                          <button
-                            key={t}
-                            onClick={() => set("type")(t)}
-                            type="button"
-                            className={`py-2.5 px-3 rounded-lg border text-sm transition ${
-                              draft.type === t
-                                ? "border-transparent text-black"
-                                : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                            }`}
-                            style={draft.type === t ? { background: "#E0763A" } : {}}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
+                    <Field label="Synopsis" hint="Tell the fuller story.">
+                      <textarea value={draft.synopsis} onChange={(e) => set("synopsis")(e.target.value)} placeholder="What is this world, and what unfolds in it?" rows={5} />
                     </Field>
                   </div>
-                  <Field label="Logline" error={errors.logline} hint="One to two sentences.">
-                    <input
-                      value={draft.logline}
-                      onChange={(e) => set("logline")(e.target.value)}
-                      placeholder="A young warrior..."
-                    />
-                  </Field>
-                  <Field label="Synopsis" hint="Optional detailed description.">
-                    <textarea
-                      value={draft.synopsis}
-                      onChange={(e) => set("synopsis")(e.target.value)}
-                      placeholder="Tell the full story..."
-                      rows={4}
-                    />
-                  </Field>
-                  <Field label="Runtime / Episode count" hint="Optional. e.g., 2h 7m, 22 min, 6 x 22min.">
-                    <input
-                      value={draft.runtime}
-                      onChange={(e) => set("runtime")(e.target.value)}
-                      placeholder="e.g., 6 x 22min"
-                    />
-                  </Field>
-                  <Field label="Genre" error={errors.genre}>
-                    <div className="flex flex-wrap gap-2">
-                      {GENRES.map((g) => (
-                        <button
-                          key={g}
-                          onClick={() => set("genre")(g)}
-                          type="button"
-                          className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-                            draft.genre === g
-                              ? "border-transparent text-black"
-                              : "border-white/10 text-ink-faint hover:border-white/20 hover:text-white"
-                          }`}
-                          style={draft.genre === g ? { background: "#E0763A" } : {}}
-                        >
-                          {g}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                </>
-              )}
-            </Card>
-          </fieldset>
 
-          {/* Submission Declaration — has own disabled prop; lives outside
-              the fieldset so the integrity form's read-only branch fires
-              naturally for submitted / live / etc. states. */}
-          <Card className="space-y-4">
-            <SectionHeading
-              title="Submission Declaration"
-              description="Required for review. Drafts may be saved without it."
-            />
+                  <div className="space-y-4 border-t border-white/8 pt-6">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-ink-faint">Key art — the title&rsquo;s face</p>
+                    <UploadField
+                      label="Poster / key art"
+                      hint="2:3 portrait recommended. Becomes your title's primary image."
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      uploading={uploading["poster"]}
+                      preview={draft.thumbUrl ? (<img src={draft.thumbUrl} alt="Poster" className="h-24 w-auto rounded-lg object-cover" />) : null}
+                      onFile={async (file) => { try { const url = await uploadFile(file, "poster"); set("thumbUrl")(url); } catch (err: any) { setErrors((p) => ({ ...p, thumbUrl: err.message })); } }}
+                      onRemove={draft.thumbUrl ? () => set("thumbUrl")("") : undefined}
+                    />
+                    <UploadField
+                      label="Hero banner"
+                      hint="Wide cinematic image used in hero contexts."
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      uploading={uploading["banner"]}
+                      preview={draft.bannerUrl ? (<img src={draft.bannerUrl} alt="Banner" className="h-16 w-full rounded-lg object-cover" />) : null}
+                      onFile={async (file) => { try { const url = await uploadFile(file, "banner"); set("bannerUrl")(url); } catch (err: any) { setErrors((p) => ({ ...p, bannerUrl: err.message })); } }}
+                      onRemove={draft.bannerUrl ? () => set("bannerUrl")("") : undefined}
+                    />
+                    <Field label="Trailer link" hint="An outbound link. Your title page renders this as a single “Watch trailer” action.">
+                      <input value={draft.trailerUrl} onChange={(e) => set("trailerUrl")(e.target.value)} placeholder="https://..." />
+                    </Field>
+                  </div>
+                </div>
+              )}
+            </fieldset>
+
+            {/* The editorial argument — thesis / fit */}
+            <div className="border-t border-white/8 pt-6">
+              <SubmissionIntegrityForm
+                value={integrity}
+                onChange={setIntegrity}
+                disabled={projectStatus !== "draft"}
+                zone="thesis"
+              />
+            </div>
+          </section>
+
+          {/* ── Zone 2 · Trust & Provenance — establish the title's trust posture ── */}
+          <section className="space-y-5 border-t border-white/10 pt-8">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.26em] mb-1" style={{ color: "#E0763A" }}>
+                Trust &amp; provenance
+              </p>
+              <p className="text-sm text-ink-faint max-w-xl">
+                Establish the title&rsquo;s trust posture. Required before review; drafts can be saved as you go.
+              </p>
+            </div>
             <SubmissionIntegrityForm
               value={integrity}
               onChange={setIntegrity}
               disabled={projectStatus !== "draft"}
               fieldError={integrityError}
+              zone="trust"
             />
-          </Card>
-        </div>
-
-        {/* Right rail — Release Assets + status-conditional Actions panel */}
-        <aside className="mt-6 lg:mt-0 lg:w-[340px] lg:shrink-0 space-y-6">
-          <fieldset
-            disabled={projectStatus !== "draft"}
-            style={{
-              border: "none",
-              padding: 0,
-              margin: 0,
-              opacity: 1,
-              pointerEvents: projectStatus === "draft" ? "auto" : "none",
-            }}
-          >
-            <Card className="space-y-6">
-              <SectionHeading
-                title="Release Assets"
-                description={
-                  projectStatus !== "draft"
-                    ? "On record. Release presentation is prepared in the Release Room once your title is approved."
-                    : "These ship with your release. Add what you have; remaining items can come later."
-                }
-              />
-              <UploadField
-                label="Poster / Thumbnail"
-                hint="Square or 2:3 portrait recommended."
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                uploading={uploading["poster"]}
-                preview={
-                  draft.thumbUrl ? (
-                    <img src={draft.thumbUrl} alt="Poster" className="h-24 w-auto rounded-lg object-cover" />
-                  ) : null
-                }
-                onFile={async (file) => {
-                  try {
-                    const url = await uploadFile(file, "poster");
-                    set("thumbUrl")(url);
-                  } catch (err: any) {
-                    setErrors((p) => ({ ...p, thumbUrl: err.message }));
-                  }
-                }}
-                onRemove={draft.thumbUrl ? () => set("thumbUrl")("") : undefined}
-              />
-              <UploadField
-                label="Banner"
-                hint="Wide cinematic image used in hero contexts."
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                uploading={uploading["banner"]}
-                preview={
-                  draft.bannerUrl ? (
-                    <img src={draft.bannerUrl} alt="Banner" className="h-16 w-full rounded-lg object-cover" />
-                  ) : null
-                }
-                onFile={async (file) => {
-                  try {
-                    const url = await uploadFile(file, "banner");
-                    set("bannerUrl")(url);
-                  } catch (err: any) {
-                    setErrors((p) => ({ ...p, bannerUrl: err.message }));
-                  }
-                }}
-                onRemove={draft.bannerUrl ? () => set("bannerUrl")("") : undefined}
-              />
-              <Field label="Trailer URL" hint="An outbound link. Your public title page renders this as a single “Watch trailer” button.">
-                <input
-                  value={draft.trailerUrl}
-                  onChange={(e) => set("trailerUrl")(e.target.value)}
-                  placeholder="https://youtube.com/..."
-                />
-              </Field>
-
-              {/* Private subsection — visually separated. Server still
-                  treats sample_url as creator/admin-private (no public
-                  exposure). Field name and payload key unchanged. */}
-              <div className="border-t border-white/8 pt-5 space-y-2">
+            <fieldset
+              disabled={projectStatus !== "draft"}
+              style={{ border: "none", padding: 0, margin: 0, opacity: 1, pointerEvents: projectStatus === "draft" ? "auto" : "none" }}
+            >
+              <div className="rounded-xl border border-white/8 bg-white/[0.01] p-5 space-y-2">
                 <p className="text-[11px] uppercase tracking-widest text-ink-faint inline-flex items-center gap-1.5">
                   <Lock size={11} className="opacity-70" aria-hidden="true" />
-                  Private — admin reference only
+                  Private review screener
                 </p>
                 <p className="text-xs text-ink-muted leading-relaxed">
-                  Private reference shared with ShangoMaji review only. Not part of your public release.
+                  Shared with ShangoMaji review only. Never part of your public release.
                 </p>
-                <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
-                  <input
-                    value={draft.sampleUrl}
-                    onChange={(e) => set("sampleUrl")(e.target.value)}
-                    placeholder="https://..."
-                  />
-                </Field>
+                {projectStatus !== "draft" ? (
+                  <p className="text-sm text-white/80">
+                    {draft.sampleUrl.trim() ? draft.sampleUrl.trim() : "— none provided"}
+                  </p>
+                ) : (
+                  <Field label="Sample / Screener URL" hint="Paste a link. Direct file submissions are not supported.">
+                    <input value={draft.sampleUrl} onChange={(e) => set("sampleUrl")(e.target.value)} placeholder="https://..." />
+                  </Field>
+                )}
               </div>
-            </Card>
-          </fieldset>
+            </fieldset>
+          </section>
+        </div>
+
+        {/* Right rail — submission actions (sticky on desktop). */}
+        <aside className="mt-6 lg:mt-0 lg:w-[340px] lg:shrink-0 space-y-6">
 
           {/* Submission Actions panel — status-conditional. Pinned on
               desktop via sticky so the creator can submit without
