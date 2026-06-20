@@ -275,7 +275,7 @@ export default function ReleaseRoomPage({ params }: PageProps) {
                 </button>
                 <div className="min-w-0 pb-1">
                   <p className="text-[10px] uppercase tracking-[0.24em] mb-1.5" style={{ color: "#F6A31A" }}>ShangoMaji Title</p>
-                  <h2 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 52px)", lineHeight: 1.02 }}>{project.title}</h2>
+                  <h2 className="text-white font-bold tracking-tight break-words" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(28px, 4vw, 52px)", lineHeight: 1.02 }}>{project.title}</h2>
                   {project.logline && project.logline.trim() && (
                     <p className="text-[15px] italic mt-2 line-clamp-2 max-w-xl" style={{ color: "rgba(255,255,255,0.78)", fontFamily: "var(--font-display)" }}>{project.logline.trim()}</p>
                   )}

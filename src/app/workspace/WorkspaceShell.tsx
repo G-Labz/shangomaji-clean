@@ -322,21 +322,29 @@ export function RoomLayout({
           min-height: 0;
           width: 100%;
         }
-        .room-ribbon { flex: none; }
+        .room-ribbon { flex: none; min-width: 0; }
+        /* The stage width is a single source of truth shared by the stage and
+           the center's compression so they always stay in lock-step. */
         .room-body {
           position: relative;
           flex: 1;
+          min-width: 0;
           min-height: 0;
           overflow: hidden;
+          --stage-w: 56%;
         }
+        @media (max-width: 900px)  { .room-body { --stage-w: 64%; } }
+        @media (min-width: 1600px) { .room-body { --stage-w: 780px; } }
+        @media (max-width: 640px)  { .room-body { --stage-w: 100%; } }
         .room-left {
           height: 100%;
           display: flex;
+          min-width: 0;
           min-height: 0;
           transition: padding-right 300ms ease;
           padding-right: 0;
         }
-        .room-body[data-stage="open"] .room-left { padding-right: 58%; }
+        .room-body[data-stage="open"] .room-left { padding-right: var(--stage-w); }
         .room-rail { flex: none; height: 100%; min-height: 0; }
         .room-center {
           flex: 1;
@@ -350,35 +358,50 @@ export function RoomLayout({
           top: 0;
           right: 0;
           bottom: 0;
-          width: 58%;
+          width: var(--stage-w);
           display: flex;
           flex-direction: column;
+          min-width: 0;
           min-height: 0;
+          overflow: hidden;
           background: rgba(12,9,9,0.98);
           border-left: 1px solid rgba(255,255,255,0.1);
           transition: transform 300ms ease;
           z-index: 20;
         }
-        .room-stage[data-open="false"] { transform: translateX(102%); }
-        .room-stage[data-open="true"] { transform: translateX(0); }
+        /* Closed: parked off-canvas AND inert, so it can never intercept a click. */
+        .room-stage[data-open="false"] { transform: translateX(102%); pointer-events: none; }
+        .room-stage[data-open="true"]  { transform: translateX(0); pointer-events: auto; }
         .room-stage-head {
           flex: none;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
+          min-width: 0;
           padding: 14px 20px;
           border-bottom: 1px solid rgba(255,255,255,0.1);
         }
+        .room-stage-head > p {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        /* The instrument surface: scrolls vertically, never clips horizontally,
+           wraps long words/URLs so nothing is pushed past the right edge. */
         .room-stage-body {
           flex: 1;
+          min-width: 0;
           min-height: 0;
           overflow-y: auto;
-          padding: 20px;
+          overflow-x: hidden;
+          padding: 22px 20px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
         @media (max-width: 640px) {
           .room-body[data-stage="open"] .room-left { padding-right: 0; }
-          .room-stage { width: 100%; }
         }
       `}</style>
     </div>

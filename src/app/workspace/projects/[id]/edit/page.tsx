@@ -410,7 +410,7 @@ export default function WorldRoomPage({ params }: PageProps) {
               )}
             </div>
             <div className="min-w-0 flex-1 pt-1">
-              <h2 className="text-white font-bold tracking-tight" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(34px, 5vw, 64px)", lineHeight: 1.01 }}>{draft.title.trim() || "Untitled world"}</h2>
+              <h2 className="text-white font-bold tracking-tight break-words" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(34px, 5vw, 64px)", lineHeight: 1.01 }}>{draft.title.trim() || "Untitled world"}</h2>
               {draft.logline.trim() && (
                 <p className="mt-4 italic" style={{ fontFamily: "var(--font-display)", color: "rgba(255,255,255,0.82)", fontSize: "clamp(17px, 2.1vw, 24px)", lineHeight: 1.4 }}>{draft.logline.trim()}</p>
               )}
@@ -511,7 +511,7 @@ export default function WorldRoomPage({ params }: PageProps) {
         ) : (
           <div className="space-y-3">
             {[["Title", draft.title], ["Logline", draft.logline], ["Type", draft.type], ["Genre", draft.genre], ["Runtime", draft.runtime], ["Trailer", draft.trailerUrl]].map(([l, v]) => (
-              <div key={l} className="flex gap-4"><span className="w-24 shrink-0 text-[11px] uppercase tracking-[0.14em] pt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{l}</span><span className="text-sm text-white/80">{v && v.trim() ? v : "—"}</span></div>
+              <div key={l} className="flex gap-4"><span className="w-24 shrink-0 text-[11px] uppercase tracking-[0.14em] pt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{l}</span><span className="text-sm text-white/80 min-w-0 break-words">{v && v.trim() ? v : "—"}</span></div>
             ))}
           </div>
         )
@@ -551,6 +551,7 @@ export default function WorldRoomPage({ params }: PageProps) {
       )}
 
       <style jsx global>{`
+        .world-stage { min-width: 0; }
         .world-stage input, .world-stage textarea {
           width: 100%;
           background: rgba(0,0,0,0.35);
