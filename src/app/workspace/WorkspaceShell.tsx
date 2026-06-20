@@ -19,6 +19,14 @@ function isRoomRoute(pathname: string): boolean {
   return !!m && m[1] !== "new";
 }
 
+// Phase 11D-R6A — the New World entry ("the room before the World Room") joins
+// the same bounded-frame family as the rooms so crossing into the Studio feels
+// continuous, not a teleport from a centered page. It renders its own threshold
+// composition (no ribbon/rail); only the frame is shared.
+function usesWorkspaceFrame(pathname: string): boolean {
+  return isRoomRoute(pathname) || pathname === "/workspace/projects/new";
+}
+
 function resolveRoute(pathname: string): RouteConfig {
   // /workspace/projects/[id] (Studio Desk) and its rooms. World Room (edit),
   // Release Room (media), and Dossier all return to the Studio Desk.
@@ -180,7 +188,7 @@ function ShellHeader({ route, fullWidth }: { route: RouteConfig; fullWidth: bool
 export default function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const route = resolveRoute(pathname);
-  const room = isRoomRoute(pathname);
+  const room = usesWorkspaceFrame(pathname);
 
   // ── Bounded room frame (World Room / Release Room only) ──────────────────
   // The shell is no longer a scrolling page here: it is a fixed-height studio

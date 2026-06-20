@@ -1,12 +1,14 @@
 "use client";
 
-// Phase 11D-R3 — New Work intake (name a world into being).
+// Phase 11D-R6A — New World entry as a Threshold (not a form).
 //
-// Container collapse: there is no form box here. The title you type IS the
-// masthead-in-waiting — large display type laid directly on the canvas, with
-// an ambient ember wash bleeding behind it (no bordered card, no field stack).
-// Name the world, add an optional spark, and carry that same title straight
-// into the World Room. Reuses POST /api/creators/projects; no backend change.
+// The creator names a world and watches it begin to exist: the typed name fills
+// a Founding Masthead — the same poster-frame + display-title composition, on
+// the same ember stage, that they'll land in inside the World Room. It renders
+// in the shared workspace frame (WorkspaceShell) so crossing into the Studio is
+// one continuous step, not a teleport. Title + optional spark only; the poster
+// is a non-interactive placeholder (every world eventually gains a face). Reuses
+// POST /api/creators/projects — no backend/schema/persistence change.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -41,76 +43,107 @@ export default function StartTitlePage() {
     }
   }
 
+  const named = title.trim();
+  const ctaName = named.length > 32 ? named.slice(0, 32).trim() + "…" : named;
+
   return (
-    <div className="start-canvas relative min-h-[62vh] flex flex-col justify-center">
-      {/* Ambient ember wash — bleeds, never frames. */}
+    <div className="newworld relative flex-1 min-w-0 overflow-y-auto">
+      {/* The world's stage — the same ember atmosphere as the World Room, filling
+          the whole frame so the title is founded on a lit stage, not in dead space. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
+        className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(120% 80% at 12% 18%, rgba(200,10,46,0.16) 0%, rgba(234,115,27,0.07) 38%, transparent 70%)",
+            "radial-gradient(110% 55% at 12% 4%, rgba(200,10,46,0.16) 0%, transparent 55%), radial-gradient(90% 50% at 92% 8%, rgba(234,115,27,0.12) 0%, transparent 60%)",
         }}
       />
 
-      <p className="text-[11px] uppercase tracking-[0.3em] mb-6" style={{ color: "#F6A31A" }}>
-        Creator Studio · a new world
-      </p>
-
-      {/* The title named into being — the masthead before it has a home. */}
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") startTitle(); }}
-        placeholder="Name your world"
-        autoFocus
-        aria-label="Name your world"
-        className="title-input w-full bg-transparent border-0 outline-none text-white font-bold tracking-tight"
-        style={{ fontFamily: "var(--font-display)", fontSize: "clamp(34px, 7vw, 68px)", lineHeight: 1.02 }}
-      />
-
-      {/* A single warm rule stands in for the stage the world will occupy. */}
       <div
-        className="mt-4 mb-5 h-px w-full max-w-2xl"
-        style={{ background: "linear-gradient(90deg, rgba(224,118,58,0.55), rgba(224,118,58,0))" }}
-      />
+        className="relative min-h-full mx-auto w-full flex flex-col justify-center px-6 sm:px-10 lg:px-16 py-12"
+        style={{ maxWidth: 1180 }}
+      >
+        <p className="text-[11px] uppercase tracking-[0.3em] mb-8" style={{ color: "#F6A31A" }}>
+          Creator Studio · a new world
+        </p>
 
-      <input
-        value={spark}
-        onChange={(e) => setSpark(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") startTitle(); }}
-        placeholder="One line that captures it — optional"
-        aria-label="One-line spark (optional)"
-        className="spark-input w-full max-w-2xl bg-transparent border-0 outline-none italic"
-        style={{ fontFamily: "var(--font-display)", fontSize: "clamp(16px, 2.4vw, 22px)", color: "rgba(255,255,255,0.78)" }}
-      />
+        {/* ── Founding Masthead — poster frame + live title, the ancestor of the
+            World Room masthead. ── */}
+        <div className="grid gap-8 sm:grid-cols-[minmax(160px,200px)_1fr] items-center">
+          {/* Poster frame placeholder — NOT an uploader; it shows that every
+              world eventually gains a face (added later, in the Studio). */}
+          <div className="w-full max-w-[200px] justify-self-start">
+            <div
+              className="relative aspect-[2/3] w-full rounded-xl border flex items-center justify-center p-4 text-center"
+              style={{
+                borderColor: "rgba(255,255,255,0.14)",
+                background: "rgba(0,0,0,0.42)",
+                boxShadow: "0 28px 60px -24px rgba(0,0,0,0.9)",
+              }}
+            >
+              <div>
+                <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>the title&rsquo;s face</p>
+                <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>added in the Studio</p>
+              </div>
+            </div>
+          </div>
 
-      <p className="text-sm mt-7 max-w-md" style={{ color: "rgba(255,255,255,0.5)" }}>
-        Nothing to fill out here. Name it, and shape the rest in the Studio — the title carries
-        straight into the World Room.
-      </p>
+          {/* Live masthead — typing fills the title, exactly as it reads inside
+              the World Room (same display type, same sizes). */}
+          <div className="min-w-0">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") startTitle(); }}
+              placeholder="Name your world"
+              autoFocus
+              aria-label="Name your world"
+              className="title-input w-full bg-transparent border-0 outline-none text-white font-bold tracking-tight break-words"
+              style={{ fontFamily: "var(--font-display)", fontSize: "clamp(34px, 5vw, 64px)", lineHeight: 1.01 }}
+            />
+            <input
+              value={spark}
+              onChange={(e) => setSpark(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") startTitle(); }}
+              placeholder="One line that captures it — optional"
+              aria-label="One-line spark (optional)"
+              className="spark-input mt-4 w-full max-w-2xl bg-transparent border-0 outline-none italic"
+              style={{ fontFamily: "var(--font-display)", fontSize: "clamp(17px, 2.1vw, 24px)", color: "rgba(255,255,255,0.82)", lineHeight: 1.4 }}
+            />
+          </div>
+        </div>
 
-      {error && <p className="text-sm mt-4" style={{ color: "rgba(252,165,165,0.9)" }}>{error}</p>}
+        {/* One expectation line — what this is, where it goes, what's needed now. */}
+        <p className="text-sm mt-12 max-w-2xl" style={{ color: "rgba(255,255,255,0.55)" }}>
+          This becomes a ShangoMaji title — you&rsquo;ll shape it in the Studio. Only the name is needed to begin.
+        </p>
 
-      <div className="mt-7">
-        <button
-          onClick={startTitle}
-          disabled={busy}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-black font-semibold text-sm transition active:scale-95 disabled:opacity-60"
-          style={{ background: "#E0763A" }}
-        >
-          {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
-          {busy ? "Opening the Studio…" : "Enter Creator Studio"}
-        </button>
+        {error && <p className="text-sm mt-4" style={{ color: "rgba(252,165,165,0.9)" }}>{error}</p>}
+
+        {/* The threshold — crossing into the Studio, named. */}
+        <div className="mt-8">
+          <button
+            onClick={startTitle}
+            disabled={busy}
+            className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl text-black font-semibold text-base transition active:scale-95 disabled:opacity-60"
+            style={{ background: "#E0763A" }}
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" /> : null}
+            <span>
+              {busy ? "Opening the Studio…" : named ? <>Open &ldquo;{ctaName}&rdquo; in the Studio</> : "Name your world to begin"}
+            </span>
+            {!busy && <ArrowRight size={16} />}
+          </button>
+        </div>
       </div>
 
       <style jsx global>{`
-        .start-canvas .title-input::placeholder {
-          color: rgba(255, 255, 255, 0.26);
+        .newworld .title-input::placeholder {
+          color: rgba(255, 255, 255, 0.24);
           font-style: normal;
         }
-        .start-canvas .spark-input::placeholder {
-          color: rgba(255, 255, 255, 0.32);
+        .newworld .spark-input::placeholder {
+          color: rgba(255, 255, 255, 0.3);
         }
       `}</style>
     </div>
