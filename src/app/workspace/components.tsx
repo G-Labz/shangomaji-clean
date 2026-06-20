@@ -367,9 +367,9 @@ export function GradientButton({
   const baseClasses =
     "px-4 py-2 rounded-xl text-black font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed";
 
-  // Phase 11A-R2-1 — Studio brand correction: the primary action is the single
-  // warm Signal accent (ShangoMaji editorial), not the parent-studio gradient.
-  const style = { background: "#E0763A" } as const;
+  // Phase 12C — the primary action uses the canonical action token (Solar Orange
+  // #EA731B, ShangoMaji Ember Spectrum), with a fallback for safety.
+  const style = { background: "var(--studio-action, #EA731B)" } as const;
 
   if (href) {
     return (

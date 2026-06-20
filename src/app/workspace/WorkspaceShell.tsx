@@ -97,8 +97,49 @@ function resolveRoute(pathname: string): RouteConfig {
   };
 }
 
-const SHELL_BG =
-  "linear-gradient(135deg, #08080b 0%, #120b0b 35%, #1b0f08 65%, #09090b 100%)";
+// Phase 12C — shared lit Studio atmosphere (ShangoMaji Ember Spectrum v1).
+// Replaces the flat near-black shell: warm foundation black lit by an ambient
+// ember field + crimson power + golden warmth — "darkness as the stage floor,
+// gradient as the active light source" (Brand Kit). Workspace-scoped (shell only).
+const STUDIO_BG =
+  "radial-gradient(110% 75% at 14% -8%, rgba(234,115,27,0.13) 0%, rgba(234,115,27,0.04) 34%, transparent 62%)," + // Solar Orange ember field
+  "radial-gradient(95% 70% at 88% 6%, rgba(200,10,46,0.10) 0%, transparent 58%)," +                               // Shango Crimson power
+  "radial-gradient(120% 85% at 50% 118%, rgba(246,163,26,0.06) 0%, transparent 60%)," +                           // Golden Ember warmth
+  "linear-gradient(165deg, #0c0807 0%, #0e0a08 40%, #130d0a 72%, #0c0908 100%)";                                  // warm foundation black
+
+// Phase 12C — canonical color-role tokens, verified against the ShangoMaji
+// Branding Kit (Ember Spectrum v1). Defined on the shell <main> so the entire
+// creator-workspace subtree shares one token source; nothing sitewide changes.
+const STUDIO_TOKENS = {
+  "--studio-action":      "#EA731B", // Solar Orange — action / creation
+  "--studio-recognition": "#FFD500", // Shango Gold — recognition / prestige
+  "--studio-authority":   "#C80A2E", // Shango Crimson — authority / power
+  "--studio-danger":      "#D9261C", // Ember Red — danger (documented UI-role exception, A1)
+  "--studio-heat":        "#F6A31A", // Golden Ember — heat / in-progress
+  "--studio-ink":         "#F2F2F2", // Stage White — primary text
+  "--studio-ink-2":       "#B5B5B5", // Soft Ash — secondary text
+} as React.CSSProperties;
+
+// Phase 12C — cinematic film grain restored inside the Studio (the flat shell
+// used to cover the brand's grain). Fixed, inert, very low opacity — felt, not
+// seen. Sits under the TopNav / modals / side stage; does not affect layout.
+function StudioGrain() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1,
+        pointerEvents: "none",
+        opacity: 0.1,
+        backgroundImage:
+          "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        backgroundSize: "170px 170px",
+      }}
+    />
+  );
+}
 
 // Studio chrome strip — shared by both the scrolling pages and the bounded
 // rooms; only its inner-bar width differs (rooms own the full canvas).
@@ -199,16 +240,18 @@ export default function WorkspaceShell({ children }: { children: React.ReactNode
     return (
       <main
         style={{
+          ...STUDIO_TOKENS,
           height: "100vh",
           paddingTop: 68,
           boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          background: SHELL_BG,
+          background: STUDIO_BG,
           color: "white",
         }}
       >
+        <StudioGrain />
         <div
           style={{
             flex: "none",
@@ -232,12 +275,14 @@ export default function WorkspaceShell({ children }: { children: React.ReactNode
   return (
     <main
       style={{
+        ...STUDIO_TOKENS,
         minHeight: "100vh",
         paddingTop: 68,
-        background: SHELL_BG,
+        background: STUDIO_BG,
         color: "white",
       }}
     >
+      <StudioGrain />
       {/* Shell Header — positioned below the 68px fixed TopNav */}
       <div
         style={{
@@ -268,7 +313,9 @@ export default function WorkspaceShell({ children }: { children: React.ReactNode
    exits via close / ESC / clicking the object. No second mechanism exists.
    ────────────────────────────────────────────────────────────────────────── */
 
-export const STUDIO_SIGNAL = "#E0763A";
+// Phase 12C — the canonical action signal is now the tokenized Solar Orange
+// (#EA731B), replacing the off-kit #E0763A. Fallback keeps it valid anywhere.
+export const STUDIO_SIGNAL = "var(--studio-action, #EA731B)";
 
 export function RoomLayout({
   ribbon,
