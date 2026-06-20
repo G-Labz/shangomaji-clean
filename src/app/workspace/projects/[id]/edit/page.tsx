@@ -551,7 +551,15 @@ export default function WorldRoomPage({ params }: PageProps) {
       )}
 
       <style jsx global>{`
-        .world-stage { min-width: 0; }
+        /* P0 (R5D) — adapt the declaration form to the side stage. The shared
+           stage CSS inherits per-character wrapping; override it here with
+           readable word-level wrapping, neutralise the <fieldset> min-width
+           quirk, and let layout boxes shrink so nothing overflows or collapses
+           into vertical text. Scoped to the World Room only (Release untouched). */
+        .world-stage { min-width: 0; overflow-wrap: break-word; word-break: normal; }
+        .world-stage fieldset { min-width: 0; max-width: 100%; }
+        .world-stage :where(div, section, p, label, ul, li, blockquote, article) { min-width: 0; }
+        .world-stage input, .world-stage textarea, .world-stage select { max-width: 100%; }
         .world-stage input, .world-stage textarea {
           width: 100%;
           background: rgba(0,0,0,0.35);
