@@ -17,7 +17,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Send, Lock, ImagePlus } from "lucide-react";
+import { Loader2, Send, Lock, ImagePlus, ArrowLeft } from "lucide-react";
 import { StatusBadge, useConfirm } from "../../../components";
 import { RoomLayout, STUDIO_SIGNAL } from "../../../WorkspaceShell";
 import SubmissionIntegrityForm, {
@@ -95,6 +95,9 @@ export default function WorldRoomPage({ params }: PageProps) {
 
   const [activeFacet, setActiveFacet] = useState<Facet>("identity");
   const [stageOpen, setStageOpen]     = useState(false);
+  // Trust is too dense for the side-stage; it opens as a full-width in-room
+  // Trust Review Sheet instead (Phase 11D-R5F). The two never overlap.
+  const [trustOpen, setTrustOpen]     = useState(false);
 
   function showFeedback(msg: string) { setFeedback(msg); setTimeout(() => setFeedback(""), 2500); }
   function showError(msg: string) { setErrors((prev) => ({ ...prev, save: msg })); }
@@ -194,8 +197,14 @@ export default function WorldRoomPage({ params }: PageProps) {
     }
   }
 
-  function openFacet(f: Facet) { setActiveFacet(f); setStageOpen(true); }
+  // Identity/Premise/Thesis → lightweight side-stage. Trust → full-width sheet.
+  function selectFacet(f: Facet) {
+    setActiveFacet(f);
+    if (f === "trust") { setStageOpen(false); setTrustOpen(true); }
+    else { setTrustOpen(false); setStageOpen(true); }
+  }
   async function closeStage() { setStageOpen(false); await ambientSave(); }
+  async function closeTrust() { setTrustOpen(false); await ambientSave(); }
 
   async function handleDelete() {
     const ok = await confirm({
@@ -217,14 +226,14 @@ export default function WorldRoomPage({ params }: PageProps) {
 
   async function handleSubmit() {
     if (!draft || !validate()) {
-      if (errors.title || errors.type || errors.logline || errors.genre) openFacet("identity");
+      if (errors.title || errors.type || errors.logline || errors.genre) selectFacet("identity");
       return;
     }
     const integrityErr = checkIntegrity(integrity);
     if (integrityErr) {
       setIntegrityError(integrityErr.message);
       showError(integrityErr.message);
-      openFacet("trust");
+      selectFacet("trust");
       return;
     }
     setIntegrityError(null);
@@ -238,7 +247,7 @@ export default function WorldRoomPage({ params }: PageProps) {
       const submitData = await submitRes.json();
       if (submitRes.status === 422) {
         const msg = submitData?.error || "Submission required declaration is incomplete.";
-        setIntegrityError(msg); showError(msg); openFacet("trust"); return;
+        setIntegrityError(msg); showError(msg); selectFacet("trust"); return;
       }
       if (!submitRes.ok) throw new Error(submitData?.error || "Submit failed");
 
@@ -333,7 +342,7 @@ export default function WorldRoomPage({ params }: PageProps) {
         <h1 className="truncate font-bold text-lg text-white tracking-tight" style={{ fontFamily: "var(--font-display)" }}>{draft.title.trim() || "Untitled world"}</h1>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        <button onClick={() => openFacet("trust")} className="hidden sm:inline-flex items-center gap-1.5 text-[12px] transition hover:text-white" style={{ color: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.5)" }} title="Trust posture">
+        <button onClick={() => selectFacet("trust")} className="hidden sm:inline-flex items-center gap-1.5 text-[12px] transition hover:text-white" style={{ color: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.5)" }} title="Trust posture">
           <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.35)" }} />
           {trustEstablished ? "Trust · established" : "Trust · needs establishing"}
         </button>
@@ -371,9 +380,9 @@ export default function WorldRoomPage({ params }: PageProps) {
     <nav className="h-full flex sm:flex-col gap-1 px-3 py-5 sm:w-[176px] border-b sm:border-b-0 sm:border-r border-white/8 overflow-x-auto sm:overflow-visible" style={{ background: "rgba(8,5,6,0.4)" }} aria-label="World facets">
       <p className="hidden sm:block text-[10px] uppercase tracking-[0.22em] px-3 mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>Facets</p>
       {FACETS.map((f) => {
-        const active = activeFacet === f.key && stageOpen;
+        const active = activeFacet === f.key && (f.key === "trust" ? trustOpen : stageOpen);
         return (
-          <button key={f.key} onClick={() => openFacet(f.key)} className="relative text-left text-sm rounded-lg px-3 py-2.5 transition whitespace-nowrap"
+          <button key={f.key} onClick={() => selectFacet(f.key)} className="relative text-left text-sm rounded-lg px-3 py-2.5 transition whitespace-nowrap"
             style={{ background: active ? "rgba(224,118,58,0.16)" : "transparent", color: active ? "#F6A31A" : "rgba(255,255,255,0.6)", border: active ? "1px solid rgba(224,118,58,0.32)" : "1px solid transparent" }}>
             {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full" style={{ background: "#E0763A" }} />}
             {f.label}
@@ -384,7 +393,7 @@ export default function WorldRoomPage({ params }: PageProps) {
   );
 
   // ── Persistent center — the world as it reads, on a lit ember stage ───────
-  const center = (
+  const worldCenter = (
     <div className="relative min-h-full">
       {/* Grounded stage — ember atmosphere + hero backdrop fill the whole pane */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -399,7 +408,7 @@ export default function WorldRoomPage({ params }: PageProps) {
         <p className="text-[11px] uppercase tracking-[0.3em] mb-7" style={{ color: "#F6A31A" }}>ShangoMaji Title · in the making</p>
 
         {/* Masthead = Identity facet (the world's dominant face + name) */}
-        <FacetZone state={facetState("identity")} onOpen={() => openFacet("identity")} editable={isDraft}>
+        <FacetZone state={facetState("identity")} onOpen={() => selectFacet("identity")} editable={isDraft}>
           <div className="flex flex-col sm:flex-row gap-7 items-start" style={{ maxWidth: 980 }}>
             <div className="w-[150px] lg:w-[172px] shrink-0 aspect-[2/3] rounded-xl overflow-hidden border" style={{ borderColor: "rgba(255,255,255,0.16)", background: "rgba(0,0,0,0.5)", boxShadow: "0 28px 60px -24px rgba(0,0,0,0.9)" }}>
               {draft.thumbUrl ? (
@@ -421,7 +430,7 @@ export default function WorldRoomPage({ params }: PageProps) {
 
         {/* Reading body — premise & thesis as one continuous editorial flow */}
         <div className="mt-12 space-y-2" style={{ maxWidth: 760 }}>
-          <FacetZone state={facetState("premise")} onOpen={() => openFacet("premise")} editable={isDraft}>
+          <FacetZone state={facetState("premise")} onOpen={() => selectFacet("premise")} editable={isDraft}>
             <SectionMark>Premise</SectionMark>
             {draft.synopsis.trim()
               ? <p className="whitespace-pre-line" style={{ color: "rgba(255,255,255,0.86)", fontSize: "1.1rem", lineHeight: 1.85 }}>{draft.synopsis.trim()}</p>
@@ -430,7 +439,7 @@ export default function WorldRoomPage({ params }: PageProps) {
 
           <div className="h-px my-2" style={{ background: "rgba(255,255,255,0.08)" }} />
 
-          <FacetZone state={facetState("thesis")} onOpen={() => openFacet("thesis")} editable={isDraft}>
+          <FacetZone state={facetState("thesis")} onOpen={() => selectFacet("thesis")} editable={isDraft}>
             <SectionMark>The case for the collection</SectionMark>
             {integrity.thesis_path && (
               <p className="text-sm mb-3"><span style={{ color: "rgba(255,255,255,0.42)" }}>Declared fit · </span><span className="text-white">{fitLabel[integrity.thesis_path] || integrity.thesis_path}</span></p>
@@ -442,7 +451,7 @@ export default function WorldRoomPage({ params }: PageProps) {
 
           <div className="h-px my-2" style={{ background: "rgba(255,255,255,0.08)" }} />
 
-          <FacetZone state={facetState("trust")} onOpen={() => openFacet("trust")} editable={isDraft}>
+          <FacetZone state={facetState("trust")} onOpen={() => selectFacet("trust")} editable={isDraft}>
             <SectionMark>Standing</SectionMark>
             <p style={{ color: trustEstablished ? "#F6A31A" : "rgba(255,255,255,0.62)", fontSize: "1rem", lineHeight: 1.6 }}>
               {trustEstablished ? "Established — ownership, collaborators, AI, and prior distribution declared." : "Not yet established. The declaration is summoned here."}
@@ -532,24 +541,6 @@ export default function WorldRoomPage({ params }: PageProps) {
         <SubmissionIntegrityForm value={integrity} onChange={setIntegrity} disabled={!isDraft} zone="thesis" />
       )}
 
-      {activeFacet === "trust" && (
-        <div className="space-y-7">
-          <SubmissionIntegrityForm value={integrity} onChange={setIntegrity} disabled={!isDraft} fieldError={integrityError} zone="trust" />
-          <div className="pt-1 border-t border-white/8">
-            <p className="text-[11px] uppercase tracking-widest inline-flex items-center gap-1.5 mt-5 mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>
-              <Lock size={11} className="opacity-70" /> Private review screener
-            </p>
-            {isDraft ? (
-              <StageField label="Screener URL" hint="Shared with ShangoMaji review only.">
-                <input value={draft.sampleUrl} onChange={(e) => set("sampleUrl")(e.target.value)} placeholder="https://…" />
-              </StageField>
-            ) : (
-              <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>{draft.sampleUrl.trim() || "— none provided"}</p>
-            )}
-          </div>
-        </div>
-      )}
-
       <style jsx global>{`
         /* R5E — adapt the reused full-width declaration form to the bounded side
            stage. The stage now has a stable clamped pixel width (shell geometry),
@@ -591,6 +582,84 @@ export default function WorldRoomPage({ params }: PageProps) {
       `}</style>
     </div>
   );
+
+  // ── Trust Review Sheet — full-width, in-room (NOT the side-stage) ──────────
+  // Trust is dense provenance/legal work; it takes the main center surface at
+  // full readable width with internal scroll, while the ribbon + facet rail
+  // keep the Workbench context. A clear "Back to the world" returns to the
+  // world reading. The reused SubmissionIntegrityForm gets full width here, so
+  // its two-column choice grids, attestations, and callout are fully usable.
+  const trustSheet = (
+    <div className="trust-sheet relative min-h-full">
+      <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(85% 50% at 12% 0%, rgba(200,10,46,0.12) 0%, transparent 55%), radial-gradient(70% 45% at 92% 6%, rgba(234,115,27,0.08) 0%, transparent 60%)" }} />
+      <div className="relative mx-auto px-7 lg:px-12 py-9" style={{ maxWidth: 920 }}>
+        <div className="flex items-start justify-between gap-4 mb-8">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.28em]" style={{ color: "#E0763A" }}>Trust &amp; provenance</p>
+            <h2 className="mt-1.5 text-white font-bold tracking-tight break-words" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(24px, 3vw, 38px)", lineHeight: 1.05 }}>
+              The title&rsquo;s standing
+            </h2>
+            <p className="mt-3 text-sm max-w-2xl" style={{ color: "rgba(255,255,255,0.6)" }}>
+              Ownership, collaborators, AI, and prior distribution — the provenance ShangoMaji reviews
+              {draft.title.trim() ? <> for <span className="text-white/80">{draft.title.trim()}</span></> : null}.
+              {isDraft ? " Saved as you go." : ""}
+            </p>
+          </div>
+          <button onClick={closeTrust} className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm transition hover:bg-white/10" style={{ border: "1px solid rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.82)", background: "rgba(255,255,255,0.04)" }}>
+            <ArrowLeft size={14} /> Back to the world
+          </button>
+        </div>
+
+        {!isDraft && (
+          <p className="inline-flex items-center gap-1.5 text-[11px] mb-6" style={{ color: "rgba(255,255,255,0.45)" }}>
+            <Lock size={11} className="opacity-70" /> Settled with the label — read-only in this state.
+          </p>
+        )}
+
+        <SubmissionIntegrityForm value={integrity} onChange={setIntegrity} disabled={!isDraft} fieldError={integrityError} zone="trust" />
+
+        <div className="mt-10 pt-7 border-t border-white/8">
+          <p className="text-[11px] uppercase tracking-widest inline-flex items-center gap-1.5 mb-2.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+            <Lock size={11} className="opacity-70" /> Private review screener
+          </p>
+          {isDraft ? (
+            <div className="space-y-1.5 max-w-xl">
+              <label className="block text-sm font-medium text-white">Screener URL</label>
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Shared with ShangoMaji review only.</p>
+              <input value={draft.sampleUrl} onChange={(e) => set("sampleUrl")(e.target.value)} placeholder="https://…" />
+            </div>
+          ) : (
+            <p className="text-sm break-words" style={{ color: "rgba(255,255,255,0.8)" }}>{draft.sampleUrl.trim() || "— none provided"}</p>
+          )}
+        </div>
+
+        <div className="mt-10">
+          <button onClick={closeTrust} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-black font-semibold text-sm transition active:scale-95" style={{ background: STUDIO_SIGNAL }}>
+            <ArrowLeft size={14} /> Back to the world
+          </button>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        .trust-sheet input, .trust-sheet textarea {
+          width: 100%;
+          background: rgba(0,0,0,0.35);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 0.6rem;
+          padding: 0.7rem 0.85rem;
+          color: white;
+          font-size: 0.92rem;
+          outline: none;
+          transition: border-color 0.2s;
+          resize: vertical;
+        }
+        .trust-sheet input:focus, .trust-sheet textarea:focus { border-color: rgba(224,118,58,0.6); }
+        .trust-sheet input::placeholder, .trust-sheet textarea::placeholder { color: rgba(255,255,255,0.3); }
+      `}</style>
+    </div>
+  );
+
+  const center = trustOpen ? trustSheet : worldCenter;
 
   return (
     <>
