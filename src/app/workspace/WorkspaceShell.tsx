@@ -323,28 +323,27 @@ export function RoomLayout({
           width: 100%;
         }
         .room-ribbon { flex: none; min-width: 0; }
-        /* The stage width is a single source of truth shared by the stage and
-           the center's compression so they always stay in lock-step. */
+        /* R5E geometry — the side stage is an IN-FLOW flex sibling of the center
+           with a stable, clamped PIXEL width (never collapses to near-zero, never
+           dominates). No absolute positioning, no percentage/var width, no
+           compression-padding. The center is flex:1 and always visible; opening
+           the stage compresses it leftward, closing returns its full width. */
         .room-body {
           position: relative;
           flex: 1;
           min-width: 0;
           min-height: 0;
           overflow: hidden;
-          --stage-w: 56%;
-        }
-        @media (max-width: 900px)  { .room-body { --stage-w: 64%; } }
-        @media (min-width: 1600px) { .room-body { --stage-w: 780px; } }
-        @media (max-width: 640px)  { .room-body { --stage-w: 100%; } }
-        .room-left {
-          height: 100%;
           display: flex;
+          flex-direction: row;
+        }
+        .room-left {
+          flex: 1;
           min-width: 0;
           min-height: 0;
-          transition: padding-right 300ms ease;
-          padding-right: 0;
+          height: 100%;
+          display: flex;
         }
-        .room-body[data-stage="open"] .room-left { padding-right: var(--stage-w); }
         .room-rail { flex: none; height: 100%; min-height: 0; }
         .room-center {
           flex: 1;
@@ -354,24 +353,22 @@ export function RoomLayout({
           overflow-x: hidden;
         }
         .room-stage {
-          position: absolute;
-          top: 0;
-          right: 0;
-          bottom: 0;
-          width: var(--stage-w);
-          display: flex;
-          flex-direction: column;
+          flex: none;
+          height: 100%;
           min-width: 0;
           min-height: 0;
+          width: clamp(400px, 44vw, 600px);
+          display: flex;
+          flex-direction: column;
           overflow: hidden;
           background: rgba(12,9,9,0.98);
           border-left: 1px solid rgba(255,255,255,0.1);
-          transition: transform 300ms ease;
-          z-index: 20;
+          transition: width 280ms ease;
+          will-change: width;
         }
-        /* Closed: parked off-canvas AND inert, so it can never intercept a click. */
-        .room-stage[data-open="false"] { transform: translateX(102%); pointer-events: none; }
-        .room-stage[data-open="true"]  { transform: translateX(0); pointer-events: auto; }
+        /* Closed: collapses to zero width in flow and is inert. */
+        .room-stage[data-open="false"] { width: 0; border-left-width: 0; pointer-events: none; }
+        .room-stage[data-open="true"]  { pointer-events: auto; }
         .room-stage-head {
           flex: none;
           display: flex;
@@ -388,8 +385,8 @@ export function RoomLayout({
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        /* The instrument surface: scrolls vertically, never clips horizontally,
-           wraps long words/URLs so nothing is pushed past the right edge. */
+        /* The instrument surface: a guaranteed readable width, vertical scroll,
+           normal word-level wrapping (long URLs still break only when needed). */
         .room-stage-body {
           flex: 1;
           min-width: 0;
@@ -397,11 +394,13 @@ export function RoomLayout({
           overflow-y: auto;
           overflow-x: hidden;
           padding: 22px 20px;
-          overflow-wrap: anywhere;
-          word-break: break-word;
+          overflow-wrap: break-word;
+          word-break: normal;
         }
-        @media (max-width: 640px) {
-          .room-body[data-stage="open"] .room-left { padding-right: 0; }
+        /* Phones / very narrow: the stage becomes a full-width focused sheet so
+           the center isn't crushed (the approved mobile summon behaviour). */
+        @media (max-width: 720px) {
+          .room-stage[data-open="true"] { width: 100%; }
         }
       `}</style>
     </div>

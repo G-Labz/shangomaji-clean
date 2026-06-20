@@ -551,14 +551,15 @@ export default function WorldRoomPage({ params }: PageProps) {
       )}
 
       <style jsx global>{`
-        /* P0 (R5D) — adapt the declaration form to the side stage. The shared
-           stage CSS inherits per-character wrapping; override it here with
-           readable word-level wrapping, neutralise the <fieldset> min-width
-           quirk, and let layout boxes shrink so nothing overflows or collapses
-           into vertical text. Scoped to the World Room only (Release untouched). */
+        /* R5E — adapt the reused full-width declaration form to the bounded side
+           stage. The stage now has a stable clamped pixel width (shell geometry),
+           so the only adaptation needed here is forcing the form's two-column
+           choice grids (grid grid-cols-1 sm:grid-cols-2) to a single readable
+           column — labels keep full width and full hit areas, with no min-content
+           collapse into vertical text. Scoped to the World Room; Release unaffected. */
         .world-stage { min-width: 0; overflow-wrap: break-word; word-break: normal; }
         .world-stage fieldset { min-width: 0; max-width: 100%; }
-        .world-stage :where(div, section, p, label, ul, li, blockquote, article) { min-width: 0; }
+        .world-stage .grid.grid-cols-1 { grid-template-columns: minmax(0, 1fr) !important; }
         .world-stage input, .world-stage textarea, .world-stage select { max-width: 100%; }
         .world-stage input, .world-stage textarea {
           width: 100%;
