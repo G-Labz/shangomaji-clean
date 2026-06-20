@@ -14,7 +14,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { workStateLine, ReadinessChip, GradientButton, ReceiptLink } from "./components";
+import { workStateLine, ReadinessChip, GradientButton, ReceiptLink, WorkStatusDot } from "./components";
 import { nextAction, pipelineStage, PIPELINE_NODES, type WorkLike, type WorkAction } from "@/lib/work-state";
 import type { PublicReadiness } from "@/lib/public-visibility";
 // Read-only import of the existing creator-safe label maps. submission-integrity.ts
@@ -363,23 +363,48 @@ export function ReadinessSummary({ p }: { p: DossierWork }) {
   );
 }
 
-// Restrained shelf row — a list entry, never a promotional card.
+// Restrained shelf row — a compact, SELECTABLE world entry (face · title ·
+// standing · open), never a promotional card, table row, or library tile. Used
+// only by the Studio Desk; stays subordinate to the world in focus.
 export function ShelfRow({ p }: { p: DossierWork }) {
+  const face = isStr(p.cover_image_url) ? (p.cover_image_url as string)
+    : isStr(p.banner_url) ? (p.banner_url as string) : null;
+  const type = isStr(p.project_type) ? (p.project_type as string) : null;
+  const standing = workStateLine(p.status, p.license_status, p.public_visibility).split(" · ")[0];
+  const initial = ((p.title || "").trim().charAt(0) || "·").toUpperCase();
   return (
     <Link
       href={`/workspace/projects/${p.id}`}
-      className="flex items-center justify-between gap-4 py-3 border-b transition group"
-      style={{ borderColor: "rgba(255,255,255,0.06)" }}
+      aria-label={`Open ${p.title || "world"}`}
+      className="group flex items-center gap-3.5 rounded-xl border border-transparent bg-white/[0.02] px-3 py-2.5 transition hover:bg-[#E0763A]/[0.08] hover:border-[#E0763A]/[0.3] focus-visible:bg-[#E0763A]/[0.08] focus-visible:border-[#E0763A]/[0.3] focus-visible:outline-none"
     >
-      <div className="min-w-0">
-        <p className="text-sm text-white truncate group-hover:text-white">{p.title}</p>
-        <p className="text-[11px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.4)" }}>
-          {[isStr(p.project_type) ? p.project_type : null, workStateLine(p.status, p.license_status, p.public_visibility)]
-            .filter(Boolean)
-            .join(" · ")}
+      {/* the world's face */}
+      <div className="relative w-10 aspect-[2/3] shrink-0 overflow-hidden rounded-md border" style={{ borderColor: "rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.4)" }}>
+        {face ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={face} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(160deg, rgba(40,28,24,0.95) 0%, rgba(12,8,7,0.98) 100%)" }}>
+            <span className="font-bold" style={{ fontFamily: "var(--font-display)", fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{initial}</span>
+          </div>
+        )}
+      </div>
+
+      {/* identity + standing */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[15px] font-medium text-white/90 transition group-hover:text-white" style={{ fontFamily: "var(--font-display)" }}>
+          {p.title}
+        </p>
+        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px]" style={{ color: "rgba(255,255,255,0.48)" }}>
+          <WorkStatusDot status={p.status} licenseStatus={p.license_status} publicVisibility={p.public_visibility} />
+          <span className="truncate">{[standing, type].filter(Boolean).join("  ·  ")}</span>
         </p>
       </div>
-      <span className="text-white/25 group-hover:text-white/50 transition flex-shrink-0">→</span>
+
+      {/* open affordance */}
+      <span className="shrink-0 text-base text-white/30 transition group-hover:text-[#E0763A] group-hover:translate-x-0.5 group-focus-visible:text-[#E0763A]" aria-hidden>
+        →
+      </span>
     </Link>
   );
 }

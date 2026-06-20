@@ -172,7 +172,7 @@ export default function StudioDeskPage() {
           <p className="text-[11px] uppercase tracking-[0.2em] mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>
             Your other worlds
           </p>
-          <div>
+          <div className="-mx-3 space-y-0.5">
             {others.map((p) => <ShelfRow key={p.id} p={p} />)}
           </div>
         </section>
